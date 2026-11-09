@@ -68,7 +68,7 @@ METHOD = """
                 if (!document.getElementById('vt-scw-style')) {
                         var st = document.createElement('style');
                         st.id = 'vt-scw-style';
-                        st.textContent = ".vt-scw{margin:0 0 10px;border:1px solid rgba(127,127,127,.28);border-radius:12px;padding:12px 16px}.vt-scw-title{font-size:11px;letter-spacing:.8px;opacity:.55;margin:0 0 8px}.vt-scw-links{display:flex;flex-wrap:wrap;gap:8px}.vt-scw-links a{display:inline-flex;align-items:center;gap:6px;padding:6px 13px;border-radius:8px;border:1px solid rgba(127,127,127,.3);text-decoration:none;color:inherit;font-size:13px;font-weight:500;background:rgba(127,127,127,.06);transition:background .15s}.vt-scw-links a:hover{background:rgba(127,127,127,.14)}.vt-scw-links a svg{width:14px;height:14px;opacity:.75}.vt-scw-hint{font-size:12px;opacity:.5}";
+                        st.textContent = ".vt-scw{margin:0 0 10px;border:1px solid rgba(127,127,127,.28);border-radius:12px;padding:12px 16px}.vt-scw-title{font-size:11px;letter-spacing:.8px;opacity:.55;margin:0 0 8px}.vt-scw-links{display:flex;flex-wrap:wrap;gap:8px}.vt-scw-links a{display:inline-flex;align-items:center;gap:6px;padding:6px 13px;border-radius:8px;border:1px solid rgba(127,127,127,.3);text-decoration:none;color:inherit;font-size:13px;font-weight:500;background:rgba(127,127,127,.06);transition:background .15s}.vt-scw-links a:hover{background:rgba(127,127,127,.14)}.vt-scw-links a svg{width:14px;height:14px;opacity:.75}.vt-scw-hint{font-size:12px;opacity:.5}.vt-chip-main .vt-chip-reason.vt-ppe-chip{white-space:normal;word-break:break-word;opacity:.92}";
                         document.head.appendChild(st);
                 }
                 /* render 阶段节点尚未挂载进文档，必须用节点引用而非 getElementById */
@@ -109,26 +109,54 @@ METHOD = """
                 setInterval(load, 60000);
         }
         ,
-        /* PPE 硬件 offload 占用（CI 注入）：CPU 卡片标签行内，分引擎 IPv4/IPv6 细分 */
+        /* PPE 硬件 offload 占用（CI 注入）：System 卡片标签行 + 健康条 CPU 卡片，分引擎 IPv4/IPv6 细分 */
         initPpe: function() {
                 var self = this;
-                function load() {
-                        var el = self.el && self.el.ppeInfo;
+                function fmtPpe(d) {
+                        function part(name, p) {
+                                if (!p || !p.t) return name + ': 0 (IPv4: 0 IPv6: 0)';
+                                return name + ': ' + p.t + ' (IPv4: ' + (p.v4 || 0) + ' IPv6: ' + (p.v6 || 0) + ')';
+                        }
+                        return part('PPE0', d.ppe0) + ' ' + part('PPE1', d.ppe1);
+                }
+                function paintTile(el, text) {
                         if (!el) return;
-                        fetch('/cgi-bin/statusppe', { cache: 'no-store' }).then(function(r) { return r.json(); }).then(function(d) {
-                                if (!d || !d.hw) { el.hidden = true; return; }
-                                el.hidden = false;
-                                function part(name, p) {
-                                        if (!p || !p.t) return name + ': 0 (IPv4: 0 IPv6: 0)';
-                                        return name + ': ' + p.t + ' (IPv4: ' + (p.v4 || 0) + ' IPv6: ' + (p.v6 || 0) + ')';
-                                }
-                                el.textContent = part('PPE0', d.ppe0) + ' ' + part('PPE1', d.ppe1);
-                        }).catch(function() {
-                                if (self.el && self.el.ppeInfo) self.el.ppeInfo.hidden = true;
+                        if (!text) { el.hidden = true; return; }
+                        el.hidden = false;
+                        if (el.textContent !== text) el.textContent = text;
+                }
+                function cpuChips() {
+                        var found = [];
+                        document.querySelectorAll('.vt-chip').forEach(function(chip) {
+                                var t = chip.querySelector('.vt-chip-title'), main = chip.querySelector('.vt-chip-main');
+                                if (t && main && t.textContent === 'CPU') found.push(main);
                         });
+                        return found;
+                }
+                function load() {
+                        fetch('/cgi-bin/statusppe', { cache: 'no-store' }).then(function(r) { return r.json(); }).then(function(d) {
+                                var text = (d && d.hw) ? fmtPpe(d) : null;
+                                paintTile(self.el && self.el.ppeInfo, text);
+                                cpuChips().forEach(function(main) {
+                                        if (!main.ppeChip) {
+                                                main.ppeChip = document.createElement('span');
+                                                main.ppeChip.className = 'vt-chip-reason vt-ppe-chip';
+                                                main.appendChild(main.ppeChip);
+                                        }
+                                        main.ppeChip.hidden = !text;
+                                        if (text && main.ppeChip.textContent !== text) main.ppeChip.textContent = text;
+                                        if (!text && main.ppeChip.textContent) main.ppeChip.textContent = '';
+                                });
+                        }).catch(function() { paintTile(self.el && self.el.ppeInfo, null); });
                 }
                 load();
                 setInterval(load, 30000);
+                /* 健康条芯片重建后自动补 PPE 行 */
+                var target = (self.el && self.el.health) || document.querySelector('.vt-health');
+                if (target && window.MutationObserver) {
+                        var mo = new MutationObserver(function() { load(); });
+                        mo.observe(target, { childList: true, subtree: true });
+                }
         }"""
 
 tail = src.rstrip()
