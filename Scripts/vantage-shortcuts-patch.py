@@ -16,22 +16,21 @@ if 'vt-scw-links' in src:
     print('vantage-shortcuts: already patched, skip')
     sys.exit(0)
 
-GRID_RE = re.compile(
-    r"this\.el\.grid\s*=\s*E\('div',\s*\{\s*'class':\s*'vt-grid vt-grid-wait'\s*\}\s*,\s*this\.buildTiles\(\)\)")
+HEALTH_RE = re.compile(r"this\.el\.health\s*=")
 POLL_RE = re.compile(
     r"poll\.add\(L\.bind\(this\.refresh\s*,\s*this\)\s*,\s*POLL_S\)\s*;")
 
-m = GRID_RE.search(src)
+m = HEALTH_RE.search(src)
 if not m:
-    print('vantage-shortcuts: grid anchor not found', file=sys.stderr)
+    print('vantage-shortcuts: health anchor not found', file=sys.stderr)
     sys.exit(1)
-src = src[:m.end()] + (
-    ",\n"
-    "\t\t\tthis.el.shortcuts = E('section', { 'class': 'vt-scw', 'id': 'vt-scw' }, [\n"
+src = src[:m.start()] + (
+    "this.el.shortcuts = E('section', { 'class': 'vt-scw', 'id': 'vt-scw' }, [\n"
     "\t\t\t\tE('div', { 'class': 'vt-scw-title' }, '快捷方式'),\n"
     "\t\t\t\tE('div', { 'class': 'vt-scw-links', 'id': 'vt-scw-links' }, [ E('span', { 'class': 'vt-scw-hint' }, '加载中…') ])\n"
-    "\t\t\t])"
-) + src[m.end():]
+    "\t\t\t]),\n"
+    "\t\t\t"
+) + src[m.start():]
 
 m2 = POLL_RE.search(src)
 if not m2:
@@ -41,12 +40,12 @@ src = src[:m2.end()] + "\n\t\tthis.initShortcuts();" + src[m2.end():]
 
 METHOD = """
         ,
-        /* statusfw 快捷方式条（CI 注入）：仪表盘网格下方独立区块，不参与 tile 布局 */
+        /* statusfw 快捷方式条（CI 注入）：仪表盘页头下方顶部，独立区块不参与 tile 布局 */
         initShortcuts: function() {
                 if (!document.getElementById('vt-scw-style')) {
                         var st = document.createElement('style');
                         st.id = 'vt-scw-style';
-                        st.textContent = ".vt-scw{margin-top:2px;border:1px solid rgba(127,127,127,.28);border-radius:12px;padding:12px 16px}.vt-scw-title{font-size:11px;letter-spacing:.8px;opacity:.55;margin:0 0 8px}.vt-scw-links{display:flex;flex-wrap:wrap;gap:8px}.vt-scw-links a{display:inline-flex;align-items:center;gap:6px;padding:6px 13px;border-radius:8px;border:1px solid rgba(127,127,127,.3);text-decoration:none;color:inherit;font-size:13px;font-weight:500;background:rgba(127,127,127,.06);transition:background .15s}.vt-scw-links a:hover{background:rgba(127,127,127,.14)}.vt-scw-links a svg{width:14px;height:14px;opacity:.75}.vt-scw-hint{font-size:12px;opacity:.5}";
+                        st.textContent = ".vt-scw{margin:0 0 10px;border:1px solid rgba(127,127,127,.28);border-radius:12px;padding:12px 16px}.vt-scw-title{font-size:11px;letter-spacing:.8px;opacity:.55;margin:0 0 8px}.vt-scw-links{display:flex;flex-wrap:wrap;gap:8px}.vt-scw-links a{display:inline-flex;align-items:center;gap:6px;padding:6px 13px;border-radius:8px;border:1px solid rgba(127,127,127,.3);text-decoration:none;color:inherit;font-size:13px;font-weight:500;background:rgba(127,127,127,.06);transition:background .15s}.vt-scw-links a:hover{background:rgba(127,127,127,.14)}.vt-scw-links a svg{width:14px;height:14px;opacity:.75}.vt-scw-hint{font-size:12px;opacity:.5}";
                         document.head.appendChild(st);
                 }
                 /* render 阶段节点尚未挂载进文档，必须用节点引用而非 getElementById */
