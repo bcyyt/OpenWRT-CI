@@ -109,24 +109,20 @@ METHOD = """
                 setInterval(load, 60000);
         }
         ,
-        /* PPE 硬件 offload 占用（CI 注入）：CPU 卡片标签行内显示绑定流数与转发速率 */
+        /* PPE 硬件 offload 占用（CI 注入）：CPU 卡片标签行内，分引擎 IPv4/IPv6 细分 */
         initPpe: function() {
                 var self = this;
-                function fmtPps(v) {
-                        if (v >= 1000000) return (v / 1000000).toFixed(1) + 'M';
-                        if (v >= 1000) return (v / 1000).toFixed(1) + 'k';
-                        return String(v);
-                }
                 function load() {
                         var el = self.el && self.el.ppeInfo;
                         if (!el) return;
                         fetch('/cgi-bin/statusppe', { cache: 'no-store' }).then(function(r) { return r.json(); }).then(function(d) {
-                                var p = d && d.ppe;
-                                if (!p || !p.hw) { el.hidden = true; return; }
+                                if (!d || !d.hw) { el.hidden = true; return; }
                                 el.hidden = false;
-                                el.textContent = (p.flows > 0
-                                        ? 'PPE ' + p.flows + ' 流' + (p.pps != null && p.pps > 0 ? ' · ' + fmtPps(p.pps) + ' pps' : '')
-                                        : 'PPE 空闲');
+                                function part(name, p) {
+                                        if (!p || !p.t) return name + ': 0 (IPv4: 0 IPv6: 0)';
+                                        return name + ': ' + p.t + ' (IPv4: ' + (p.v4 || 0) + ' IPv6: ' + (p.v6 || 0) + ')';
+                                }
+                                el.textContent = part('PPE0', d.ppe0) + ' ' + part('PPE1', d.ppe1);
                         }).catch(function() {
                                 if (self.el && self.el.ppeInfo) self.el.ppeInfo.hidden = true;
                         });
