@@ -187,11 +187,11 @@ define Package/$PKG_NAME
 endef
 
 define Build/Prepare
-	rm -rf \$(PKG_BUILD_DIR)
-	mkdir -p \$(PKG_BUILD_DIR)/ipk \$(PKG_BUILD_DIR)/root
-	$PKG_UNPACK
-	tar -C \$(PKG_BUILD_DIR)/root -xzf \$(PKG_BUILD_DIR)/ipk/data.tar.gz
-	$PKG_PATCH
+        rm -rf \$(PKG_BUILD_DIR)
+        mkdir -p \$(PKG_BUILD_DIR)/ipk \$(PKG_BUILD_DIR)/root
+        $PKG_UNPACK
+        tar -C \$(PKG_BUILD_DIR)/root -xzf \$(PKG_BUILD_DIR)/ipk/data.tar.gz
+        $PKG_PATCH
 endef
 
 define Build/Compile
@@ -202,7 +202,7 @@ $PKG_CONFFILES
 endef
 
 define Package/$PKG_NAME/install
-	\$(CP) \$(PKG_BUILD_DIR)/root/. \$(1)/
+        \$(CP) \$(PKG_BUILD_DIR)/root/. \$(1)/
 endef
 
 \$(eval \$(call BuildPackage,$PKG_NAME))
@@ -212,8 +212,19 @@ EOF
 }
 
 #===iptv-auth：版本与下载地址来自version.json，始终跟随OTA仓最新版===
-IPTV_VER=$(curl -fsSL --retry 3 --connect-timeout 15 "$BCYYT_RAW/iptv-auth/version.json" | jq -r ".version" 2>/dev/null)
-[ -n "$IPTV_VER" ] || IPTV_VER="2.3.70-r15"
+# 容错：OTA 仓只更新了 apk、尚未上传对应 ipk 时（version.json 已指向新版本但 ipk 404），
+# 自动回退到「最近一个三架构 ipk 齐全」的历史版本，避免编译失败；ipk 补传后自动跟上。
+IPTV_RAW_VER=$(curl -fsSL --retry 3 --connect-timeout 15 "$BCYYT_RAW/iptv-auth/version.json" | jq -r ".version" 2>/dev/null)
+[ -n "$IPTV_RAW_VER" ] || IPTV_RAW_VER="2.3.70-r15"
+iptv_ipk_ok() { curl -fsIL --retry 2 --connect-timeout 10 "$BCYYT_RAW/iptv-auth/iptv-auth_${1}_aarch64.ipk" > /dev/null 2>&1; }
+IPTV_VER="$IPTV_RAW_VER"
+if ! iptv_ipk_ok "$IPTV_VER"; then
+        echo "iptv-auth $IPTV_VER ipk missing on OTA repo (apk-only release), falling back..."
+        for IPTV_FALLBACK in $(curl -fsSL --retry 3 --connect-timeout 15 "$BCYYT_RAW/iptv-auth/version.json" | jq -r ".changelogs[].version" 2>/dev/null); do
+                if iptv_ipk_ok "$IPTV_FALLBACK"; then IPTV_VER="$IPTV_FALLBACK"; break; fi
+        done
+        [ "$IPTV_VER" != "$IPTV_RAW_VER" ] && echo "iptv-auth ipk fallback: $IPTV_RAW_VER -> $IPTV_VER (upload r${IPTV_RAW_VER##*-r} ipk to restore)"
+fi
 echo "iptv-auth latest version: $IPTV_VER"
 
 IPTV_HASH_x86_64=$(BCYYT_SHA256 "$BCYYT_RAW/iptv-auth/iptv-auth_${IPTV_VER}_x86_64.ipk")
