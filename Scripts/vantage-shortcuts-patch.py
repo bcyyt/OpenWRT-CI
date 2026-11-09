@@ -117,7 +117,7 @@ METHOD = """
                                 if (!p || !p.t) return name + ': 0 (IPv4: 0 IPv6: 0)';
                                 return name + ': ' + p.t + ' (IPv4: ' + (p.v4 || 0) + ' IPv6: ' + (p.v6 || 0) + ')';
                         }
-                        return part('PPE0', d.ppe0) + ' ' + part('PPE1', d.ppe1);
+                        return 'USR: ' + (d.usr || 0) + '% SYS: ' + (d.sys || 0) + '% ' + part('PPE0', d.ppe0) + ' ' + part('PPE1', d.ppe1);
                 }
                 function paintTile(el, text) {
                         if (!el) return;
