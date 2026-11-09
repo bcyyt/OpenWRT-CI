@@ -36,7 +36,30 @@ m2 = POLL_RE.search(src)
 if not m2:
     print('vantage-shortcuts: poll anchor not found', file=sys.stderr)
     sys.exit(1)
-src = src[:m2.end()] + "\n\t\tthis.initShortcuts();" + src[m2.end():]
+src = src[:m2.end()] + "\n\t\tthis.initShortcuts();\n\t\tthis.initPpe();" + src[m2.end():]
+
+# --- CPU 卡片 PPE 显示（v3）：兼容 main 源码版与 apk 压缩版两种 buildSystem ---
+PPE_DEF_RE = re.compile(
+    r"(el\.cpuTemp\s*=\s*E\('span'\s*,\s*\{\s*'class'\s*:\s*'vt-hint vt-tn'\s*\}\s*\)(\s*[;,]?))"
+    r"|(el\.cpuLoad\s*=\s*E\('span',\s*\{\s*'class':\s*'vt-hint vt-tn',\s*'title':\s*_\('Load average over 1, 5 and 15 minutes'\)\s*\}\s*\)\s*;)")
+m3 = PPE_DEF_RE.search(src)
+if not m3:
+    print('vantage-shortcuts: ppe def anchor not found', file=sys.stderr)
+    sys.exit(1)
+if m3.group(1):
+    src = src[:m3.end(1)] + "el.ppeInfo=E('span',{'class':'vt-hint vt-tn','id':'vt-ppe','hidden':''})" + m3.group(2) + src[m3.end(1):]
+else:
+    src = src[:m3.end(3)] + "\n\t\tel.ppeInfo = E('span', { 'class': 'vt-hint vt-tn', 'id': 'vt-ppe', 'hidden': '' });" + src[m3.end(3):]
+
+PPE_REF_COMPACT = re.compile(r"el\.cpuLoad\s*,\s*el\.cpuTemp\s*\]\)")
+PPE_REF_MAIN = re.compile(r"(el\.cpuVal,\s*el\.cpuLoad)(\s*\n\s*\])")
+if PPE_REF_COMPACT.search(src):
+    src = PPE_REF_COMPACT.sub("el.cpuLoad,el.cpuTemp,el.ppeInfo])", src, count=1)
+elif PPE_REF_MAIN.search(src):
+    src = PPE_REF_MAIN.sub(r"\1, el.ppeInfo\2", src, count=1)
+else:
+    print('vantage-shortcuts: ppe ref anchor not found', file=sys.stderr)
+    sys.exit(1)
 
 METHOD = """
         ,
@@ -84,6 +107,32 @@ METHOD = """
                 }
                 load();
                 setInterval(load, 60000);
+        }
+        ,
+        /* PPE 硬件 offload 占用（CI 注入）：CPU 卡片标签行内显示绑定流数与转发速率 */
+        initPpe: function() {
+                var self = this;
+                function fmtPps(v) {
+                        if (v >= 1000000) return (v / 1000000).toFixed(1) + 'M';
+                        if (v >= 1000) return (v / 1000).toFixed(1) + 'k';
+                        return String(v);
+                }
+                function load() {
+                        var el = self.el && self.el.ppeInfo;
+                        if (!el) return;
+                        fetch('/cgi-bin/statusppe', { cache: 'no-store' }).then(function(r) { return r.json(); }).then(function(d) {
+                                var p = d && d.ppe;
+                                if (!p || !p.hw) { el.hidden = true; return; }
+                                el.hidden = false;
+                                el.textContent = (p.flows > 0
+                                        ? 'PPE ' + p.flows + ' 流' + (p.pps != null && p.pps > 0 ? ' · ' + fmtPps(p.pps) + ' pps' : '')
+                                        : 'PPE 空闲');
+                        }).catch(function() {
+                                if (self.el && self.el.ppeInfo) self.el.ppeInfo.hidden = true;
+                        });
+                }
+                load();
+                setInterval(load, 30000);
         }"""
 
 tail = src.rstrip()

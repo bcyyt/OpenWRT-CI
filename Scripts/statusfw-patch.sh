@@ -8,7 +8,8 @@
 #   2) 一级菜单改名「网络与防火墙」，默认页改指向「网络」页；页内 tab 移除快捷方式项
 #      —— 快捷入口由 Vantage 仪表盘顶部的快捷方式条承担（见 vantage-shortcuts-patch.py）
 #   3) 页面风格对齐 Vantage：fwm-* 颜色接入主题变量，亮暗模式自动跟随
-#   4) 剔除内嵌文件管理器（由 feed 版 luci-app-filemanager 提供，避免文件冲突）
+#   4) PPE 硬件 offload 占用数据源：root 采样守护 + procd 服务 + nobody CGI
+#   5) 剔除内嵌文件管理器（由 feed 版 luci-app-filemanager 提供，避免文件冲突）
 set -e
 ROOT="$1/root"
 
@@ -49,7 +50,15 @@ sed -i \
   -e 's/font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif/font-family:var(--font)/' \
   "$FWM"
 
-# 4) 剔除内嵌文件管理器相关文件（保留 feed 版 luci-app-filemanager）
+# 4) PPE 硬件 offload 采样三件套（仪表盘 CPU 卡片显示；root 守护采样 debugfs，nobody CGI 转发）
+install -m 755 "$GITHUB_WORKSPACE/Scripts/statusppe-worker.sh" \
+   "$ROOT/usr/lib/statusppe-worker.sh"
+install -m 755 "$GITHUB_WORKSPACE/Scripts/statusppe-initd" \
+   "$ROOT/etc/init.d/statusppe"
+install -m 755 "$GITHUB_WORKSPACE/Scripts/statusppe-cgi.sh" \
+   "$ROOT/www/cgi-bin/statusppe"
+
+# 5) 剔除内嵌文件管理器相关文件（保留 feed 版 luci-app-filemanager）
 rm -rf "$ROOT/www/luci-static/resources/view/system/filemanager" \
        "$ROOT/usr/share/luci/menu.d/luci-app-filemanager.json" \
        "$ROOT/usr/share/rpcd/acl.d/luci-app-filemanager.json" \

@@ -1,0 +1,13 @@
+#!/bin/sh /etc/rc.common
+# statusppe — PPE 硬件 offload 采样守护（root），供仪表盘 CPU 卡片显示
+# 采样 /sys/kernel/debug/ppe{0,1}/bind，写 /tmp/statusppe.json 供 nobody 身份的 CGI 读取
+
+START=99
+USE_PROCD=1
+
+start_service() {
+	procd_open_instance
+	procd_set_param command /bin/sh /usr/lib/statusppe-worker.sh
+	procd_set_param respawn 3600 5 0
+	procd_close_instance
+}
