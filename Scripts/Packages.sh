@@ -151,7 +151,7 @@ BCYYT_SHA256() {
 }
 
 #生成内置包Makefile：把预编译ipk的data.tar.gz原样装入rootfs
-#参数：包名 版本 描述 依赖 ipk解包命令(external make语法) conffiles列表 额外架构头部
+#参数：包名 版本 描述 依赖 ipk解包命令(external make语法) conffiles列表 额外架构头部 编译期patch命令(可选,在root解包后执行)
 BCYYT_INJECT() {
         local PKG_NAME=$1
         local PKG_VER=$2
@@ -160,6 +160,7 @@ BCYYT_INJECT() {
         local PKG_UNPACK=$5
         local PKG_CONFFILES=$6
         local PKG_HEADER=$7
+        local PKG_PATCH=$8
         local PKG_DIR="./package/bcyyt/$PKG_NAME"
 
         mkdir -p "$PKG_DIR"
@@ -186,10 +187,11 @@ define Package/$PKG_NAME
 endef
 
 define Build/Prepare
-	rm -rf \$(PKG_BUILD_DIR)
-	mkdir -p \$(PKG_BUILD_DIR)/ipk \$(PKG_BUILD_DIR)/root
-	$PKG_UNPACK
-	tar -C \$(PKG_BUILD_DIR)/root -xzf \$(PKG_BUILD_DIR)/ipk/data.tar.gz
+        rm -rf \$(PKG_BUILD_DIR)
+        mkdir -p \$(PKG_BUILD_DIR)/ipk \$(PKG_BUILD_DIR)/root
+        $PKG_UNPACK
+        tar -C \$(PKG_BUILD_DIR)/root -xzf \$(PKG_BUILD_DIR)/ipk/data.tar.gz
+        $PKG_PATCH
 endef
 
 define Build/Compile
@@ -200,7 +202,7 @@ $PKG_CONFFILES
 endef
 
 define Package/$PKG_NAME/install
-	\$(CP) \$(PKG_BUILD_DIR)/root/. \$(1)/
+        \$(CP) \$(PKG_BUILD_DIR)/root/. \$(1)/
 endef
 
 \$(eval \$(call BuildPackage,$PKG_NAME))
@@ -260,6 +262,25 @@ BCYYT_INJECT "luci-app-syskeep" "$SYSKEEP_VER" \
         "PKG_SOURCE:=luci-app-syskeep_\$(PKG_VERSION)_x86_64.ipk
 PKG_SOURCE_URL:=$BCYYT_RAW/luci-app-syskeep
 PKG_HASH:=$SYSKEEP_HASH"
+
+#===luci-app-statusfw（状态与防火墙）：剔除状态页保留快捷方式（状态信息由Vantage仪表盘承担），版本跟随OTA仓最新版===
+STATUSFW_VER=$(curl -fsSL --retry 3 --connect-timeout 15 "$BCYYT_API/luci-app-statusfw" | jq -r ".[].name" 2>/dev/null | grep -E "^luci-app-statusfw_.*_x86_64\.ipk$" | sed "s/luci-app-statusfw_//;s/_x86_64.ipk//" | sort -V | tail -1)
+[ -n "$STATUSFW_VER" ] || STATUSFW_VER="5.0.15"
+echo "luci-app-statusfw latest version: $STATUSFW_VER"
+
+STATUSFW_HASH=$(BCYYT_SHA256 "$BCYYT_RAW/luci-app-statusfw/luci-app-statusfw_${STATUSFW_VER}_x86_64.ipk")
+
+BCYYT_INJECT "luci-app-statusfw" "$STATUSFW_VER" \
+        "LuCI 状态与防火墙：快捷方式、端口转发、规则管理、安全监测、系统日志（状态页已剔除，由仪表盘承担）" \
+        "+luci-base +luci-compat +python3 +nftables +firewall4" \
+        "tar -C \$(PKG_BUILD_DIR)/ipk -xzf \$(DL_DIR)/\$(PKG_SOURCE)" \
+        "/etc/config/statusfw-net
+/etc/config/fwmanager
+/etc/config/statusmon" \
+        "PKG_SOURCE:=luci-app-statusfw_\$(PKG_VERSION)_x86_64.ipk
+PKG_SOURCE_URL:=$BCYYT_RAW/luci-app-statusfw
+PKG_HASH:=$STATUSFW_HASH" \
+        "bash $GITHUB_WORKSPACE/Scripts/statusfw-patch.sh \$(PKG_BUILD_DIR)"
 
 #引入私有扩展脚本
 if [ -f "$GITHUB_WORKSPACE/Scripts/PRIVATE.sh" ]; then

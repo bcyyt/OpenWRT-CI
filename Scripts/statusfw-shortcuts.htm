@@ -1,0 +1,99 @@
+<%#
+  statusmon/status.htm — LuCI 视图模板：快捷方式页（CI 改造版 v1）
+  由 Scripts/Packages.sh 编译期注入，替换原「状态监控」页。
+  原页面的纯状态区块（系统性能/温度/WAN 流量/连接/服务）已剔除，
+  状态信息由 Vantage 仪表盘承担，本页仅保留快捷入口。
+%>
+<%+header%>
+<style>
+:root{--sm-p:#2563eb;--sm-pl:#60a5fa;--sm-pb:#eff6ff;--sm-ac:#06b6d4;--sm-s:#16a34a;--sm-sb:#f0fdf4;--sm-w:#d97706;--sm-wb:#fffbeb;--sm-d:#dc2626;--sm-db:#fef2f2;--sm-r:12px;--sm-rs:10px;--sm-g50:#f8fafc;--sm-g100:#f1f5f9;--sm-g200:#e2e8f0;--sm-g300:#cbd5e1;--sm-g400:#94a3b8;--sm-g500:#64748b;--sm-g600:#475569;--sm-g700:#334155;--sm-g800:#1e293b;--sm-g900:#0f172a;--sm-mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+.sm-card{background:#fff;border:1px solid var(--sm-g200);border-radius:var(--sm-r);box-shadow:0 1px 2px rgba(16,24,40,.04);overflow:hidden}
+.sm-sc{display:flex;gap:8px;flex-wrap:wrap;padding:2px 0 14px}
+.sm-sc a{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:8px;border:1px solid var(--sm-g200);background:#fff;text-decoration:none;color:var(--sm-g600);font-size:13px;font-weight:500;transition:background .15s,border-color .15s,color .15s}
+.sm-sc a:hover{background:var(--sm-g50);border-color:#cbd5e1;color:var(--sm-g800)}
+.sm-sc a svg{width:14px;height:14px;color:var(--sm-p)}
+.sm-sc-note{font-size:12px;color:var(--sm-g400);margin:4px 0 0}
+.sm-hint{display:flex;align-items:center;gap:10px;padding:14px 16px;background:var(--sm-g50);border-top:1px solid var(--sm-g100)}
+.sm-hint .dot{width:8px;height:8px;border-radius:50%;background:var(--sm-g300);flex-shrink:0}
+.sm-hint .dot.live{background:var(--sm-s);box-shadow:0 0 0 3px var(--sm-sb)}
+.sm-hint span{font-size:12px;color:var(--sm-g500);line-height:1.5}
+@media(max-width:480px){
+  .sm-sc{grid-template-columns:1fr}
+}
+</style>
+<%+fwmanager/common_head%>
+<div class="fwm-wrap">
+<%+fwmanager/page_head%>
+<%+fwmanager/nav%>
+
+<!-- 快捷入口：文件管理固定；其余由 CGI shortcuts 按已开启服务填充 -->
+<div class="sm-card" style="margin-bottom:14px">
+  <div class="sm-ch"><h2><span class="sm-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg></span>快捷方式</h2><span class="meta" id="sm-sc-sum"></span></div>
+  <div class="sm-cb">
+    <div class="sm-sc" id="sm-sc">
+      <a href="/cgi-bin/luci/admin/network/network"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12.55a11 11 0 0114.08 0"/><path d="M1.42 9a16 16 0 0121.16 0"/><path d="M8.53 16.11a6 6 0 016.95 0"/></svg>网络设置</a>
+      <a href="/cgi-bin/luci/admin/system/admin"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 01-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-2.83-2.83l.06-.06A1.65 1.65 0 004.6 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.6a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>系统管理</a>
+      <a href="/cgi-bin/luci/admin/system/filemanager"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>文件管理</a>
+    </div>
+    <div class="sm-hint"><span class="dot" id="sm-sc-dot"></span><span>快捷入口按已开启的服务自动填充；实时状态请看首页「仪表盘」，防火墙操作在上方标签页中。</span></div>
+  </div>
+</div>
+</div>
+<script>
+'use strict';
+function sm_esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+function sm_scHref(href){
+  if(!href||href.charAt(0)==='/')return href;
+  try{
+    var u=new URL(href,location.href);
+    u.hostname=location.hostname;
+    return u.href;
+  }catch(e){return href;}
+}
+var SM_SC_ICONS={
+  iptv:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><polyline points="8 21 12 17 16 21"/></svg>',
+  mediahub:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="2"/><circle cx="12" cy="12" r="4"/></svg>',
+  rtp2httpd:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>',
+  lucky:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 010 20 15.3 15.3 0 010-20"/></svg>',
+  daed:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>',
+  natfrp:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>',
+  docker:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="10" width="4" height="4"/><rect x="7" y="10" width="4" height="4"/><rect x="12" y="10" width="4" height="4"/><rect x="7" y="5" width="4" height="4"/><path d="M2 15h16a4 4 0 004-4"/></svg>',
+  ttyd:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>',
+  upnp:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 01-2.83 2.83"/></svg>'
+};
+function sm_renderShortcuts(list){
+  var wrap=document.getElementById('sm-sc');if(!wrap)return;
+  Array.prototype.slice.call(wrap.querySelectorAll('a[data-sc]')).forEach(function(n){n.parentNode.removeChild(n)});
+  var fm=wrap.querySelector('a[href*="filemanager"]');
+  var n=0;
+  (list||[]).forEach(function(s){
+    if(!s||!s.href||!s.label)return;
+    n++;
+    var a=document.createElement('a');
+    a.setAttribute('data-sc',s.id||'');
+    a.href=sm_scHref(s.href);
+    if(s.target==='_blank'||s.id==='rtp2httpd'){
+      a.target='_blank';
+      a.rel='noopener noreferrer';
+    }
+    a.innerHTML=(SM_SC_ICONS[s.id]||'')+s.label;
+    if(fm)wrap.insertBefore(a,fm);else wrap.appendChild(a);
+  });
+  var sum=document.getElementById('sm-sc-sum');
+  if(sum)sum.textContent=(n+3)+' 个入口';
+}
+async function sm_load(){
+  var dot=document.getElementById('sm-sc-dot');
+  try{
+    var r=await fetch('/cgi-bin/statusmon',{cache:'no-store'});
+    var d=await r.json();
+    sm_renderShortcuts(d.shortcuts);
+    if(dot)dot.classList.add('live');
+  }catch(e){
+    if(dot)dot.classList.remove('live');
+  }
+}
+sm_load();
+setInterval(sm_load,60000);
+</script>
+<%+footer%>
