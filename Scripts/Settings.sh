@@ -28,6 +28,38 @@ sed -i "s/hostname='.*'/hostname='$WRT_NAME'/g" $CFG_FILE
 mkdir -p ./package/base-files/files/etc/sysctl.d
 echo "net.core.rmem_max=67108864" > ./package/base-files/files/etc/sysctl.d/99-rmem.conf
 
+#===自动挂载eMMC剩余分区为数据盘：mmcblk0p6(data) → /mnt/data===
+#首次启动自动格式化并写入fstab；幂等：已挂载/已配置则跳过；绝不重格已有数据的分区
+mkdir -p ./package/base-files/files/etc/uci-defaults
+cat > ./package/base-files/files/etc/uci-defaults/99-datadisk <<'DATADISK'
+#!/bin/sh
+DEV="/dev/mmcblk0p6"
+MNT="/mnt/data"
+[ -b "$DEV" ] || exit 0
+mkdir -p "$MNT"
+mount | grep -q " on $MNT " && exit 0
+UUID=$(blkid -s UUID -o value "$DEV" 2>/dev/null)
+if [ -z "$UUID" ]; then
+        command -v mkfs.ext4 >/dev/null 2>&1 || exit 0
+        mkfs.ext4 -L data "$DEV" >/dev/null 2>&1 || exit 0
+        UUID=$(blkid -s UUID -o value "$DEV" 2>/dev/null)
+        [ -n "$UUID" ] || exit 0
+fi
+if ! uci -q show fstab 2>/dev/null | grep -q "$UUID"; then
+        touch /etc/config/fstab
+        uci -q batch <<UCI >/dev/null 2>&1
+add fstab mount
+set fstab.@mount[-1].target='$MNT'
+set fstab.@mount[-1].uuid='$UUID'
+set fstab.@mount[-1].enabled='1'
+commit fstab
+UCI
+fi
+block mount >/dev/null 2>&1
+mount | grep -q " on $MNT " || mount "$DEV" "$MNT" 2>/dev/null
+exit 0
+DATADISK
+
 #配置文件修改
 echo "CONFIG_PACKAGE_luci=y" >> ./.config
 echo "CONFIG_LUCI_LANG_zh_Hans=y" >> ./.config
