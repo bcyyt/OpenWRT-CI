@@ -24,9 +24,24 @@ sed -i "s/192\.168\.[0-9]*\.[0-9]*/$WRT_IP/g" $CFG_FILE
 #修改默认主机名
 sed -i "s/hostname='.*'/hostname='$WRT_NAME'/g" $CFG_FILE
 
-#===内核rmem_max默认64M：IPTV UDP组播流接收缓冲（开机由/etc/init.d/sysctl加载，字母序99最后生效，覆盖包内置的15-iptv-auth.conf下限值）===
-mkdir -p ./package/base-files/files/etc/sysctl.d
-echo "net.core.rmem_max=67108864" > ./package/base-files/files/etc/sysctl.d/99-rmem.conf
+#===内核rmem_max按内存自适应：≤512MB→16M；≤1GB→32M；>1GB→64M===
+#开机首次启动动态生成 /etc/sysctl.d/99-rmem.conf（字母序99最后生效，覆盖包内置的15-iptav-auth.conf下限值）
+mkdir -p ./package/base-files/files/etc/uci-defaults
+cat > ./package/base-files/files/etc/uci-defaults/99-rmemmax <<'RMEMMAX'
+#!/bin/sh
+MEM_KB=$(awk '/MemTotal/ {print $2}' /proc/meminfo 2>/dev/null)
+[ -n "$MEM_KB" ] || exit 0
+mkdir -p /etc/sysctl.d
+if [ "$MEM_KB" -le 524288 ]; then
+        RMEM=16777216
+elif [ "$MEM_KB" -le 1048576 ]; then
+        RMEM=33554432
+else
+        RMEM=67108864
+fi
+echo "net.core.rmem_max=$RMEM" > /etc/sysctl.d/99-rmem.conf
+exit 0
+RMEMMAX
 
 #===自动挂载eMMC剩余分区为数据盘：mmcblk0p6(data) → /mnt/data===
 #首次启动自动格式化并写入fstab；幂等：已挂载/已配置则跳过；绝不重格已有数据的分区
