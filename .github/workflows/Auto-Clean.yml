@@ -4,9 +4,9 @@
 name: Auto-Clean
 
 on:
-  #自动清理：每天早上4点（北京时间，UTC 20:00），完成后自动触发 OWRT-ALL(X86) 与 MTK-ALL 编译
+  #自动清理：每天早上4点13分（北京时间，UTC 20:13，错开整点高峰降低cron延迟），完成后自动触发 OWRT-ALL(X86) 与 MTK-ALL 编译
   schedule:
-    - cron: 0 20 * * *
+    - cron: 13 20 * * *
   #手动清理
   workflow_dispatch:
 
@@ -21,9 +21,9 @@ jobs:
         with:
           gh_token: ${{secrets.GITHUB_TOKEN}}
           delete_releases: true
-          #固件Release保留3天（删除3天前的），替代原来的全删策略
-          releases_keep_day: 3
+          #固件Release保留约3天：ophub仅支持按数量保留，自动链每天约3个Release，保留12个≈3-4天
+          releases_keep_latest: 12
           delete_tags: true
           delete_workflows: true
-          #workflow运行记录同样保留3天
+          #workflow运行记录保留3天
           workflows_keep_day: 3
