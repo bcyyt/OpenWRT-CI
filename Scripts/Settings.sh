@@ -15,7 +15,7 @@ find ./feeds/luci/modules/luci-mod-status/ -type f -name "10_system.js" -exec se
 WIFI_UC="./package/network/config/wifi-scripts/files/lib/wifi/mac80211.uc"
 ROUTER_TOOL="./package/emortal/luci-app-router-tool/root/etc/config/router-tool"
 for file in "$ROUTER_TOOL" "$WIFI_UC"; do
-	[ -f "$file" ] && sed -i "s/ssid '.*'/ssid '$WRT_SSID'/g; s/key '.*'/key '$WRT_WORD'/g" "$file"
+        [ -f "$file" ] && sed -i "s/ssid '.*'/ssid '$WRT_SSID'/g; s/key '.*'/key '$WRT_WORD'/g" "$file"
 done
 
 CFG_FILE="./package/base-files/files/bin/config_generate"
@@ -23,6 +23,10 @@ CFG_FILE="./package/base-files/files/bin/config_generate"
 sed -i "s/192\.168\.[0-9]*\.[0-9]*/$WRT_IP/g" $CFG_FILE
 #修改默认主机名
 sed -i "s/hostname='.*'/hostname='$WRT_NAME'/g" $CFG_FILE
+
+#===内核rmem_max默认64M：IPTV UDP组播流接收缓冲（开机由/etc/init.d/sysctl加载，字母序99最后生效，覆盖包内置的15-iptv-auth.conf下限值）===
+mkdir -p ./package/base-files/files/etc/sysctl.d
+echo "net.core.rmem_max=67108864" > ./package/base-files/files/etc/sysctl.d/99-rmem.conf
 
 #配置文件修改
 echo "CONFIG_PACKAGE_luci=y" >> ./.config
@@ -33,21 +37,21 @@ echo "CONFIG_PACKAGE_luci-app-$WRT_THEME-config=y" >> ./.config
 
 #引入私有扩展配置
 if [ -f "$GITHUB_WORKSPACE/Config/PRIVATE.txt" ]; then
-	echo "Applying private configurations from PRIVATE.txt..."
-	cat $GITHUB_WORKSPACE/Config/PRIVATE.txt >> ./.config
+        echo "Applying private configurations from PRIVATE.txt..."
+        cat $GITHUB_WORKSPACE/Config/PRIVATE.txt >> ./.config
 fi
 
 #手动调整的插件
 if [ -n "$WRT_PACKAGE" ]; then
-	echo -e "$WRT_PACKAGE" >> ./.config
+        echo -e "$WRT_PACKAGE" >> ./.config
 fi
 
 #高通平台调整
 DTS_PATH="./target/linux/qualcommax/dts/"
 if [[ "${WRT_TARGET^^}" == *"QUALCOMMAX"* ]]; then
-	#无WIFI配置调整Q6大小
-	if [[ "$WRT_WIFI" == "WIFI-NO" ]]; then
-		find $DTS_PATH -type f ! -iname '*nowifi*' -exec sed -i 's/ipq\(6018\|8074\).dtsi/ipq\1-nowifi.dtsi/g' {} +
-		echo "qualcommax set up nowifi successfully!"
-	fi
+        #无WIFI配置调整Q6大小
+        if [[ "$WRT_WIFI" == "WIFI-NO" ]]; then
+                find $DTS_PATH -type f ! -iname '*nowifi*' -exec sed -i 's/ipq\(6018\|8074\).dtsi/ipq\1-nowifi.dtsi/g' {} +
+                echo "qualcommax set up nowifi successfully!"
+        fi
 fi
