@@ -4,10 +4,7 @@
 name: Auto-Clean
 
 on:
-  #自动清理：每天早上4点13分（北京时间，UTC 20:13，错开整点高峰降低cron延迟），完成后自动触发 OWRT-ALL(X86) 与 MTK-ALL 编译
-  schedule:
-    - cron: 13 20 * * *
-  #手动清理
+  #手动清理（已停用每日自动清理：仓库转私有，断开自动编译触发链，节省Actions额度）
   workflow_dispatch:
 
 permissions: write-all

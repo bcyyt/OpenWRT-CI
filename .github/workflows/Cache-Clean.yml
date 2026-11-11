@@ -4,10 +4,7 @@
 name: Cache-Clean
 
 on:
-  #自动清理：每周一早上4点
-  schedule:
-    - cron: 0 20 * * 0
-  #手动清理
+  #手动清理（已停用每周自动清理：仓库转私有，节省Actions额度）
   workflow_dispatch:
 
 permissions: write-all
