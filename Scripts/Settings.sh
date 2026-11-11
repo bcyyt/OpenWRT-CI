@@ -2,6 +2,10 @@
 # SPDX-License-Identifier: MIT
 # Copyright (C) 2026 VIKINGYFY
 
+#修正 firewall4 镜像哈希：VIKINGYFY owrt 2026-11-11 批次 PKG_MIRROR_HASH 有误
+#（70cbaec5 无法复现，官方镜像下载与 git 重生成实测均为 a95c6cfe），上游修复后此 sed 自动失效
+sed -i 's/70cbaec533e7d635c00f5288a31a1d5d44cd43390d18c2df296e00079d1e4efe/a95c6cfe419c7d4e22bda5608aa6e46c67dadc9c7096879702d614cc498759d0/' ./package/network/config/firewall4/Makefile 2>/dev/null || true
+
 #移除luci-app-attendedsysupgrade
 find ./feeds/luci/collections/ -type f -name "Makefile" -exec sed -i "/attendedsysupgrade/d" {} +
 #修改默认主题
