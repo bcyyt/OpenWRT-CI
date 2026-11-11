@@ -187,11 +187,11 @@ define Package/$PKG_NAME
 endef
 
 define Build/Prepare
-	rm -rf \$(PKG_BUILD_DIR)
-	mkdir -p \$(PKG_BUILD_DIR)/ipk \$(PKG_BUILD_DIR)/root
-	$PKG_UNPACK
-	tar -C \$(PKG_BUILD_DIR)/root -xzf \$(PKG_BUILD_DIR)/ipk/data.tar.gz
-	$PKG_PATCH
+        rm -rf \$(PKG_BUILD_DIR)
+        mkdir -p \$(PKG_BUILD_DIR)/ipk \$(PKG_BUILD_DIR)/root
+        $PKG_UNPACK
+        tar -C \$(PKG_BUILD_DIR)/root -xzf \$(PKG_BUILD_DIR)/ipk/data.tar.gz
+        $PKG_PATCH
 endef
 
 define Build/Compile
@@ -202,7 +202,7 @@ $PKG_CONFFILES
 endef
 
 define Package/$PKG_NAME/install
-	\$(CP) \$(PKG_BUILD_DIR)/root/. \$(1)/
+        \$(CP) \$(PKG_BUILD_DIR)/root/. \$(1)/
 endef
 
 \$(eval \$(call BuildPackage,$PKG_NAME))
@@ -258,6 +258,10 @@ ifeq (\$(ARCH),arm)
 endif"
 
 #===luci-app-syskeep（保留升级）：版本来自gitee目录列表，始终跟随OTA仓最新版===
+# 仅x86_64：OTA仓只发布x86_64 ipk，其 /lib/upgrade/syskeep-hook.sh 是X86专属逻辑
+# （GPT分区表/grub/EFI/ONIE检查），曾因无架构限制被装入aarch64固件并覆盖
+# mediatek的platform_check_image，导致S20P刷机报 is_onie_install: not found /
+# Invalid image type。参照iptv-auth做法用 @x86_64 依赖限定目标架构。
 SYSKEEP_VER=$(curl -fsSL --retry 3 --connect-timeout 15 "$BCYYT_API/luci-app-syskeep" | jq -r ".[].name" 2>/dev/null | grep -E "^luci-app-syskeep_.*_x86_64\.ipk$" | sed "s/luci-app-syskeep_//;s/_x86_64.ipk//" | sort -V | tail -1)
 [ -n "$SYSKEEP_VER" ] || SYSKEEP_VER="1.0.35-r0"
 echo "luci-app-syskeep latest version: $SYSKEEP_VER"
@@ -265,8 +269,8 @@ echo "luci-app-syskeep latest version: $SYSKEEP_VER"
 SYSKEEP_HASH=$(BCYYT_SHA256 "$BCYYT_RAW/luci-app-syskeep/luci-app-syskeep_${SYSKEEP_VER}_x86_64.ipk")
 
 BCYYT_INJECT "luci-app-syskeep" "$SYSKEEP_VER" \
-        "LuCI 保留升级：刷机保留配置、分区和插件清单，开机重装apk" \
-        "+luci-base +luci-compat" \
+        "LuCI 保留升级：刷机保留配置、分区和插件清单，开机重装apk（仅X86）" \
+        "+luci-base +luci-compat @x86_64" \
         "tar -C \$(PKG_BUILD_DIR)/ipk -xzf \$(DL_DIR)/\$(PKG_SOURCE)" \
         "/etc/syskeep/custom-apks.txt
 /etc/syskeep/datadir.sh" \
