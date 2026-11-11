@@ -297,6 +297,51 @@ PKG_SOURCE_URL:=$BCYYT_RAW/luci-app-statusfw
 PKG_HASH:=$STATUSFW_HASH" \
         "bash $GITHUB_WORKSPACE/Scripts/statusfw-patch.sh \$(PKG_BUILD_DIR)"
 
+
+#===luci-app-natfrp（SakuraFrp 启动器）：官方 launcher-openwrt 目录直取，三架构ipk===
+# 官方源：nya.globalslb.net/natfrp/client/launcher-openwrt/<版本>/luci-app-natfrp_<arch>.ipk
+# 自包含包（natfrp-frpc + natfrp-service 二进制 + LuCI 界面 + init 服务），依赖仅 luci-compat
+# 容错：最新版本目录缺某架构 ipk 时自动回退到最近一个三架构齐全的历史版本
+NATFRP_BASE="https://nya.globalslb.net/natfrp/client/launcher-openwrt"
+NATFRP_VER=""
+for v in $(curl -fsSL --retry 3 --connect-timeout 15 "$NATFRP_BASE/" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+/' | tr -d '/' | sort -rV); do
+        if curl -fsIL --retry 2 --connect-timeout 10 "$NATFRP_BASE/$v/luci-app-natfrp_arm64.ipk" >/dev/null 2>&1 \
+           && curl -fsIL --retry 2 --connect-timeout 10 "$NATFRP_BASE/$v/luci-app-natfrp_amd64.ipk" >/dev/null 2>&1 \
+           && curl -fsIL --retry 2 --connect-timeout 10 "$NATFRP_BASE/$v/luci-app-natfrp_armv7.ipk" >/dev/null 2>&1; then
+                NATFRP_VER="$v"; break
+        fi
+done
+[ -n "$NATFRP_VER" ] || NATFRP_VER="3.1.9"
+echo "luci-app-natfrp latest version: $NATFRP_VER"
+
+NATFRP_HASH_x86_64=$(BCYYT_SHA256 "$NATFRP_BASE/$NATFRP_VER/luci-app-natfrp_amd64.ipk")
+NATFRP_HASH_aarch64=$(BCYYT_SHA256 "$NATFRP_BASE/$NATFRP_VER/luci-app-natfrp_arm64.ipk")
+NATFRP_HASH_armv7=$(BCYYT_SHA256 "$NATFRP_BASE/$NATFRP_VER/luci-app-natfrp_armv7.ipk")
+
+BCYYT_INJECT "luci-app-natfrp" "$NATFRP_VER" \
+        "SakuraFrp 启动器：frpc 内网穿透客户端 + 后台服务 + LuCI 管理界面" \
+        "+luci-base +luci-compat @(x86_64||aarch64||arm)" \
+        "tar -C \$(PKG_BUILD_DIR)/ipk -xzf \$(DL_DIR)/\$(PKG_SOURCE)" \
+        "/etc/config/natfrp" \
+        "NATFRP_ARCH:=amd64
+ifeq (\$(ARCH),aarch64)
+  NATFRP_ARCH:=arm64
+endif
+ifeq (\$(ARCH),arm)
+  NATFRP_ARCH:=armv7
+endif
+PKG_SOURCE:=luci-app-natfrp_\$(NATFRP_ARCH).ipk
+PKG_SOURCE_URL:=$NATFRP_BASE/$NATFRP_VER
+ifeq (\$(ARCH),x86_64)
+  PKG_HASH:=$NATFRP_HASH_x86_64
+endif
+ifeq (\$(ARCH),aarch64)
+  PKG_HASH:=$NATFRP_HASH_aarch64
+endif
+ifeq (\$(ARCH),arm)
+  PKG_HASH:=$NATFRP_HASH_armv7
+endif"
+
 #引入私有扩展脚本
 if [ -f "$GITHUB_WORKSPACE/Scripts/PRIVATE.sh" ]; then
         source "$GITHUB_WORKSPACE/Scripts/PRIVATE.sh"
