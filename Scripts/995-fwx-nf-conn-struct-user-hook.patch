@@ -1,32 +1,32 @@
 --- a/include/net/netfilter/nf_conntrack.h
 +++ b/include/net/netfilter/nf_conntrack.h
-@@ -70,6 +70,16 @@
+@@ -69,6 +69,16 @@
+ 
  #include <net/netfilter/ipv4/nf_conntrack_ipv4.h>
  #include <net/netfilter/ipv6/nf_conntrack_ipv6.h>
++
++struct nf_fwx_data {
++	u32 mark;
++	u32 app_id;
++	u32 match_status;
++	u8 action;
++	u8 host[32];
++	void *user_ptr;
++	struct list_head session_node;
++};
  
-++struct nf_fwx_data {
-++	u32 mark;
-++	u32 app_id;
-++	u32 match_status;
-++	u8 action;
-++	u8 host[32];
-++	void *user_ptr;
-++	struct list_head session_node;
-++};
-++
  struct nf_conn {
  	/* Usage count in here is 1 for hash table, 1 per skb,
- 	 * plus 1 for any connection(s) we are `master' for
-@@ -118,6 +128,9 @@
- 
+@@ -119,6 +129,9 @@
  	/* Extensions */
  	struct nf_ct_ext *ext;
-++
-++	/* FanchmWrt Data */
-++	struct nf_fwx_data fwx_data;
  
++	/* FanchmWrt Data */
++	struct nf_fwx_data fwx_data;
++
  	/* Storage reserved for other modules, must be the last member */
  	union nf_conntrack_proto proto;
+ };
 
 --- a/net/netfilter/nf_conntrack_standalone.c
 +++ b/net/netfilter/nf_conntrack_standalone.c
@@ -34,35 +34,36 @@
  #include <net/netfilter/nf_log.h>
  #include <net/netfilter/nf_conntrack.h>
  #include <net/netfilter/nf_conntrack_core.h>
-++#include <net/netfilter/nf_fwx_user.h>
++#include <net/netfilter/nf_fwx_user.h>
  #include <net/netfilter/nf_conntrack_l4proto.h>
  #include <net/netfilter/nf_conntrack_expect.h>
  #include <net/netfilter/nf_conntrack_helper.h>
-@@ -346,6 +347,13 @@
- 
+@@ -347,6 +348,14 @@
  	print_tuple(s, &ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple,
  		    l4proto);
-++	{
-++		struct fwx_user_node_view *user;
-++
-++		user = (struct fwx_user_node_view *)ct->fwx_data.user_ptr;
-++		if (user)
-++			seq_printf(s, "user_mac=%pM ", user->mac);
-++	}
  
++	{
++		struct fwx_user_node_view *user;
++
++		user = (struct fwx_user_node_view *)ct->fwx_data.user_ptr;
++		if (user)
++			seq_printf(s, "user_mac=%pM ", user->mac);
++	}
++
  	ct_show_zone(s, ct, NF_CT_ZONE_DIR_ORIG);
  
-@@ -375,6 +383,10 @@
- 
- #if defined(CONFIG_NF_CONNTRACK_MARK)
+ 	if (seq_has_overflowed(s))
+@@ -377,6 +386,10 @@
  	seq_printf(s, "mark=%u ", READ_ONCE(ct->mark));
-++	seq_printf(s, "appid=%u action=%u match_status=%u ",
-++		   READ_ONCE(ct->fwx_data.app_id),
-++		   READ_ONCE(ct->fwx_data.action),
-++		   READ_ONCE(ct->fwx_data.match_status));
  #endif
  
++	seq_printf(s, "appid=%u action=%u match_status=%u ",
++		   READ_ONCE(ct->fwx_data.app_id),
++		   READ_ONCE(ct->fwx_data.action),
++		   READ_ONCE(ct->fwx_data.match_status));
  	ct_show_secctx(s, ct);
+ 	ct_show_zone(s, ct, NF_CT_DEFAULT_ZONE_DIR);
+ 	ct_show_delta_time(s, ct);
 
 --- /dev/null
 +++ b/include/net/netfilter/nf_fwx_user.h
