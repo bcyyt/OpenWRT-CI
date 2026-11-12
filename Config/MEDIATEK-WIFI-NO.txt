@@ -20,7 +20,9 @@ CONFIG_TARGET_DEVICE_PACKAGES_mediatek_filogic_DEVICE_zyxel_ex5700-telenor="-kmo
 #内核调整
 CONFIG_PACKAGE_kmod-cryptodev=y
 CONFIG_PACKAGE_kmod-tls=y
-CONFIG_PACKAGE_kmod-oaf=y
+#禁用 oaf：与 fwx 同源冲突（抢占 netlink/proc 资源导致内核崩溃重启循环）
+CONFIG_PACKAGE_kmod-oaf=n
+CONFIG_PACKAGE_luci-app-oaf=n
 #fwx 应用识别与流量统计（仪表盘协议分析/流量排行）
 CONFIG_PACKAGE_kmod-fwx=y
 CONFIG_PACKAGE_fwxd=y
