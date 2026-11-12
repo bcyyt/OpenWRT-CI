@@ -67,7 +67,7 @@
 
 --- /dev/null
 +++ b/include/net/netfilter/nf_fwx_user.h
-@@ -0,0 +1,13 @@
+@@ -0,0 +1,15 @@
 +/* SPDX-License-Identifier: GPL-2.0-or-later */
 +#ifndef _NF_FWX_USER_H
 +#define _NF_FWX_USER_H
