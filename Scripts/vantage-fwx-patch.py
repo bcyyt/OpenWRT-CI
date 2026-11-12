@@ -173,8 +173,19 @@ FWX_METHODS = """initFwx: function() {
                         return;
                 }
                 var users = (fw.rank && Array.isArray(fw.rank.users)) ? fw.rank.users.filter(function(u) { return u && typeof u === 'object'; }) : [];
+                /* 字段兼容：fanchmwrt fwxd 返回 today_up_bytes/today_down_bytes，
+                   旧版返回 up_bytes/down_bytes/total_bytes */
+                var pick = function(u, keys) {
+                        for (var i = 0; i < keys.length; i++) {
+                                var v = u[keys[i]];
+                                if (typeof v === 'number' && v >= 0) return v;
+                        }
+                        return 0;
+                };
+                var rowUp = function(u) { return pick(u, ['today_up_bytes', 'up_bytes', 'total_up_bytes']); };
+                var rowDn = function(u) { return pick(u, ['today_down_bytes', 'down_bytes', 'total_down_bytes']); };
                 var rows = users.map(function(u, i) {
-                        var t = (typeof u.total_bytes === 'number' && u.total_bytes >= 0) ? u.total_bytes : ((u.up_bytes || 0) + (u.down_bytes || 0));
+                        var t = (typeof u.total_bytes === 'number' && u.total_bytes >= 0) ? u.total_bytes : (rowUp(u) + rowDn(u));
                         return { u: u, t: t, i: i };
                 }).sort(function(a, b) { return b.t - a.t || a.i - b.i; }).slice(0, 8);
                 if (!rows.length) {
@@ -187,12 +198,13 @@ FWX_METHODS = """initFwx: function() {
                         var name = String(u.nickname || '').trim() || String(u.hostname || '').trim() || String(u.mac || '').trim() || '--';
                         var tip = (name !== '--' ? '名称: ' + name + '\\n' : '') +
                                 (u.mac ? 'MAC: ' + u.mac + '\\n' : '') + (u.ip ? 'IP: ' + u.ip + '\\n' : '') +
-                                '↑ ' + fmt.bytes(u.up_bytes || 0) + '   ↓ ' + fmt.bytes(u.down_bytes || 0);
+                                (u.is_wireless !== undefined ? '类型: ' + (u.is_wireless ? '无线' : '有线') + '\\n' : '') +
+                                '↑ ' + fmt.bytes(rowUp(u)) + '   ↓ ' + fmt.bytes(rowDn(u));
                         return E('div', { 'class': 'vt-fwx-row', 'title': tip }, [
                                 E('span', { 'class': 'vt-fwx-rank' + (i < 3 ? ' top' : '') }, [ String(i + 1) ]),
                                 E('span', { 'class': 'vt-fwx-name' }, [ name ]),
-                                E('span', { 'class': 'vt-fwx-up' }, [ '↑' + fmt.bytes(u.up_bytes || 0) ]),
-                                E('span', { 'class': 'vt-fwx-dn' }, [ '↓' + fmt.bytes(u.down_bytes || 0) ]),
+                                E('span', { 'class': 'vt-fwx-up' }, [ '↑' + fmt.bytes(rowUp(u)) ]),
+                                E('span', { 'class': 'vt-fwx-dn' }, [ '↓' + fmt.bytes(rowDn(u)) ]),
                                 E('div', { 'class': 'vt-fwx-track' }, [
                                         E('span', { 'class': 'vt-fwx-fill', 'style': 'width:' + Math.max(2, Math.round(r.t / max * 100)) + '%' })
                                 ])
