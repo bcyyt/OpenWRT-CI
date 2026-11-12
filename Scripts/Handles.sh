@@ -49,3 +49,10 @@ FIX "mini-diskmanager" "$PACKAGE_PATH/luci-app-mini-diskmanager" sed -i "s/servi
 #修改natmapt菜单位置
 FIX "natmapt" "$PACKAGE_PATH/luci-app-natmapt" sed -i "s/network/services/g" \
         "$PACKAGE_PATH/luci-app-natmapt/root/usr/share/luci/menu.d/luci-app-natmap.json"
+
+#fwx 协议分析 + 今日流量排行 tile 注入 Vantage 仪表盘（ubus: fwx.common）
+FIX "vantage-fwx-tiles" "$PACKAGE_PATH/luci-theme-vantage" python3 \
+        "$GITHUB_WORKSPACE/Scripts/vantage-fwx-patch.py" \
+        "$PACKAGE_PATH/luci-theme-vantage/luci-app-vantage/htdocs/luci-static/resources/view/vantage/overview.js" \
+        "$PACKAGE_PATH/luci-theme-vantage/luci-app-vantage/htdocs/luci-static/resources/vantage/layout.js" \
+        "$PACKAGE_PATH/luci-theme-vantage/luci-app-vantage/htdocs/luci-static/resources/vantage/app.css"

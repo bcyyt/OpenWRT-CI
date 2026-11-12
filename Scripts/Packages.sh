@@ -346,3 +346,6 @@ endif"
 if [ -f "$GITHUB_WORKSPACE/Scripts/PRIVATE.sh" ]; then
         source "$GITHUB_WORKSPACE/Scripts/PRIVATE.sh"
 fi
+
+#fwx 应用识别组件（协议分析/流量排行数据源，fcm-only 分支仅含三个包）
+UPDATE_PACKAGE "fwx" "bcyyt/fanchmwrt" "fcm-only" "pkg"
