@@ -1,0 +1,83 @@
+--- a/include/net/netfilter/nf_conntrack.h
++++ b/include/net/netfilter/nf_conntrack.h
+@@ -71,6 +71,16 @@
+ #include <net/netfilter/ipv4/nf_conntrack_ipv4.h>
+ #include <net/netfilter/ipv6/nf_conntrack_ipv6.h>
+ 
+++struct nf_fwx_data {
+++	u32 mark;
+++	u32 app_id;
+++	u32 match_status;
+++	u8 action;
+++	u8 host[32];
+++	void *user_ptr;
+++	struct list_head session_node;
+++};
+++
+ struct nf_conn {
+ 	/* Usage count in here is 1 for hash table, 1 per skb,
+ 	 * plus 1 for any connection(s) we are `master' for
+@@ -119,6 +129,9 @@
+ 
+ 	/* Extensions */
+ 	struct nf_ct_ext *ext;
+++
+++	/* FanchmWrt Data */
+++	struct nf_fwx_data fwx_data;
+ 
+ 	/* Storage reserved for other modules, must be the last member */
+ 	union nf_conntrack_proto proto;
+
+--- a/net/netfilter/nf_conntrack_standalone.c
++++ b/net/netfilter/nf_conntrack_standalone.c
+@@ -9,6 +9,7 @@
+ #include <linux/percpu.h>
+ #include <linux/netdevice.h>
+ #include <linux/security.h>
+++#include <net/netfilter/nf_fwx_user.h>
+ #include <net/net_namespace.h>
+ #ifdef CONFIG_SYSCTL
+ #include <linux/sysctl.h>
+@@ -344,6 +345,12 @@
+ 
+ 	print_tuple(s, &ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple,
+ 		    l4proto);
+++	{
+++		struct fwx_user_node_view *user;
+++		user = (struct fwx_user_node_view *)ct->fwx_data.user_ptr;
+++		if (user)
+++			seq_printf(s, "user_mac=%pM ", user->mac);
+++	}
+ 
+ 	ct_show_zone(s, ct, NF_CT_ZONE_DIR_ORIG);
+ 
+@@ -374,6 +381,10 @@
+ #if defined(CONFIG_NF_CONNTRACK_MARK)
+ 	seq_printf(s, "mark=%u ", READ_ONCE(ct->mark));
+ #endif
+++	seq_printf(s, "appid=%u action=%u match_status=%u ",
+++		   READ_ONCE(ct->fwx_data.app_id),
+++		   READ_ONCE(ct->fwx_data.action),
+++		   READ_ONCE(ct->fwx_data.match_status));
+ 
+ 	ct_show_secctx(s, ct);
+ 	ct_show_zone(s, ct, NF_CT_DEFAULT_ZONE_DIR);
+
+--- /dev/null
++++ b/include/net/netfilter/nf_fwx_user.h
+@@ -0,0 +1,13 @@
++/* SPDX-License-Identifier: GPL-2.0-or-later */
++#ifndef _NF_FWX_USER_H
++#define _NF_FWX_USER_H
++
++#include <linux/types.h>
++#include <linux/spinlock_types.h>
++#include <linux/rculist_nulls.h>
++
++struct fwx_user_node_view {
++	struct hlist_node mac_hnode;
++	rwlock_t lock;
++	u8 mac[ETH_ALEN];
++};
++
++#endif /* _NF_FWX_USER_H */
