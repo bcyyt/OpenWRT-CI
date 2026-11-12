@@ -6,6 +6,9 @@ name: MTK-ALL
 
 #CI计划
 on:
+  #定时编译：每天北京时间 04:00（UTC 20:00，避开 GitHub 高峰排队）
+  schedule:
+    - cron: '0 20 * * *'
   #手动编译（已停用自动编译：Auto-Clean完成后的链式触发已移除）
   workflow_dispatch:
     inputs:
