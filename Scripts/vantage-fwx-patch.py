@@ -107,7 +107,7 @@ FWX_METHODS = """initFwx: function() {
         },
 
         buildRank: function() {
-                this.el.fwxRank = E('div', { 'class': 'vt-fwx-rank' });
+                this.el.fwxRank = E('div', { 'class': 'vt-fwx-list' });
                 return E('section', { 'class': 'vt-tile vt-rank', 'aria-label': '今日流量排行' }, [
                         tileHead('pulse', '今日流量排行', [ E('span', { 'class': 'vt-hint' }, [ 'fwx' ]) ]),
                         this.el.fwxRank
@@ -234,29 +234,34 @@ layout = patch_regex(layout,
     r"\1, [ 'apps', 3, 1 ], [ 'rank', 0, 4 ] ],",
     'DEFAULTS wide')
 
+# 手机(≤~600px)实际落在 mid 档：重排使 hero→chart→sys→协议→流量→无线，clients 沉底
 layout = patch_regex(layout,
-    r"(\[\s*'ssids',\s*1,\s*1\s*\])\s*\],",
-    r"\1, [ 'apps', 1, 1 ], [ 'rank', 0, 2 ] ],",
+    r"mid:\s*\[\s*\[\s*'hero',\s*0,\s*2\s*\],\s*\[\s*'radios',\s*0,\s*2\s*\],\s*\[\s*'clients',\s*0,\s*2\s*\],\s*\[\s*'chart',\s*0,\s*2\s*\],\s*\[\s*'sys',\s*0,\s*1\s*\],\s*\[\s*'talk',\s*1,\s*1\s*\],\s*\[\s*'ssids',\s*1,\s*1\s*\]\s*\]",
+    "mid: [ [ 'hero', 0, 2 ], [ 'chart', 0, 2 ], [ 'sys', 0, 1 ], [ 'apps', 1, 1 ], [ 'rank', 0, 2 ], [ 'radios', 0, 2 ], [ 'ssids', 0, 2 ], [ 'talk', 0, 2 ], [ 'clients', 0, 2 ] ]",
     'DEFAULTS mid')
 
+# 手机端 narrow 整体重排：网络路径→吞吐量→系统→协议分析→流量排行→无线→终端列表沉底
+# （用户要求：手机上 Clients 卡片显示在最下面）
 layout = patch_regex(layout,
-    r"(\[\s*'ssids',\s*0,\s*1\s*\],\s*\[\s*'chart',\s*0,\s*1\s*\],\s*\[\s*'sys',\s*0,\s*1\s*\])\s*\]",
-    r"\1, [ 'apps', 0, 1 ], [ 'rank', 0, 1 ] ]",
+    r"narrow:\s*\[\s*\[\s*'clients',\s*0,\s*1\s*\],\s*\[\s*'talk',\s*0,\s*1\s*\],\s*\[\s*'radios',\s*0,\s*1\s*\],\s*\[\s*'hero',\s*0,\s*1\s*\],\s*\[\s*'ssids',\s*0,\s*1\s*\],\s*\[\s*'chart',\s*0,\s*1\s*\],\s*\[\s*'sys',\s*0,\s*1\s*\]\s*\]",
+    "narrow: [ [ 'hero', 0, 1 ], [ 'chart', 0, 1 ], [ 'sys', 0, 1 ], [ 'apps', 0, 1 ], [ 'rank', 0, 1 ], [ 'radios', 0, 1 ], [ 'ssids', 0, 1 ], [ 'talk', 0, 1 ], [ 'clients', 0, 1 ] ]",
     'DEFAULTS narrow')
 
+# 有线模式 wide：协议分析进右栏，流量排行满宽，clients 仍在 sys 下方列
 layout = patch_regex(layout,
     r"(\[\s*'clients',\s*0,\s*4\s*\])\s*\],",
     r"\1, [ 'apps', 3, 1 ], [ 'rank', 0, 4 ] ],",
     'WIRED wide')
 
+# 有线模式 mid/narrow：clients 沉底
 layout = patch_regex(layout,
-    r"(\[\s*'clients',\s*0,\s*2\s*\])\s*\],",
-    r"\1, [ 'apps', 0, 2 ], [ 'rank', 0, 2 ] ],",
+    r"mid:\s*\[\s*\[\s*'hero',\s*0,\s*2\s*\],\s*\[\s*'chart',\s*0,\s*2\s*\],\s*\[\s*'sys',\s*0,\s*2\s*\],\s*\[\s*'clients',\s*0,\s*2\s*\]\s*\]",
+    "mid: [ [ 'hero', 0, 2 ], [ 'chart', 0, 2 ], [ 'sys', 0, 2 ], [ 'apps', 0, 2 ], [ 'rank', 0, 2 ], [ 'clients', 0, 2 ] ]",
     'WIRED mid')
 
 layout = patch_regex(layout,
-    r"(\[\s*'hero',\s*0,\s*1\s*\],\s*\[\s*'clients',\s*0,\s*1\s*\],\s*\[\s*'chart',\s*0,\s*1\s*\],\s*\[\s*'sys',\s*0,\s*1\s*\])\s*\]",
-    r"\1, [ 'apps', 0, 1 ], [ 'rank', 0, 1 ] ]",
+    r"narrow:\s*\[\s*\[\s*'hero',\s*0,\s*1\s*\],\s*\[\s*'clients',\s*0,\s*1\s*\],\s*\[\s*'chart',\s*0,\s*1\s*\],\s*\[\s*'sys',\s*0,\s*1\s*\]\s*\]",
+    "narrow: [ [ 'hero', 0, 1 ], [ 'chart', 0, 1 ], [ 'sys', 0, 1 ], [ 'apps', 0, 1 ], [ 'rank', 0, 1 ], [ 'clients', 0, 1 ] ]",
     'WIRED narrow')
 
 # ---------- app.css ----------
@@ -284,16 +289,26 @@ FWX_CSS = """
 .vt-fwx-dot.s4 { background: var(--vt-chart-5, #ec4899); }
 .vt-fwx-lbl { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
 .vt-fwx-val { font-variant-numeric: tabular-nums; opacity: .8; }
-.vt-fwx-rank { display: flex; flex-direction: column; gap: 4px; }
+.vt-fwx-list { display: flex; flex-direction: column; gap: 4px; }
 .vt-fwx-row { display: grid; grid-template-columns: 16px minmax(0, 1fr) auto auto; align-items: center; column-gap: 6px; row-gap: 1px; }
 .vt-fwx-row .vt-fwx-track { grid-column: 1 / -1; }
 .vt-fwx-rank { font: 600 var(--vt-fs-sm, 12px)/1 var(--vt-mono, monospace); opacity: .55; }
 .vt-fwx-row:nth-child(1) .vt-fwx-rank, .vt-fwx-row:nth-child(2) .vt-fwx-rank, .vt-fwx-row:nth-child(3) .vt-fwx-rank { opacity: 1; }
-.vt-fwx-name { font-size: var(--vt-fs-sm, 12px); line-height: 1.25; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.vt-fwx-up { color: var(--vt-dir-up, #3b82f6); font-size: var(--vt-fs-micro, 11px); font-variant-numeric: tabular-nums; white-space: nowrap; }
-.vt-fwx-dn { color: var(--vt-dir-dn, #10b981); font-size: var(--vt-fs-micro, 11px); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.vt-fwx-name { font: 500 var(--vt-fs-sm, 12px)/1.25 var(--vt-mono, ui-monospace); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vt-fwx-up { color: var(--vt-dir-up, #8b5cf6); font: 500 var(--vt-fs-micro, 11px)/1.2 var(--vt-mono, monospace); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.vt-fwx-dn { color: var(--vt-dir-dn, #84cc16); font: 500 var(--vt-fs-micro, 11px)/1.2 var(--vt-mono, monospace); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .vt-fwx-track { height: 4px; border-radius: 2px; background: var(--vt-meter, rgba(127,127,127,.18)); overflow: hidden; }
 .vt-fwx-fill { display: block; height: 100%; border-radius: 2px; background: var(--vt-chart-1, #3b82f6); min-width: 2px; }
+.vt-fwx-row:nth-child(1) .vt-fwx-fill { background: var(--vt-dir-dn, #84cc16); }
+
+/* 手机端：协议分析纵向堆叠、图例两列；流量排行缩字号自适应 */
+@media (max-width: 768px) {
+\t.vt-fwx-body { flex-direction: column; align-items: stretch; gap: 8px; }
+\t.vt-fwx-donut { margin: 0 auto; }
+\t.vt-fwx-legend { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 3px 10px; }
+\t.vt-fwx-name { font-size: var(--vt-fs-micro, 11px); }
+\t.vt-fwx-up, .vt-fwx-dn { font-size: 10px; }
+}
 """
 css = css + FWX_CSS
 
