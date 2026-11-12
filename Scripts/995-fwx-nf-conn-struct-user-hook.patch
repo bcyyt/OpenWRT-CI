@@ -1,6 +1,6 @@
 --- a/include/net/netfilter/nf_conntrack.h
 +++ b/include/net/netfilter/nf_conntrack.h
-@@ -71,6 +71,16 @@
+@@ -70,6 +70,16 @@
  #include <net/netfilter/ipv4/nf_conntrack_ipv4.h>
  #include <net/netfilter/ipv6/nf_conntrack_ipv6.h>
  
@@ -17,7 +17,7 @@
  struct nf_conn {
  	/* Usage count in here is 1 for hash table, 1 per skb,
  	 * plus 1 for any connection(s) we are `master' for
-@@ -119,6 +129,9 @@
+@@ -118,6 +128,9 @@
  
  	/* Extensions */
  	struct nf_ct_ext *ext;
@@ -30,20 +30,21 @@
 
 --- a/net/netfilter/nf_conntrack_standalone.c
 +++ b/net/netfilter/nf_conntrack_standalone.c
-@@ -9,6 +9,7 @@
- #include <linux/percpu.h>
- #include <linux/netdevice.h>
- #include <linux/security.h>
+@@ -17,6 +17,7 @@
+ #include <net/netfilter/nf_log.h>
+ #include <net/netfilter/nf_conntrack.h>
+ #include <net/netfilter/nf_conntrack_core.h>
 ++#include <net/netfilter/nf_fwx_user.h>
- #include <net/net_namespace.h>
- #ifdef CONFIG_SYSCTL
- #include <linux/sysctl.h>
-@@ -344,6 +345,12 @@
+ #include <net/netfilter/nf_conntrack_l4proto.h>
+ #include <net/netfilter/nf_conntrack_expect.h>
+ #include <net/netfilter/nf_conntrack_helper.h>
+@@ -346,6 +347,13 @@
  
  	print_tuple(s, &ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple,
  		    l4proto);
 ++	{
 ++		struct fwx_user_node_view *user;
+++
 ++		user = (struct fwx_user_node_view *)ct->fwx_data.user_ptr;
 ++		if (user)
 ++			seq_printf(s, "user_mac=%pM ", user->mac);
@@ -51,17 +52,17 @@
  
  	ct_show_zone(s, ct, NF_CT_ZONE_DIR_ORIG);
  
-@@ -374,6 +381,10 @@
+@@ -375,6 +383,10 @@
+ 
  #if defined(CONFIG_NF_CONNTRACK_MARK)
  	seq_printf(s, "mark=%u ", READ_ONCE(ct->mark));
- #endif
 ++	seq_printf(s, "appid=%u action=%u match_status=%u ",
 ++		   READ_ONCE(ct->fwx_data.app_id),
 ++		   READ_ONCE(ct->fwx_data.action),
 ++		   READ_ONCE(ct->fwx_data.match_status));
+ #endif
  
  	ct_show_secctx(s, ct);
- 	ct_show_zone(s, ct, NF_CT_DEFAULT_ZONE_DIR);
 
 --- /dev/null
 +++ b/include/net/netfilter/nf_fwx_user.h
