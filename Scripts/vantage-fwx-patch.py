@@ -72,7 +72,14 @@ ov = patch_regex(ov,
     'poll.add refresh')
 
 # 6. 方法体（插在 buildTalkers 前，保持缩进）
-FWX_METHODS = """initFwx: function() {
+FWX_METHODS = """fwxAvatarColor: function(name) {
+                var palette = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#f97316', '#ec4899', '#84cc16', '#6366f1'];
+                var s = String(name || '?'), hash = 0;
+                for (var i = 0; i < s.length; i++) hash = s.charCodeAt(i) + ((hash << 5) - hash);
+                return palette[Math.abs(hash) % palette.length];
+        },
+
+        initFwx: function() {
                 var self = this;
                 this.fwx = { ok: false, err: 0, apps: null, rank: null, type: 'daily', busy: false };
                 var un = function(r) { return (r && r.code === 2000 && r.data) ? r.data : null; };
@@ -167,7 +174,7 @@ FWX_METHODS = """initFwx: function() {
         paintRank: function() {
                 var el = this.el.fwxRank;
                 if (!el) return;
-                var fw = this.fwx || {};
+                var fw = this.fwx || {}, avc = this.fwxAvatarColor;
                 if (!fw.ok) {
                         dom.content(el, [ E('p', { 'class': 'vt-empty-inline' }, [ '需启用 fwx 应用统计服务' ]) ]);
                         return;
@@ -199,14 +206,20 @@ FWX_METHODS = """initFwx: function() {
                         var tip = (name !== '--' ? '名称: ' + name + '\\n' : '') +
                                 (u.mac ? 'MAC: ' + u.mac + '\\n' : '') + (u.ip ? 'IP: ' + u.ip + '\\n' : '') +
                                 (u.is_wireless !== undefined ? '类型: ' + (u.is_wireless ? '无线' : '有线') + '\\n' : '') +
-                                '↑ ' + fmt.bytes(rowUp(u)) + '   ↓ ' + fmt.bytes(rowDn(u));
+                                '上传: ' + fmt.bytes(rowUp(u)) + '\\n下载: ' + fmt.bytes(rowDn(u)) + '\\n合计: ' + fmt.bytes(r.t);
                         return E('div', { 'class': 'vt-fwx-row', 'title': tip }, [
                                 E('span', { 'class': 'vt-fwx-rank' + (i < 3 ? ' top' : '') }, [ String(i + 1) ]),
-                                E('span', { 'class': 'vt-fwx-name' }, [ name ]),
-                                E('span', { 'class': 'vt-fwx-up' }, [ '↑' + fmt.bytes(rowUp(u)) ]),
-                                E('span', { 'class': 'vt-fwx-dn' }, [ '↓' + fmt.bytes(rowDn(u)) ]),
-                                E('div', { 'class': 'vt-fwx-track' }, [
-                                        E('span', { 'class': 'vt-fwx-fill', 'style': 'width:' + Math.max(2, Math.round(r.t / max * 100)) + '%' })
+                                E('span', { 'class': 'vt-fwx-avatar', 'style': 'background:' + avc(name) }, [
+                                        name === '--' ? '?' : name.charAt(0).toUpperCase()
+                                ]),
+                                E('div', { 'class': 'vt-fwx-info' }, [
+                                        E('div', { 'class': 'vt-fwx-name' }, [ name ]),
+                                        E('div', { 'class': 'vt-fwx-meter' }, [
+                                                E('div', { 'class': 'vt-fwx-track' }, [
+                                                        E('span', { 'class': 'vt-fwx-fill', 'style': 'width:' + Math.max(2, Math.round(r.t / max * 100)) + '%' })
+                                                ]),
+                                                E('span', { 'class': 'vt-fwx-total' }, [ fmt.bytes(r.t) ])
+                                        ])
                                 ])
                         ]);
                 }));
@@ -289,25 +302,30 @@ FWX_CSS = """
 .vt-fwx-dot.s4 { background: var(--vt-chart-5, #ec4899); }
 .vt-fwx-lbl { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
 .vt-fwx-val { font-variant-numeric: tabular-nums; opacity: .8; }
-.vt-fwx-list { display: flex; flex-direction: column; gap: 4px; }
-.vt-fwx-row { display: grid; grid-template-columns: 16px minmax(0, 1fr) auto auto; align-items: center; column-gap: 6px; row-gap: 1px; }
-.vt-fwx-row .vt-fwx-track { grid-column: 1 / -1; }
-.vt-fwx-rank { font: 600 var(--vt-fs-sm, 12px)/1 var(--vt-mono, monospace); opacity: .55; }
-.vt-fwx-row:nth-child(1) .vt-fwx-rank, .vt-fwx-row:nth-child(2) .vt-fwx-rank, .vt-fwx-row:nth-child(3) .vt-fwx-rank { opacity: 1; }
+.vt-fwx-list { display: flex; flex-direction: column; gap: 7px; }
+.vt-fwx-row { display: grid; grid-template-columns: 18px 30px minmax(0, 1fr); align-items: center; column-gap: 10px; padding: 3px 4px; border-radius: var(--vt-r-sm, 6px); transition: background .15s; }
+.vt-fwx-row:hover { background: var(--vt-hover, rgba(127,127,127,.07)); }
+.vt-fwx-rank { font: 600 var(--vt-fs-sm, 12px)/1 var(--vt-mono, monospace); color: var(--vt-chart-axis, #9ca3af); text-align: center; font-variant-numeric: tabular-nums; }
+.vt-fwx-row:nth-child(1) .vt-fwx-rank { color: var(--vt-chart-1, #3b82f6); }
+.vt-fwx-row:nth-child(2) .vt-fwx-rank { color: #06b6d4; }
+.vt-fwx-row:nth-child(3) .vt-fwx-rank { color: var(--vt-chart-3, #f59e0b); }
+.vt-fwx-avatar { width: 30px; height: 30px; border-radius: var(--vt-r, 8px); display: flex; align-items: center; justify-content: center; color: #fff; font: 600 13px/1 var(--vt-font, sans-serif); flex: 0 0 auto; }
+.vt-fwx-info { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
 .vt-fwx-name { font: 500 var(--vt-fs-sm, 12px)/1.25 var(--vt-mono, ui-monospace); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.vt-fwx-up { color: var(--vt-dir-up, #8b5cf6); font: 500 var(--vt-fs-micro, 11px)/1.2 var(--vt-mono, monospace); font-variant-numeric: tabular-nums; white-space: nowrap; }
-.vt-fwx-dn { color: var(--vt-dir-dn, #84cc16); font: 500 var(--vt-fs-micro, 11px)/1.2 var(--vt-mono, monospace); font-variant-numeric: tabular-nums; white-space: nowrap; }
-.vt-fwx-track { height: 4px; border-radius: 2px; background: var(--vt-meter, rgba(127,127,127,.18)); overflow: hidden; }
-.vt-fwx-fill { display: block; height: 100%; border-radius: 2px; background: var(--vt-chart-1, #3b82f6); min-width: 2px; }
-.vt-fwx-row:nth-child(1) .vt-fwx-fill { background: var(--vt-dir-dn, #84cc16); }
+.vt-fwx-meter { display: flex; align-items: center; gap: 8px; }
+.vt-fwx-track { flex: 1; height: 5px; border-radius: 3px; background: var(--vt-meter, rgba(127,127,127,.16)); overflow: hidden; }
+.vt-fwx-fill { display: block; height: 100%; border-radius: 3px; background: linear-gradient(90deg, var(--vt-chart-1, #3b82f6), #60a5fa); min-width: 2px; transition: width .4s; }
+.vt-fwx-row:nth-child(1) .vt-fwx-fill { background: linear-gradient(90deg, var(--vt-dir-dn, #84cc16), #a3e635); }
+.vt-fwx-total { font: 500 var(--vt-fs-micro, 11px)/1 var(--vt-mono, monospace); color: var(--vt-chart-axis, #6b7280); font-variant-numeric: tabular-nums; white-space: nowrap; min-width: 3.5em; text-align: right; }
 
 /* 手机端：协议分析纵向堆叠、图例两列；流量排行缩字号自适应 */
 @media (max-width: 768px) {
 \t.vt-fwx-body { flex-direction: column; align-items: stretch; gap: 8px; }
 \t.vt-fwx-donut { margin: 0 auto; }
 \t.vt-fwx-legend { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 3px 10px; }
+\t.vt-fwx-row { grid-template-columns: 14px 26px minmax(0, 1fr); column-gap: 8px; }
+\t.vt-fwx-avatar { width: 26px; height: 26px; font-size: 12px; }
 \t.vt-fwx-name { font-size: var(--vt-fs-micro, 11px); }
-\t.vt-fwx-up, .vt-fwx-dn { font-size: 10px; }
 }
 """
 css = css + FWX_CSS
