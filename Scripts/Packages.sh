@@ -192,7 +192,7 @@ define Build/Prepare
 	rm -rf \$(PKG_BUILD_DIR)
 	mkdir -p \$(PKG_BUILD_DIR)/ipk \$(PKG_BUILD_DIR)/root
 	$PKG_UNPACK
-	ar -C \$(PKG_BUILD_DIR)/root -xzf \$(PKG_BUILD_DIR)/ipk/data.tar.gz
+	tar -C \$(PKG_BUILD_DIR)/root -xzf \$(PKG_BUILD_DIR)/ipk/data.tar.gz
 	$PKG_PATCH
 endef
 
