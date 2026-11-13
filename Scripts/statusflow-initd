@@ -1,0 +1,14 @@
+#!/bin/sh /etc/rc.common
+# statusflow — 每客户端实时流量采样守护（root）
+# 读 PPE bind 表聚合出每个 LAN 客户端的实时速率，写 /tmp/statusflow.json
+# 供 nobody 身份的 /www/cgi-bin/statusflow 读取（仪表盘客户端列表）
+
+START=99
+USE_PROCD=1
+
+start_service() {
+	procd_open_instance
+	procd_set_param command /bin/sh /usr/lib/statusflow-worker.sh
+	procd_set_param respawn 3600 5 0
+	procd_close_instance
+}

@@ -68,4 +68,13 @@ rm -rf "$ROOT/www/luci-static/resources/view/system/filemanager" \
 rm -f  "$ROOT/www/luci-static/resources/view/system/filemanager.js" \
        "$ROOT/usr/lib/lua/luci/i18n/filemanager.zh-cn.lmo"
 
+# 6) statusflow：每客户端实时双向速率 + 今日/累计流量采样（root 守护 + procd 服务 + nobody CGI，
+#    conntrack orig/reply 差分 + PPE bind 硬件卸载按比重拆向，跨天统计持久化 /etc/statusflow/）
+install -m 755 "$GITHUB_WORKSPACE/Scripts/statusflow-worker.sh" \
+   "$ROOT/usr/lib/statusflow-worker.sh"
+install -m 755 "$GITHUB_WORKSPACE/Scripts/statusflow-initd" \
+   "$ROOT/etc/init.d/statusflow"
+install -m 755 "$GITHUB_WORKSPACE/Scripts/statusflow-cgi.sh" \
+   "$ROOT/www/cgi-bin/statusflow"
+
 echo "statusfw patch done: shortcuts merged into dashboard, status charts removed, embedded filemanager removed"

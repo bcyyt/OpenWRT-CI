@@ -49,3 +49,10 @@ FIX "mini-diskmanager" "$PACKAGE_PATH/luci-app-mini-diskmanager" sed -i "s/servi
 #修改natmapt菜单位置
 FIX "natmapt" "$PACKAGE_PATH/luci-app-natmapt" sed -i "s/network/services/g" \
         "$PACKAGE_PATH/luci-app-natmapt/root/usr/share/luci/menu.d/luci-app-natmap.json"
+
+#statusflow 每客户端实时双向速率/今日累计流量 + 客户端列表分页注入 Vantage 仪表盘
+#（数据源 conntrack orig/reply + PPE bind 融合；运行时三件套由 statusfw-patch.sh 装入 statusfw 包）
+FIX "vantage-statusflow" "$PACKAGE_PATH/luci-theme-vantage" python3 \
+	"$GITHUB_WORKSPACE/Scripts/vantage-statusflow-patch.py" \
+	"$PACKAGE_PATH/luci-theme-vantage/luci-app-vantage/htdocs/luci-static/resources/view/vantage/overview.js" \
+	"$PACKAGE_PATH/luci-theme-vantage/luci-app-vantage/htdocs/luci-static/resources/vantage/app.css"
