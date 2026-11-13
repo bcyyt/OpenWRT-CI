@@ -145,7 +145,9 @@ BCYYT_API="https://gitee.com/api/v5/repos/bcyyt/my-openwrt/contents/packages"
 #下载并计算sha256，失败时输出skip
 BCYYT_SHA256() {
         local HASH
-        HASH=$(curl -fsSL --retry 3 --connect-timeout 15 "$1" | sha256sum | cut -d ' ' -f 1)
+        HASH=$(curl -fsSL --retry 3 --connect-timeout 15 "$1" 2>/dev/null | sha256sum | cut -d ' ' -f 1)
+        # curl失败时sha256sum会输出空输入哈希，误当合法值导致下载校验必败，识别并降级为skip
+        [ "$HASH" = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855" ] && HASH=skip
         [ -n "$HASH" ] || HASH=skip
         echo "$HASH"
 }
@@ -187,11 +189,11 @@ define Package/$PKG_NAME
 endef
 
 define Build/Prepare
-        rm -rf \$(PKG_BUILD_DIR)
-        mkdir -p \$(PKG_BUILD_DIR)/ipk \$(PKG_BUILD_DIR)/root
-        $PKG_UNPACK
-        tar -C \$(PKG_BUILD_DIR)/root -xzf \$(PKG_BUILD_DIR)/ipk/data.tar.gz
-        $PKG_PATCH
+	rm -rf \$(PKG_BUILD_DIR)
+	mkdir -p \$(PKG_BUILD_DIR)/ipk \$(PKG_BUILD_DIR)/root
+	$PKG_UNPACK
+	ar -C \$(PKG_BUILD_DIR)/root -xzf \$(PKG_BUILD_DIR)/ipk/data.tar.gz
+	$PKG_PATCH
 endef
 
 define Build/Compile
@@ -202,7 +204,7 @@ $PKG_CONFFILES
 endef
 
 define Package/$PKG_NAME/install
-        \$(CP) \$(PKG_BUILD_DIR)/root/. \$(1)/
+	\$(CP) \$(PKG_BUILD_DIR)/root/. \$(1)/
 endef
 
 \$(eval \$(call BuildPackage,$PKG_NAME))
