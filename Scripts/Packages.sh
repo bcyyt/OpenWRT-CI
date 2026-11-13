@@ -187,11 +187,11 @@ define Package/$PKG_NAME
 endef
 
 define Build/Prepare
-	rm -rf \$(PKG_BUILD_DIR)
-	mkdir -p \$(PKG_BUILD_DIR)/ipk \$(PKG_BUILD_DIR)/root
-	$PKG_UNPACK
-	tar -C \$(PKG_BUILD_DIR)/root -xzf \$(PKG_BUILD_DIR)/ipk/data.tar.gz
-	$PKG_PATCH
+        rm -rf \$(PKG_BUILD_DIR)
+        mkdir -p \$(PKG_BUILD_DIR)/ipk \$(PKG_BUILD_DIR)/root
+        $PKG_UNPACK
+        tar -C \$(PKG_BUILD_DIR)/root -xzf \$(PKG_BUILD_DIR)/ipk/data.tar.gz
+        $PKG_PATCH
 endef
 
 define Build/Compile
@@ -202,7 +202,7 @@ $PKG_CONFFILES
 endef
 
 define Package/$PKG_NAME/install
-	\$(CP) \$(PKG_BUILD_DIR)/root/. \$(1)/
+        \$(CP) \$(PKG_BUILD_DIR)/root/. \$(1)/
 endef
 
 \$(eval \$(call BuildPackage,$PKG_NAME))
@@ -346,6 +346,3 @@ endif"
 if [ -f "$GITHUB_WORKSPACE/Scripts/PRIVATE.sh" ]; then
         source "$GITHUB_WORKSPACE/Scripts/PRIVATE.sh"
 fi
-
-#fwx 应用识别组件（协议分析/流量排行数据源，fcm-only 分支仅含三个包）
-UPDATE_PACKAGE "fwx" "bcyyt/fanchmwrt" "fcm-only" "pkg"

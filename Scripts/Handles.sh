@@ -49,16 +49,3 @@ FIX "mini-diskmanager" "$PACKAGE_PATH/luci-app-mini-diskmanager" sed -i "s/servi
 #修改natmapt菜单位置
 FIX "natmapt" "$PACKAGE_PATH/luci-app-natmapt" sed -i "s/network/services/g" \
         "$PACKAGE_PATH/luci-app-natmapt/root/usr/share/luci/menu.d/luci-app-natmap.json"
-
-#fwx 协议分析 + 今日流量排行 tile 注入 Vantage 仪表盘（ubus: fwx.common）
-FIX "vantage-fwx-tiles" "$PACKAGE_PATH/luci-theme-vantage" python3 \
-        "$GITHUB_WORKSPACE/Scripts/vantage-fwx-patch.py" \
-        "$PACKAGE_PATH/luci-theme-vantage/luci-app-vantage/htdocs/luci-static/resources/view/vantage/overview.js" \
-        "$PACKAGE_PATH/luci-theme-vantage/luci-app-vantage/htdocs/luci-static/resources/vantage/layout.js" \
-        "$PACKAGE_PATH/luci-theme-vantage/luci-app-vantage/htdocs/luci-static/resources/vantage/app.css"
-
-#fwx 内核补丁：struct nf_conn 增加 fwx_data 成员（kmod-fwx 依赖）
-#放入内核 patch 目录，quilt 在内核准备阶段自动应用（6.18 锚点实测验证）
-FIX "fwx-kernel-patch" "./target/linux/generic/hack-6.18" cp -f \
-        "$GITHUB_WORKSPACE/Scripts/995-fwx-nf-conn-struct-user-hook.patch" \
-        "./target/linux/generic/hack-6.18/995-fwx-nf-conn-struct-user-hook.patch"
