@@ -12,6 +12,10 @@
 #   5) 客户端列表分页：每页 10 条，翻页控件在列表标题右侧；过滤/切视图回第 1 页，
 #      数据轮询刷新不跳页
 #   6) 移动端 CSS：解除 vt-live-split 隐藏（手机也显示双向拆分）
+# v5（24h 曲线）：
+#   7) WAN/CPU 抽屉 5min/1h/24h 档位大图（数据源 /cgi-bin/seriesmon，worker 30s 采样）
+#   8) 悬停/触摸十字线 + 时间数值气泡读数（触摸 1.6s 自动隐藏，pan-y 不挡滚动）
+#   9) CPU 火花线与 uplink/cpu 健康芯片点击直达历史抽屉；#perf hash 直达
 import re, sys
 
 def patch(src, pattern, repl, what, count=1, flags=0):
@@ -219,6 +223,62 @@ ov = patch(ov, r"(kv\(_\('Last activity', 'vantage'\), c\.inactive == null \|\| 
     r"\1\t\t\t\tthis.flowStatKv(c),\n\2",
     'drawerClient stats kv')
 
+
+
+# ---------- statusflow v5: 24h zoom charts (CPU / WAN) ----------
+# 数据源 /cgi-bin/seriesmon（worker 30s 采样 tmpfs series.jsonl）。
+# WAN/CPU 抽屉 5min/1h/24h 档位曲线 + 悬停/触摸十字线读数。
+
+ZOOM_HELPERS = "/* ── v-zoom: 仪表盘 24h 曲线放大层（CPU / WAN，数据源 /cgi-bin/seriesmon）── */\nvar srCache=null, srAt=0, srBusy=null;\nfunction fetchSeries(force){\n        var now=Date.now();\n        if(!force&&srCache&&now-srAt<60000)return Promise.resolve(srCache);\n        if(srBusy)return srBusy;\n        srBusy=fetch('/cgi-bin/seriesmon',{cache:'no-store'}).then(function(r){return r.text();}).then(function(t){\n                var pts=[];\n                t.split('\\n').forEach(function(l){\n                        l=l.trim();if(!l)return;\n                        try{var v=JSON.parse(l);if(v&&isFinite(v.t))pts.push([v.t*1000,+v.c||0,+v.d||0,+v.u||0]);}catch(e){}\n                });\n                return pts;\n        });\n        var ok=function(p){srCache=p;srAt=Date.now();},bad=function(){srCache=[];srAt=Date.now();},done=function(){srBusy=null;};\n        srBusy.then(ok,bad);srBusy.then(done,done);\n        return srBusy;\n}\nfunction zoomT(t){var d=new Date(t),p=function(n){return(n<10?'0':'')+n;};return p(d.getHours())+':'+p(d.getMinutes());}\nfunction zoomTL(t,rg){var d=new Date(t),p=function(n){return(n<10?'0':'')+n;};var hm=p(d.getHours())+':'+p(d.getMinutes());return rg==='24h'?(d.getMonth()+1)+'-'+p(d.getDate())+' '+hm:hm;}\nfunction zoomY(kind,v){return kind==='cpu'?Math.round(v)+'%':bitsLabel(v);}\nfunction zoomHost(view,kind){\n        var key=kind==='cpu'?'zoomCpu':'zoomWan', rg=(view.ui&&view.ui[key])||'5m';\n        var winMs=rg==='1h'?3600000:rg==='24h'?86400000:300000, now=Date.now();\n        var data=[];\n        if(rg==='5m'){\n                var src;\n                if(kind==='cpu')src=(view.st.hist.cpu||[]).slice();\n                else{var up=view.m&&view.m.uplink;src=up?(view.st.hist.net[lineKey(up)]||[]):[];}\n                data=src.filter(function(p){return p[0]>=now-winMs;});\n        }else if(srCache){\n                data=srCache.filter(function(p){return p[0]>=now-winMs;}).map(function(p){\n                        return kind==='cpu'?[p[0],p[1]]:[p[0],p[2],p[3]];\n                });\n        }\n        var body=(data.length>1)?zoomChart(kind,data,rg)\n                :E('p',{'class':'vt-empty-inline'},[srCache?_('No data in this window yet.'):_('Loading history…')]);\n        if(rg!=='5m'&&(!srCache||now-srAt>60000))\n                fetchSeries().then(function(){if(view.ui.drawer&&view.el.drawer&&!view.el.drawer.hidden)view.paintDrawer();},function(){});\n        return E('div',{'class':'vt-zoom'},[zoomBar(view,key,kind),body]);\n}\nfunction zoomBar(view,key,kind){\n        var rg=(view.ui&&view.ui[key])||'5m';\n        function btn(id,lab){return E('button',{'type':'button','class':'vt-btn vt-zoom-btn'+(rg===id?' vt-zoom-on':''),'click':function(){view.ui[key]=id;view.paintDrawer();}},[lab]);}\n        var legend=kind==='wan'\n                ?E('span',{'class':'vt-zoom-lg'},[E('i',{'class':'vt-zg vt-zg-dn'}),_('Down','vantage'),E('i',{'class':'vt-zg vt-zg-up'}),_('Up','vantage')])\n                :E('span',{'class':'vt-zoom-lg'},[E('i',{'class':'vt-zg vt-zg-cpu'}),_('CPU','vantage')]);\n        return E('div',{'class':'vt-zoom-bar'},[btn('5m',_('5 min')),btn('1h',_('1 hour')),btn('24h',_('24 hours')),legend]);\n}\nfunction zoomChart(kind,data,rg){\n        var winMs=rg==='1h'?3600000:rg==='24h'?86400000:300000;\n        var t1=data[data.length-1][0], t0=Math.max(data[0][0], t1-winMs);\n        var gapMs=rg==='5m'?9000:100000;\n        var cols=kind==='cpu'?[[1,'var(--vt-chart-5)']]:[[1,'var(--vt-dir-dn)'],[2,'var(--vt-series-up)']];\n        var peak=[],sum=[],cnt=0,i;\n        for(i=0;i<cols.length;i++){peak[i]=0;sum[i]=0;}\n        data.forEach(function(p){\n                if(p[0]<t0||p[0]>t1)return;cnt++;\n                for(i=0;i<cols.length;i++){var v=p[cols[i][0]];if(isFinite(v)&&v>peak[i])peak[i]=v;sum[i]+=isFinite(v)?v:0;}\n        });\n        var vmax=series.niceCeil(Math.max(Math.max.apply(null,peak)*1.08,kind==='cpu'?10:1000));\n        if(kind==='cpu'&&vmax>100)vmax=100;\n        var wrap=E('div',{'class':'vt-zoom-chart'});\n        var plot=E('div',{'class':'vt-zoom-plot'});\n        var svg=svgRoot('vt-spark','0 0 100 100');\n        svg.setAttribute('preserveAspectRatio','none');\n        for(i=1;i<4;i++)svg.appendChild(svgPath('M0 '+(100-25*i)+'H100','vt-spark-grid'));\n        svg.appendChild(svgPath('M0 100H100','vt-spark-base'));\n        cols.forEach(function(c){\n                var segs=series.segments(data,c[0],t0,t1,vmax,100,100,gapMs);\n                if(!segs.length)return;\n                if(c[0]===1){var area=svgPath(series.areaPath(segs,100),'vt-zoom-area');area.style.fill=c[1];svg.appendChild(area);}\n                var line=svgPath(series.linePath(segs),'vt-spark-line');\n                line.style.stroke=c[1];svg.appendChild(line);\n        });\n        plot.appendChild(svg);\n        for(i=0;i<4;i++){var yl=E('span',{'class':'vt-zoom-yl'},[zoomY(kind,vmax*(4-i)/4)]);yl.style.top=(i*25)+'%';plot.appendChild(yl);}\n        /* ── 悬停/触摸读数：十字线 + 数值气泡 ── */\n        var cross=E('div',{'class':'vt-zoom-cross'});\n        var tip=E('div',{'class':'vt-zoom-tip'});\n        var dots=cols.map(function(c){var d=E('div',{'class':'vt-zoom-dot'});d.style.background=c[1];plot.appendChild(d);return d;});\n        plot.appendChild(cross);plot.appendChild(tip);\n        var hideT=0;\n        function hideNow(){cross.style.display='none';tip.style.display='none';dots.forEach(function(d){d.style.display='none';});}\n        function show(p,px){\n                cross.style.display='block';cross.style.left=px+'%';\n                tip.style.display='block';tip.textContent='';\n                tip.appendChild(E('b',{},[zoomTL(p[0],rg)]));\n                cols.forEach(function(c,ci){\n                        var v=p[c[0]];if(!isFinite(v))return;\n                        dots[ci].style.display='block';\n                        dots[ci].style.left=px+'%';\n                        dots[ci].style.top=((1-Math.max(0,Math.min(1,v/vmax)))*100)+'%';\n                        tip.appendChild(E('span',{'class':'vt-zoom-tip-i'},[E('i',{'class':'vt-zg vt-zg'+(kind==='cpu'?'-cpu':ci?'-up':'-dn')}),zoomY(kind,v)]));\n                });\n                var r=plot.getBoundingClientRect(),lx=px/100*r.width,tw=tip.offsetWidth||80;\n                tip.style.left=Math.max(tw/2+4,Math.min(r.width-tw/2-4,lx))+'px';\n        }\n        function move(ev){\n                var r=plot.getBoundingClientRect();\n                var fx=(ev.clientX-r.left)/r.width;\n                if(!(fx>=0)||fx>1){hideNow();return;}\n                var tt=t0+fx*(t1-t0),best=null,bd=Infinity;\n                for(var j=0;j<data.length;j++){var d=Math.abs(data[j][0]-tt);if(d<bd){bd=d;best=data[j];}}\n                if(!best){hideNow();return;}\n                show(best,(best[0]-t0)/(t1-t0)*100);\n                if(hideT){clearTimeout(hideT);hideT=0;}\n        }\n        function hideLater(){if(hideT)clearTimeout(hideT);hideT=setTimeout(hideNow,1600);}\n        plot.addEventListener('pointermove',move);\n        plot.addEventListener('pointerdown',move);\n        plot.addEventListener('pointerleave',function(){if(hideT){clearTimeout(hideT);hideT=0;}hideNow();});\n        plot.addEventListener('pointercancel',function(){hideNow();});\n        plot.addEventListener('pointerup',function(ev){if(ev.pointerType!=='mouse')hideLater();});\n        hideNow();\n        wrap.appendChild(plot);\n        var xl=E('div',{'class':'vt-zoom-xl'});\n        for(i=0;i<5;i++)xl.appendChild(E('span',{},[zoomT(t0+(t1-t0)*i/4)]));\n        wrap.appendChild(xl);\n        var last=data[data.length-1];\n        var st=kind==='cpu'\n                ?_('Peak %s · avg %s').format(Math.round(peak[0])+'%',cnt?Math.round(sum[0]/cnt)+'%':fmt.DASH)\n                :_('Peak ↓ %s · ↑ %s').format(bitsLabel(peak[0]),bitsLabel(peak[1]));\n        var cur=kind==='cpu'?Math.round(last[1])+'%':_('now ↓ %s · ↑ %s').format(bitsLabel(last[1]),bitsLabel(last[2]));\n        wrap.appendChild(E('div',{'class':'vt-zoom-stat'},[st+' — '+cur]));\n        return wrap;\n}\nfunction drawerPerfBody(view){\n        var m=view.m||{},dev=m.device||{},load=dev.load||[],cores=view.st&&view.st.cores;\n        return{title:[E('span',{'class':'vt-drawer-ico'},[icon('cpu')]),\n                E('div',{'class':'vt-drawer-titles'},[\n                        E('div',{'class':'vt-drawer-name'},[_('CPU performance')]),\n                        E('div',{'class':'vt-drawer-sub'},[(cores?cores+' cores · ':'')+(load.length?('load '+(load[0]/65536).toFixed(2)+' / '+(load[1]/65536).toFixed(2)+' / '+(load[2]/65536).toFixed(2)):'')])])],\n                body:[zoomHost(view,'cpu'),\n                        view.section(_('Snapshot','vantage'),[E('dl',{'class':'vt-kvs'},[\n                                kv(_('CPU','vantage'),dev.system||fmt.DASH),\n                                kv(_('Target','vantage'),dev.target||fmt.DASH),\n                                kv(_('Kernel','vantage'),dev.kernel||fmt.DASH),\n                                kv(_('Load average'),load.length?load.map(function(v){return(v/65536).toFixed(2);}).join(' / '):fmt.DASH)])])]};\n}\n"
+
+def zrep(find, to, what):
+    global ov
+    n = ov.count(find)
+    if n != 1:
+        print(f'statusflow-zoom: anchor {what!r} matched {n} times (expect 1)', file=sys.stderr)
+        sys.exit(1)
+    ov = ov.replace(find, to, 1)
+
+if 'zoomHost' not in ov:
+    # z1) helpers（fetch/档位/图表/tooltip 工具函数）+ view.drawerPerf 方法
+    zrep('return view.extend({\n\thandleSave: null,\n\thandleSaveApply: null,\n\thandleReset: null,\n',
+        ZOOM_HELPERS + '\nreturn view.extend({\n\thandleSave: null,\n\thandleSaveApply: null,\n\thandleReset: null,\n\n\tdrawerPerf: function() { return drawerPerfBody(this); },\n',
+        'helpers+drawerPerf')
+
+    # z2) uplink 抽屉 5 分钟 sparkline → 档位切换曲线
+    zrep("E('div', { 'class': 'vt-dspark' }, [ sparkline(hist || [], [ 1, 2 ], 0, 'vt-spark-up', { min: 1000, scale: bitsLabel }) ])",
+        "zoomHost(this, 'wan')",
+        'drawerUplink zoom')
+
+    # z3) paintDrawer 增加 perf 分支
+    zrep('else content = this.drawerDevice();',
+        "else if (d.kind === 'perf') content = this.drawerPerf(); else content = this.drawerDevice();",
+        'paintDrawer perf')
+
+    # z4) hash 路由 #perf
+    zrep("if (hash === '#uplink') { this.openDrawer('uplink', ''); return; }",
+        "if (hash === '#uplink') { this.openDrawer('uplink', ''); return; }\n\t\tif (hash === '#perf') { this.openDrawer('perf', ''); return; }",
+        'hash perf')
+
+    # z5) uplink/cpu 健康芯片点击直达抽屉
+    zrep("else if (c.client) this.openDrawer('client', c.client);",
+        "else if (c.client) this.openDrawer('client', c.client); else if (c.id === 'uplink') this.openDrawer('uplink', ''); else if (c.id === 'cpu') this.openDrawer('perf', '');",
+        'openCheck route')
+
+    # z6) sys 卡构建器暴露 self
+    zrep("buildSystem: function() {\n\t\tvar el = this.el;\n\t\tel.sysUptime = E('span', { 'class': 'vt-hint vt-tn' });",
+        "buildSystem: function() {\n\t\tvar el = this.el, self = this;\n\t\tel.sysUptime = E('span', { 'class': 'vt-hint vt-tn' });",
+        'sys self')
+
+    # z7) CPU 火花线可点击 → perf 抽屉
+    zrep("el.cpuSpark = E('div', { 'class': 'vt-spark-slot' });",
+        "el.cpuSpark = E('div', { 'class': 'vt-spark-slot vt-zoomable', 'title': _('Click to open history'), 'click': function() { self.openDrawer('perf', ''); } });",
+        'cpuSpark clickable')
+
+    print('vantage-statusflow: zoom charts patched')
+
+# CSS（追加在原 statusflow CSS 之后）
+
 open(ov_path, 'w', encoding='utf-8').write(ov)
 print(f'vantage-statusflow: overview.js patched ({len(ov)} bytes)')
 
@@ -245,5 +305,11 @@ if 'vt-live-day' not in css:
 '''
     open(css_path, 'w', encoding='utf-8').write(css)
     print(f'vantage-statusflow: app.css patched ({len(css)} bytes)')
+
+zoom_css = '/* v-zoom: 24h history charts (CPU / WAN) — appended by statusflow v5 */\n.vt-app .vt-zoom { margin: 2px 0 4px; }\n.vt-app .vt-zoom-bar { display: flex; align-items: center; gap: 6px; margin: 0 0 10px; flex-wrap: wrap; }\n.vt-app .vt-zoom-btn { padding: 1px 12px; min-height: 24px; line-height: 1.4; border-radius: 999px; }\n.vt-app .vt-zoom-on { background: color-mix(in oklab, var(--vt-chart-1) 22%, transparent); }\n.vt-app .vt-zoom-lg { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; font-size: var(--vt-fs-micro); color: var(--vt-text-3); }\n.vt-app .vt-zg { width: 10px; height: 3px; border-radius: 2px; display: inline-block; }\n.vt-app .vt-zg-dn { background: var(--vt-dir-dn); }\n.vt-app .vt-zg-up { background: var(--vt-series-up); }\n.vt-app .vt-zg-cpu { background: var(--vt-chart-5); }\n.vt-app .vt-zoom-plot { position: relative; }\n.vt-app .vt-zoom-plot .vt-spark { height: 230px; }\n.vt-app .vt-zoom-area { opacity: .14; }\n.vt-app .vt-zoom-yl { position: absolute; right: 0; font-size: var(--vt-fs-micro); color: var(--vt-chart-axis); transform: translateY(-50%); pointer-events: none; }\n.vt-app .vt-zoom-xl { display: flex; justify-content: space-between; margin-top: 4px; font-size: var(--vt-fs-micro); color: var(--vt-text-3); }\n.vt-app .vt-zoom-stat { margin: 8px 2px 2px; font-size: var(--vt-fs-micro); color: var(--vt-text-3); }\n.vt-app .vt-zoomable { cursor: zoom-in; }\n@media (max-width: 640px) {\n\t.vt-app .vt-zoom-plot .vt-spark { height: 38vh; min-height: 180px; }\n\t.vt-app .vt-zoom-btn { padding: 3px 14px; }\n}\n\n/* v-zoom tooltip: hover/touch readout (statusflow v5.1) */\n.vt-app .vt-zoom-plot { touch-action: pan-y; user-select: none; -webkit-user-select: none; cursor: crosshair; }\n.vt-app .vt-zoom-cross { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--vt-chart-axis); opacity: .55; pointer-events: none; display: none; }\n.vt-app .vt-zoom-dot { position: absolute; width: 9px; height: 9px; margin: -4.5px 0 0 -4.5px; border-radius: 50%; box-shadow: 0 0 0 2px var(--vt-surface); pointer-events: none; display: none; }\n.vt-app .vt-zoom-tip { position: absolute; top: 4px; transform: translateX(-50%); background: var(--vt-surface); border: 1px solid var(--vt-chart-grid); border-radius: 8px; padding: 3px 10px; font-size: var(--vt-fs-micro); color: var(--vt-text-2); white-space: nowrap; pointer-events: none; display: none; box-shadow: 0 2px 10px rgba(0,0,0,.18); z-index: 5; }\n.vt-app .vt-zoom-tip b { font-weight: 600; margin-right: 6px; color: var(--vt-text-1); }\n.vt-app .vt-zoom-tip-i { margin-right: 8px; display: inline-flex; align-items: center; gap: 4px; }\n.vt-app .vt-zoom-tip-i:last-child { margin-right: 0; }\n'
+if 'vt-zoom-chart' not in css:
+    css += zoom_css
+    open(css_path, 'w', encoding='utf-8').write(css)
+    print(f'vantage-statusflow: zoom css appended ({len(css)} bytes)')
 else:
-    print('vantage-statusflow: app.css already patched, skip')
+    print('vantage-statusflow: zoom css already present, skip')

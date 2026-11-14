@@ -77,4 +77,8 @@ install -m 755 "$GITHUB_WORKSPACE/Scripts/statusflow-initd" \
 install -m 755 "$GITHUB_WORKSPACE/Scripts/statusflow-cgi.sh" \
    "$ROOT/www/cgi-bin/statusflow"
 
-echo "statusfw patch done: shortcuts merged into dashboard, status charts removed, embedded filemanager removed"
+# 7) seriesmon：仪表盘 24h 曲线端点（转发 worker 的 series.jsonl，v5 起 worker 自带采样）
+install -m 755 "$GITHUB_WORKSPACE/Scripts/seriesmon-cgi.sh" \
+   "$ROOT/www/cgi-bin/seriesmon"
+
+echo "statusfw patch done: shortcuts + statusflow v5 (24h charts) + seriesmon installed"
