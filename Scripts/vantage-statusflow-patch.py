@@ -374,6 +374,19 @@ if 'vt-live-day' not in css:
         .vt-app .vt-pager { gap: 8px; }
         .vt-app .vt-pager .vt-btn { padding: 3px 12px; }
 }
+/* vt-pill-wrap-fix: long pills (zte badge) must wrap, not overflow the card on
+   narrow screens; short pills are unaffected because they never reach 100% */
+.vt-app .vt-pill {
+        max-width: 100%;
+        white-space: normal;
+        overflow-wrap: anywhere;
+        height: auto;
+        min-height: 18px;
+        line-height: 1.45;
+        padding-top: 1px;
+        padding-bottom: 1px;
+}
+.vt-app .vt-tags { flex-wrap: wrap; row-gap: 3px; }
 '''
     open(css_path, 'w', encoding='utf-8').write(css)
     print(f'vantage-statusflow: app.css patched ({len(css)} bytes)')
