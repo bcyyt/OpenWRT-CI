@@ -1,0 +1,11 @@
+{
+	"luci-app-zte-wifi": {
+		"description": "配置 ZTE Mesh 无线客户端采集（zte-wifi 守护）",
+		"read": {
+			"uci": [ "zte-wifi" ]
+		},
+		"write": {
+			"uci": [ "zte-wifi" ]
+		}
+	}
+}

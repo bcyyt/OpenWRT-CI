@@ -1,0 +1,14 @@
+{
+	"admin/system/zte-wifi": {
+		"title": "ZTE Mesh 无线",
+		"order": 90,
+		"action": {
+			"type": "view",
+			"path": "zte-wifi"
+		},
+		"depends": {
+			"acl": [ "luci-app-zte-wifi" ],
+			"uci": { "zte-wifi": true }
+		}
+	}
+}
