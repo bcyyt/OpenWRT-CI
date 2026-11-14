@@ -81,4 +81,17 @@ install -m 755 "$GITHUB_WORKSPACE/Scripts/statusflow-cgi.sh" \
 install -m 755 "$GITHUB_WORKSPACE/Scripts/seriesmon-cgi.sh" \
    "$ROOT/www/cgi-bin/seriesmon"
 
-echo "statusfw patch done: shortcuts + statusflow v5 (24h charts) + seriesmon installed"
+# 8) zte-wifi：中兴 mesh 无线客户端详情（ZXSLC 协议采集守护 + CGI + 前端徽标）
+#    可选功能：固件不带密码配置（安全），存在 /etc/zte-wifi.conf 时 initd 才启动守护；
+#    配置路径写入 sysupgrade.conf，跨升级保留。
+install -m 755 "$GITHUB_WORKSPACE/Scripts/zte-wifi.py" \
+   "$ROOT/usr/lib/zte-wifi.py"
+install -m 755 "$GITHUB_WORKSPACE/Scripts/zte-initd" \
+   "$ROOT/etc/init.d/zte-wifi"
+install -m 755 "$GITHUB_WORKSPACE/Scripts/zteinfo-cgi.sh" \
+   "$ROOT/www/cgi-bin/zteinfo"
+touch "$ROOT/etc/sysupgrade.conf"
+grep -q '^/etc/zte-wifi\.conf$' "$ROOT/etc/sysupgrade.conf" 2>/dev/null || \
+   echo "/etc/zte-wifi.conf" >> "$ROOT/etc/sysupgrade.conf"
+
+echo "statusfw patch done: shortcuts + statusflow v5.3 (24h charts + zte mesh wifi) + seriesmon installed"

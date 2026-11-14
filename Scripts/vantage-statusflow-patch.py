@@ -277,6 +277,60 @@ if 'zoomHost' not in ov:
 
     print('vantage-statusflow: zoom charts patched')
 
+# ---------- zte mesh 无线详情徽标 (statusflow v5.3) ----------
+# 数据链路：/usr/lib/zte-wifi.py（procd 守护，ZXSLC 协议登中兴各节点拉本节点 WiFi
+# 客户端 + 主节点拓扑）→ /tmp/zte-wifi.json → /www/cgi-bin/zteinfo → 前端每 15s 轮询。
+# 客户端行显示「5G · 节点名」/「2.4G · 节点名」accent 徽标，mesh 节点行显示「ZTE mesh 主/子」。
+# 未配置 /etc/zte-wifi.conf 时守护不启动，此段静默无数据，不影响页面。
+
+# Z1) 挂载：initFlow 后追加 initZte
+ov = patch(ov, r"(\t\tthis\.initFlow\(\);)",
+    r"\1\n\t\tthis.initZte();",
+    'initZte hook')
+
+# Z2) initZte 方法（插在 initFlow 定义前）
+zte_method = '''
+        /* zte: 中兴 mesh 无线详情徽标（/cgi-bin/zteinfo，zte-wifi 守护采集中兴路由器 API）*/
+        initZte: function() {
+                var self = this;
+                function load() {
+                        fetch('/cgi-bin/zteinfo', { cache: 'no-store' })
+                                .then(function(r) { return r.json(); })
+                                .catch(function() { return null; })
+                                .then(function(d) {
+                                        if (!d) return;
+                                        var c = d.c || {}, n = d.n || {}, chg = false, k;
+                                        if (!self.st.zte) {
+                                                self.st.zte = c; self.st.zteNode = n;
+                                                chg = Object.keys(c).length > 0;
+                                        } else {
+                                                for (k in c) if (JSON.stringify(self.st.zte[k]) !== JSON.stringify(c[k])) { chg = true; break; }
+                                                if (!chg) for (k in n) if (!self.st.zteNode || JSON.stringify(self.st.zteNode[k]) !== JSON.stringify(n[k])) { chg = true; break; }
+                                                self.st.zte = c; self.st.zteNode = n;
+                                        }
+                                        if (chg) self.paintClients();
+                                });
+                }
+                load();
+                setInterval(load, 15000);
+        },
+
+'''
+ov = patch(ov, r"(initFlow: function\(\) \{)",
+    zte_method + r"\1",
+    'initZte method')
+
+# Z3) wiredCells 徽标（VLAN pill 之后；锚点宽容空白，兼容源码格式差异）
+ov = patch(ov,
+    r"(if\s*\(\s*c\.vlan\s*!=\s*null\s*\)\s*tags\.push\s*\(\s*pill\s*\(\s*_\s*\(\s*'VLAN %d'\s*\)\s*\.format\s*\(\s*c\.vlan\s*\)\s*,\s*'muted'\s*\)\s*\)\s*;)",
+    r"\1"
+    r"var zw=null,zn=null,zt=this.st.zte||{},ztN=this.st.zteNode||{},zips=c&&c.ips||[];"
+    r"for(var zi=0;zi<zips.length;zi++){if(zt[zips[zi]]){zw=zt[zips[zi]];break;}"
+    r"if(!zn&&ztN[zips[zi]])zn=ztN[zips[zi]];}"
+    r"if(zw)tags.push(pill(zw.b+' · '+zw.n,'accent','中兴 mesh 无线客户端：'+zw.b+'，挂在节点「'+zw.n+'」'));"
+    r"else if(zn)tags.push(pill('ZTE mesh '+zn.r,'accent','中兴 mesh 节点：'+zn.m));",
+    'wiredCells zte badge')
+
 # CSS（追加在原 statusflow CSS 之后）
 
 open(ov_path, 'w', encoding='utf-8').write(ov)
