@@ -99,25 +99,34 @@ install -m 644 "$GITHUB_WORKSPACE/Scripts/zte-acl.json" \
 install -m 644 "$GITHUB_WORKSPACE/Scripts/zte-default-config" \
    "$ROOT/etc/config/zte-wifi"
 
-# 9) dhcp.js：去掉「Active DHCP(v6) Leases」在线设备表
-#    （在线设备已在 Vantage 仪表盘完整呈现，DHCP 页里重复且拖慢加载）
-python3 - "$ROOT/www/luci-static/resources/view/network/dhcp.js" <<'PYD'
-import re, sys
+# 9) fwmanager network.htm：去掉「在线设备」表格区块
+#    （在线设备已在 Vantage 仪表盘完整呈现；保留 DHCP 邻居设置与添加静态表单）
+python3 - "$ROOT/usr/lib/lua/luci/view/fwmanager/network.htm" <<'PYD'
+import sys
 p = sys.argv[1]
 s = open(p, encoding='utf-8').read()
-s2, n = re.subn(
-    r"\s*s\.option\(CBILeaseStatus,\s*'__status__'\);"
-    r"\s*if\s*\(has_dhcpv6\)\s*"
-    r"s\.option\(CBILease6Status,\s*'__status6__'\);",
-    '', s, count=1)
-if n == 0:  # 格式变体兜底：分开删
-    s2 = re.sub(r"\s*s\.option\(CBILeaseStatus,\s*'__status__'\);", '', s, count=1)
-    s2 = re.sub(r"\s*if\s*\(has_dhcpv6\)\s*s\.option\(CBILease6Status,\s*'__status6__'\);", '', s2, count=1)
-if s2 != s:
-    open(p, 'w', encoding='utf-8').write(s2)
-    print('dhcp.js: active lease tables removed')
+orig = len(s)
+h_start = s.find('<div class="nfw-item">')
+if h_start > 0 and '<b>在线设备</b>' in s:
+    h_end_anchor = '<div class="nfw-cpage" id="nfw-cpage"></div>'
+    h_end = s.find(h_end_anchor) + len(h_end_anchor)
+    s = s[:h_start] + s[h_end:]
+    j1 = s.find("document.getElementById('nfw-refresh').addEventListener('click', load);")
+    if j1 > 0:
+        s = s[:j1] + s[j1 + len("document.getElementById('nfw-refresh').addEventListener('click', load);"):]
+    j2 = s.find("document.getElementById('nfw-clients').addEventListener")
+    j3 = s.find("document.getElementById('nfw-cpage').addEventListener")
+    if j2 > 0 and j3 > j2:
+        s = s[:j2] + s[j3:]
+    j4 = s.find("document.getElementById('nfw-cpage').addEventListener")
+    if j4 > 0:
+        end = s.find("\n  });", j4)
+        if end > 0:
+            s = s[:j4] + s[end + len("\n  });"):]
+    open(p, 'w', encoding='utf-8').write(s)
+    print(f'network.htm: online-devices block removed ({orig} -> {len(s)} bytes)')
 else:
-    print('dhcp.js: pattern not found, skip')
+    print('network.htm: online-devices block not found (already removed?)')
 PYD
 
 echo "statusfw patch done: shortcuts + statusflow v5.3 (24h charts + zte mesh wifi) + seriesmon + dhcp cleanup installed"
