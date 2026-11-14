@@ -327,8 +327,20 @@ ov = patch(ov,
     r"var zw=null,zn=null,zt=this.st.zte||{},ztN=this.st.zteNode||{},zips=c&&c.ips||[];"
     r"for(var zi=0;zi<zips.length;zi++){if(zt[zips[zi]]){zw=zt[zips[zi]];break;}"
     r"if(!zn&&ztN[zips[zi]])zn=ztN[zips[zi]];}"
-    r"if(zw)tags.push(pill(zw.b+' · '+zw.n,'accent','中兴 mesh 无线客户端：'+zw.b+'，挂在节点「'+zw.n+'」'));"
-    r"else if(zn)tags.push(pill('ZTE mesh '+zn.r,'accent','中兴 mesh 节点：'+zn.m));",
+    r"if(zw){var zl=(zw.m?zw.m+' · ':'')+zw.b+' · '+zw.n;"
+    r"var zt='中兴 mesh 无线：'+zw.b+'，节点「'+zw.n+'」';"
+    r"if(zw.mac)zt+='\nMAC: '+zw.mac;"
+    r"function zfr(v){if(v==null)return'-';if(v>=1e9)return(v/1e9).toFixed(1)+'Gbps';if(v>=1e6)return(v/1e6).toFixed(1)+'Mbps';if(v>=1e3)return(v/1e3).toFixed(0)+'Kbps';return v+'bps';}"
+    r"if(zw.ur!=null)zt+='\n实时速率: ↑'+zfr(zw.ur)+' ↓'+zfr(zw.dr);"
+    r"if(zw.ut!=null)zt+='\n累计吞吐(KB): ↑'+zw.ut+' ↓'+zw.dt;"
+    r"if(zw.on!=null){var zd=Math.floor(zw.on/86400),zh=Math.floor(zw.on%86400/3600),zm=Math.floor(zw.on%3600/60);zt+='\n在线: '+(zd?zd+'天 ':'')+zh+'时'+zm+'分';}"
+    r"if(zw.lc)zt+='\n最后连接: '+zw.lc;"
+    r"tags.push(pill(zl,'accent',zt));}"
+    r"else if(zn){var nt='中兴 mesh 节点：'+zn.m;"
+    r"if(zn.md)nt+='\n型号: '+zn.md;"
+    r"if(zn.sv)nt+='\n固件: '+zn.sv;"
+    r"if(zn.at)nt+='\n回程: '+zn.at+(zn.ls&&zn.ls!='0'?' '+zn.ls+'Mbps':'');"
+    r"tags.push(pill('ZTE mesh '+zn.r,'accent',nt));}",
     'wiredCells zte badge')
 
 # CSS（追加在原 statusflow CSS 之后）
