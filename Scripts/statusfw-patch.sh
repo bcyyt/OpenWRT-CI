@@ -81,17 +81,43 @@ install -m 755 "$GITHUB_WORKSPACE/Scripts/statusflow-cgi.sh" \
 install -m 755 "$GITHUB_WORKSPACE/Scripts/seriesmon-cgi.sh" \
    "$ROOT/www/cgi-bin/seriesmon"
 
-# 8) zte-wifi：中兴 mesh 无线客户端详情（ZXSLC 协议采集守护 + CGI + 前端徽标）
-#    可选功能：固件不带密码配置（安全），存在 /etc/zte-wifi.conf 时 initd 才启动守护；
-#    配置路径写入 sysupgrade.conf，跨升级保留。
+# 8) zte-wifi：中兴 mesh 无线客户端详情（ZXSLC 协议采集守护 + CGI + LuCI 配置页 + 前端徽标）
+#    可选功能：密码等配置走 UCI /etc/config/zte-wifi（LuCI「系统 → ZTE Mesh 无线」维护，
+#    sysupgrade 默认保留 /etc/config；恢复出厂清空后可在页面重新填写，守护待机自动接管）。
 install -m 755 "$GITHUB_WORKSPACE/Scripts/zte-wifi.py" \
    "$ROOT/usr/lib/zte-wifi.py"
 install -m 755 "$GITHUB_WORKSPACE/Scripts/zte-initd" \
    "$ROOT/etc/init.d/zte-wifi"
 install -m 755 "$GITHUB_WORKSPACE/Scripts/zteinfo-cgi.sh" \
    "$ROOT/www/cgi-bin/zteinfo"
-touch "$ROOT/etc/sysupgrade.conf"
-grep -q '^/etc/zte-wifi\.conf$' "$ROOT/etc/sysupgrade.conf" 2>/dev/null || \
-   echo "/etc/zte-wifi.conf" >> "$ROOT/etc/sysupgrade.conf"
+install -m 644 "$GITHUB_WORKSPACE/Scripts/zte-wifi-view.js" \
+   "$ROOT/www/luci-static/resources/view/zte-wifi.js"
+install -m 644 "$GITHUB_WORKSPACE/Scripts/zte-menu.json" \
+   "$ROOT/usr/share/luci/menu.d/luci-app-zte-wifi.json"
+install -m 644 "$GITHUB_WORKSPACE/Scripts/zte-acl.json" \
+   "$ROOT/usr/share/rpcd/acl.d/luci-app-zte-wifi.json"
+install -m 644 "$GITHUB_WORKSPACE/Scripts/zte-default-config" \
+   "$ROOT/etc/config/zte-wifi"
 
-echo "statusfw patch done: shortcuts + statusflow v5.3 (24h charts + zte mesh wifi) + seriesmon installed"
+# 9) dhcp.js：去掉「Active DHCP(v6) Leases」在线设备表
+#    （在线设备已在 Vantage 仪表盘完整呈现，DHCP 页里重复且拖慢加载）
+python3 - "$ROOT/www/luci-static/resources/view/network/dhcp.js" <<'PYD'
+import re, sys
+p = sys.argv[1]
+s = open(p, encoding='utf-8').read()
+s2, n = re.subn(
+    r"\s*s\.option\(CBILeaseStatus,\s*'__status__'\);"
+    r"\s*if\s*\(has_dhcpv6\)\s*"
+    r"s\.option\(CBILease6Status,\s*'__status6__'\);",
+    '', s, count=1)
+if n == 0:  # 格式变体兜底：分开删
+    s2 = re.sub(r"\s*s\.option\(CBILeaseStatus,\s*'__status__'\);", '', s, count=1)
+    s2 = re.sub(r"\s*if\s*\(has_dhcpv6\)\s*s\.option\(CBILease6Status,\s*'__status6__'\);", '', s2, count=1)
+if s2 != s:
+    open(p, 'w', encoding='utf-8').write(s2)
+    print('dhcp.js: active lease tables removed')
+else:
+    print('dhcp.js: pattern not found, skip')
+PYD
+
+echo "statusfw patch done: shortcuts + statusflow v5.3 (24h charts + zte mesh wifi) + seriesmon + dhcp cleanup installed"
