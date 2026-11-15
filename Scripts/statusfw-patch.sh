@@ -100,17 +100,29 @@ install -m 644 "$GITHUB_WORKSPACE/Scripts/zte-default-config" \
    "$ROOT/etc/config/zte-wifi"
 
 # 9) fwmanager network.htm：去掉「在线设备」表格区块
-#    （在线设备已在 Vantage 仪表盘完整呈现；保留 DHCP 邻居设置与添加静态表单）
+#    （在线设备已在 Vantage 仪表盘完整呈现；保留 DHCP 开关/地址池/终端DNS/邻居设置与添加静态表单）
+#    锚定 <b>在线设备</b> 向前找最近的 nfw-item 容器起切，避免误删前面的 DHCP/邻居区块。
+#    终检：JS 无守卫的 getElementById(...).addEventListener 目标必须存在于 HTML，否则构建失败。
 python3 - "$ROOT/usr/lib/lua/luci/view/fwmanager/network.htm" <<'PYD'
-import sys
+import re, sys
 p = sys.argv[1]
 s = open(p, encoding='utf-8').read()
 orig = len(s)
-h_start = s.find('<div class="nfw-item">')
-if h_start > 0 and '<b>在线设备</b>' in s:
+anchor = s.find('<b>在线设备</b>')
+if anchor > 0:
+    h_start = s.rfind('<div class="nfw-item', 0, anchor)
     h_end_anchor = '<div class="nfw-cpage" id="nfw-cpage"></div>'
-    h_end = s.find(h_end_anchor) + len(h_end_anchor)
-    s = s[:h_start] + s[h_end:]
+    he = s.find(h_end_anchor, anchor)
+    if h_start < 0 or he < 0:
+        print('network.htm: FATAL cut boundary not found')
+        sys.exit(1)
+    cut = s[h_start:he + len(h_end_anchor)]
+    for keep in ['id="start"', 'id="limit"', 'id="leasetime"', 'id="client_dns"',
+                 'id="neigh_gc"', 'id="nfw-save-dhcp"', 'id="nfw-save-neigh"', 'id="nfw-add-static"']:
+        if keep in cut:
+            print(f'network.htm: FATAL cut range swallows kept section {keep}')
+            sys.exit(1)
+    s = s[:h_start] + s[he + len(h_end_anchor):]
     j1 = s.find("document.getElementById('nfw-refresh').addEventListener('click', load);")
     if j1 > 0:
         s = s[:j1] + s[j1 + len("document.getElementById('nfw-refresh').addEventListener('click', load);"):]
@@ -123,8 +135,14 @@ if h_start > 0 and '<b>在线设备</b>' in s:
         end = s.find("\n  });", j4)
         if end > 0:
             s = s[:j4] + s[end + len("\n  });"):]
+    missing = [m.group(1) for m in re.finditer(
+        r"document\.getElementById\('([^']+)'\)\.addEventListener", s)
+        if f'id="{m.group(1)}"' not in s]
+    if missing:
+        print(f'network.htm: FATAL JS references missing ids {missing}')
+        sys.exit(1)
     open(p, 'w', encoding='utf-8').write(s)
-    print(f'network.htm: online-devices block removed ({orig} -> {len(s)} bytes)')
+    print(f'network.htm: online-devices block removed ({orig} -> {len(s)} bytes), id check OK')
 else:
     print('network.htm: online-devices block not found (already removed?)')
 PYD
