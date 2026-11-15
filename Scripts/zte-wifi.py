@@ -120,6 +120,7 @@ def load_conf():
     """读 UCI 配置；无密码时回退旧版 JSON。返回 dict 或 None。"""
     pw = ''
     interval = 30
+    enabled = True
     nodes = []
     try:
         cur = None
@@ -146,6 +147,8 @@ def load_conf():
                             interval = max(10, int(v))
                         except ValueError:
                             pass
+                    elif k == 'enabled':
+                        enabled = v not in ('0', 'off', 'false', 'no')
                 elif cur.get('type') == 'node':
                     if k == 'ip':
                         cur['ip'] = v
@@ -159,7 +162,8 @@ def load_conf():
         pass
 
     if pw:
-        return {'password': pw, 'interval': interval,
+        return {
+        'enabled': enabled,'password': pw, 'interval': interval,
                 'nodes': [Node(n['ip'], n.get('name', ''), n.get('topo', False))
                           for n in nodes if n.get('ip')]}
 
@@ -255,7 +259,12 @@ def main():
             conf_mtime = mt
             warned = False
 
-        if conf and conf['password'] and conf['nodes']:
+        if conf and not conf.get('enabled', True):
+            if not warned:
+                sys.stderr.write('zte-wifi: 总开关关闭''（LuCI → 系统 → ZTE Mesh 无线 → 总开关），待机中\n')
+                sys.stderr.flush()
+                warned = True
+        elif conf and conf['password'] and conf['nodes']:
             cur, ok_any = collect(conf)
             if ok_any or not last.get('ts'):
                 last = cur

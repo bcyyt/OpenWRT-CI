@@ -15,6 +15,11 @@ return view.extend({
                 s = m.section(form.TypedSection, 'main', _('基本设置'));
                 s.anonymous = true;
 
+                o = s.option(form.Flag, 'enabled', _('总开关（启用采集）'),
+                        _('关闭后守护待机、不再登录各节点采集，仪表盘同时隐藏中兴 mesh 徽标与遥测；重新打开后约一个采集周期内自动恢复，无需重启。'));
+                o.default = o.enabled = true;
+                o.rmempty = false;
+
                 o = s.option(form.Value, 'password', _('管理密码'),
                         _('中兴路由器 Web 管理密码（与浏览器登录节点管理页相同），仅保存在本机。'));
                 o.password = true;
