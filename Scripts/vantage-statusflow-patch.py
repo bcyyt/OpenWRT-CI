@@ -80,7 +80,7 @@ methods = '''
            future reliable backend; render nothing meanwhile. */
         flowStatKv: function(c) {
                 return '';
-        },},
+        },
 
         /* statusflow: numeric IPv4 value, the default client list order
            (clients stay put instead of jumping around by live rate) */
@@ -293,11 +293,11 @@ ov = patch(ov,
     r"if(!zn&&ztN[zips[zi]])zn=ztN[zips[zi]];}"
     r"if(zw){var zl=(zw.m?zw.m+' · ':'')+zw.b+' · '+zw.n;"
     r"var zt='中兴 mesh 无线：'+zw.b+'，节点「'+zw.n+'」';"
-    r"if(zw.mac)zt+='\nMAC: '+zw.mac;"
-        r"if(zw.ur!=null)zt+='\n实时速率: ↑'+fmt.bits(zw.ur)+' ↓'+fmt.bits(zw.dr);"
-    r"if(zw.ut!=null)zt+='\n累计吞吐: ↑'+this.statFmt(zw.ut*1024)+' ↓'+this.statFmt(zw.dt*1024);"
-    r"if(zw.on!=null){var zd=Math.floor(zw.on/86400),zh=Math.floor(zw.on%86400/3600),zm=Math.floor(zw.on%3600/60);zt+='\n在线: '+(zd?zd+'天 ':'')+zh+'时'+zm+'分';}"
-    r"if(zw.lc)zt+='\n最后连接: '+zw.lc;"
+    r"if(zw.mac)zt+='\\nMAC: '+zw.mac;"
+        r"if(zw.ur!=null)zt+='\\n实时速率: ↑'+fmt.bits(zw.ur)+' ↓'+fmt.bits(zw.dr);"
+    r"if(zw.ut!=null)zt+='\\n累计吞吐: ↑'+this.statFmt(zw.ut*1024)+' ↓'+this.statFmt(zw.dt*1024);"
+    r"if(zw.on!=null){var zd=Math.floor(zw.on/86400),zh=Math.floor(zw.on%86400/3600),zm=Math.floor(zw.on%3600/60);zt+='\\n在线: '+(zd?zd+'天 ':'')+zh+'时'+zm+'分';}"
+    r"if(zw.lc)zt+='\\n最后连接: '+zw.lc;"
     r"tags.push(pill(zl,'accent',zt));"
     r"var zsp='';"
     r"if(zw.ur!=null&&(zw.ur||zw.dr))zsp+='↑'+fmt.bits(zw.ur)+' ↓'+fmt.bits(zw.dr);"
@@ -306,9 +306,9 @@ ov = patch(ov,
     r"zsp+=(zsp?' · ':'')+'在线 '+(zd?zd+'天':zh?zh+'时':Math.floor(zw.on%3600/60)+'分');}"
     r"if(zsp)tags.push(pill(zsp,'muted'));}"
     r"else if(zn){var nt='中兴 mesh 节点：'+zn.m;"
-    r"if(zn.md)nt+='\n型号: '+zn.md;"
-    r"if(zn.sv)nt+='\n固件: '+zn.sv;"
-    r"if(zn.at)nt+='\n回程: '+zn.at+(zn.ls&&zn.ls!='0'?' '+zn.ls+'Mbps':'');"
+    r"if(zn.md)nt+='\\n型号: '+zn.md;"
+    r"if(zn.sv)nt+='\\n固件: '+zn.sv;"
+    r"if(zn.at)nt+='\\n回程: '+zn.at+(zn.ls&&zn.ls!='0'?' '+zn.ls+'Mbps':'');"
     r"tags.push(pill('ZTE mesh '+zn.r,'accent',nt));}",
     'wiredCells zte badge')
 
