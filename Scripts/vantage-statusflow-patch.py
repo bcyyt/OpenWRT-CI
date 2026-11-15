@@ -72,15 +72,15 @@ methods = '''
                 return t;
         },
 
-        /* statusflow: today/total traffic rows for the client drawer */
+        /* statusflow: per-client today/total rows — DISABLED (v5.7.1).
+           MT7988 PPE offload corrupts conntrack per-flow counters (ghost
+           writes inflate totals and forge symmetrical directions) and the
+           kernel WAN counters miss offloaded traffic entirely, so no
+           trustworthy per-client source remains. Hooks stay in place for a
+           future reliable backend; render nothing meanwhile. */
         flowStatKv: function(c) {
-                var s = this.flowStats(c);
-                if (!s || (!s.du && !s.dd && !s.gu && !s.gd)) return '';
-                return kv('今日流量', E('div', {}, [
-                        E('div', { 'class': 'vt-tn' }, [ '今日 ↓ ' + this.statFmt(s.dd) + ' · ↑ ' + this.statFmt(s.du) ]),
-                        E('div', { 'class': 'vt-tn' }, [ '累计 ↓ ' + this.statFmt(s.gd) + ' · ↑ ' + this.statFmt(s.gu) ])
-                ]), true);
-        },
+                return '';
+        },},
 
         /* statusflow: numeric IPv4 value, the default client list order
            (clients stay put instead of jumping around by live rate) */
@@ -126,10 +126,7 @@ if ov.count(ANCHOR_SORT) != 1:
     sys.exit(1)
 ov = ov.replace(ANCHOR_SORT, '\n' + methods + '(c, key) {', 1)
 
-# 3) sortValue：wired 速率优先取 flowRate；switch 增加 ip 键
-ov = patch(ov, r"(\t\tvar r = typeof c\.port === 'string' \? )this\.portRate\(c\)( : this\.st\.staRates\[c\.mac\];)",
-    r"\1(this.flowRate(c) || this.portRate(c))\2",
-    'sortValue r')
+# 3) sortValue：switch 增加 ip 键（v5.7.1：撤除 flowRate 排序优先，恢复 portRate/staRates 口径）
 ov = patch(ov, r"(\t\tswitch \(key\) \{\n)(\t\tcase 'name':)",
     r"\1\t\tcase 'ip': return this.ipValue(c);\n\2",
     'switch ip case')
@@ -181,39 +178,6 @@ ov = patch(ov, r"(\tpickClients: function\(\) \{\n\t\tif \(this\.held\) delete t
     r"\1\t\tthis.ui.page = 1;\n",
     'pickClients reset')
 
-# 10) wiredCells：速率优先 flowRate + 今日计数
-ov = patch(ov, r"(\twiredCells: function\(c, maxRate\) \{\n\t\tvar r = )this\.portRate\(c\)(, total = r \? r\.rx \+ r\.tx : 0;\n)",
-    r"\1(this.flowRate(c) || this.portRate(c))\2\t\tvar stt = this.flowStats(c);\n",
-    'wiredCells head')
-
-# 11) wired live 单元格：共享端口有 per-IP 数据也显示；title 注明含硬件卸载；追加今日行
-ov = patch(ov, r"(E\('td', \{ 'class': 'vt-td-live', 'data-title': _\('Live'\) \}, c\.shared) \? \[",
-    r"\1 && !r ? [",
-    'wired shared branch')
-ov = patch(ov,
-    r"(E\('span', \{ 'class': 'vt-live-split vt-tn', 'title': r \? )(_\('To device %s, from device %s'\)\.format\(fmt\.bits\(r\.tx\), fmt\.bits\(r\.rx\)\))( : '' \}, \[ r \? fmt\.rates\(r\.tx, r\.rx\) : '' \]\))(\n\t+\]\)\n\t+\]\),\n\t+E\('td', \{ 'class': ')(vt-td-seen)",
-    r"\1(r.flow ? _('To device %s, from device %s (incl. hardware offloaded traffic)').format(fmt.bits(r.tx), fmt.bits(r.rx)) : \2)\3,\n"
-    r"\t\t\t\t\tE('span', { 'class': 'vt-live-day vt-tn' }, [ stt && (stt.dd || stt.du) ? '今日 ↓' + this.statFmt(stt.dd) + ' ↑' + this.statFmt(stt.du) : '' ])"
-    r"\4\5",
-    'wired live cell')
-
-# 12) clientCells：今日计数
-ov = patch(ov, r"(\tclientCells: function\(c, maxRate\) \{\n\t\tvar st = this\.st, r = c\.gone \? null : st\.staRates\[c\.mac\];\n\t\tvar total = r \? r\.rx \+ r\.tx : 0;\n)",
-    r"\1\t\tvar stt = this.flowStats(c);\n",
-    'clientCells head')
-
-# 13) wifi live 单元格：追加今日行
-ov = patch(ov,
-    r"(E\('span', \{ 'class': 'vt-live-split vt-tn', 'title': r \? _\('To device %s, from device %s'\)\.format\(fmt\.bits\(r\.tx\), fmt\.bits\(r\.rx\)\) : '' \}, \[ r \? fmt\.rates\(r\.tx, r\.rx\) : '' \]\))(\n\t+\]\)\n\t+\]\),\n\t+E\('td', \{ 'class': ')(vt-td-exp)",
-    r"\1,\n"
-    r"\t\t\t\t\tE('span', { 'class': 'vt-live-day vt-tn' }, [ stt && (stt.dd || stt.du) ? '今日 ↓' + this.statFmt(stt.dd) + ' ↑' + this.statFmt(stt.du) : '' ])"
-    r"\2\3",
-    'wifi live cell')
-
-# 14) drawerWired：速率优先 flowRate；Traffic 行后加统计
-ov = patch(ov, r"(\t\tvar self = this, r = )this\.portRate\(c\)(, shared = c\.shared \? this\.st\.devRates\[c\.port\] : null;)",
-    r"\1(this.flowRate(c) || this.portRate(c))\2",
-    'drawerWired head')
 ov = patch(ov, r"(\] : r \?'↓ ' \+ fmt\.bits\(r\.tx\) \+ ' · ↑ ' \+ fmt\.bits\(r\.rx\) : _\('measuring'\)\),\n)(\t+kv\(_\('Network'\),)",
     r"\1\t\t\t\tthis.flowStatKv(c),\n\2",
     'drawerWired stats kv')
@@ -364,9 +328,7 @@ if 'vt-live-day' not in css:
         'mobile live-split unhide')
 
     css += '''
-/* statusflow: per-client day totals + client list pagination */
-.vt-app .vt-live-day { font-size: var(--vt-fs-micro); color: var(--vt-text-3); white-space: nowrap; }
-.vt-app .vt-live-day:not(:empty) { display: block; }
+/* statusflow: client list pagination (day totals retired in v5.7.1) */
 .vt-app .vt-pager { display: inline-flex; align-items: center; gap: 6px; margin-left: 8px; }
 .vt-app .vt-pager .vt-btn { padding: 1px 8px; min-height: 0; line-height: 1.4; }
 @media (pointer: coarse) {
