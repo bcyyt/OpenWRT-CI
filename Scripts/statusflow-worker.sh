@@ -1,5 +1,5 @@
 #!/bin/sh
-# statusflow-worker v5.5 — 每客户端上下行实时速率 + 今日/累计流量 + 24h CPU/WAN 曲线采样
+# statusflow-worker v5.6 — 每客户端上下行实时速率 + 今日/累计流量 + 24h CPU/WAN 曲线采样
 #
 # 数据源（每 2 秒差分）：
 #   /proc/net/nf_conntrack — 每流 orig/reply 独立计数（精确双向）
@@ -16,6 +16,14 @@
 #        差分消失后自动移出恢复正常统计。
 #     b) 接口钳制：每轮所有客户端 u/d 之和若超过 WAN 口+LAN 口实测差分的
 #        1.3 倍，按比例整体缩放（物理上限保底，杜绝 2000× 级虚增）。
+#
+# v5.6 总账封顶（治本）：
+#   PPE 幽灵步长不稳定（间歇回写）时 a) 抓不全、b) 的 2MB/轮余量也挡不住
+#   中速幽灵（实测单客户端今日虚增 20GB，而 WAN 口当日真实仅 1.8GB）。
+#   改为：每客户端按 ct 占比分摊 WAN 口（pppoe-wan）rx/tx 真实差分，
+#   Σ每客户端 ≡ WAN 实测——总账封死，幽灵只能吃份额不能超总账。
+#   幽灵阈值 200KB→50KB/轮、恒定度 4%→8%、记忆区间 0.5~2→0.3~3。
+#   升级首启清零旧账本（历史虚高不作数）。
 #
 # 统计（持久化 /etc/statusflow/totals.state，每 10 分钟 + 停机/跨天时落盘）：
 #   tu/td = 今日 上行/下行 累计；gu/gd = 总计 上行/下行（跨天 tu/td 归零，gu/gd 续算）
@@ -116,18 +124,18 @@ deghost() {
                                 freeze = 0; ngv = 0
                                 # 已记忆的幽灵 key：差分仍在记忆值 0.5~2 倍区间 → 持续冻结
                                 if (k in gv) {
-                                        if (d2 > 200000 && d2 > gv[k] * 0.5 && d2 < gv[k] * 2) { freeze = 1; ngv = d2 }
-                                        else if (u2 > 200000 && u2 > gv[k] * 0.5 && u2 < gv[k] * 2) { freeze = 1; ngv = u2 }
+                                        if (d2 > 50000 && d2 > gv[k] * 0.3 && d2 < gv[k] * 3) { freeze = 1; ngv = d2 }
+                                        else if (u2 > 50000 && u2 > gv[k] * 0.3 && u2 < gv[k] * 3) { freeze = 1; ngv = u2 }
                                 }
                                 # 新幽灵：三轮差分恒定（>200KB 且相差 <4%）
                                 if (!freeze) {
-                                        if (d1 > 200000 && d2 > 200000) {
+                                        if (d1 > 50000 && d2 > 50000) {
                                                 r = (d2 > d1) ? (d2 - d1) / d2 : (d1 - d2) / d1
-                                                if (r < 0.04) { freeze = 1; ngv = d2 }
+                                                if (r < 0.08) { freeze = 1; ngv = d2 }
                                         }
-                                        if (!freeze && u1 > 200000 && u2 > 200000) {
+                                        if (!freeze && u1 > 50000 && u2 > 50000) {
                                                 r = (u2 > u1) ? (u2 - u1) / u2 : (u1 - u2) / u1
-                                                if (r < 0.04) { freeze = 1; ngv = u2 }
+                                                if (r < 0.08) { freeze = 1; ngv = u2 }
                                         }
                                 }
                                 if (freeze) {
@@ -184,10 +192,11 @@ clamp_ct() {
         return 0
 }
 
-# ---- 融合：读 ct.prev pb.prev tot.prev ct.now pb.now
+# ---- 融合：读 ct.prev pb.prev tot.prev ct.now pb.now（v5.6 加 WAN 差分）
+#      每客户端按 ct 占比分摊 WAN 口真实增量：总账 ≡ WAN 实测
 #      输出：第1行 JSON；第2+行 "ip tu td"（新累计状态）
 fuse() {
-        awk -v now="$1" -v pts="$2" '
+        awk -v now="$1" -v pts="$2" -v WRXD="$3" -v WTXD="$4" '
         FILENAME == ARGV[1] { pu[$1] = $2 + 0; pd[$1] = $3 + 0; next }
         FILENAME == ARGV[2] { pbb[$1] = $2 + 0; next }
         FILENAME == ARGV[3] {
@@ -202,8 +211,8 @@ fuse() {
                 SEEN[ip] = 1
                 if (key in pu) {
                         du = ($2 + 0) - pu[key]; dd = ($3 + 0) - pd[key]
-                        if (du > 0) UP[ip] += du
-                        if (dd > 0) DOWN[ip] += dd
+                        if (du > 0) { UP[ip] += du; SU += du }
+                        if (dd > 0) { DOWN[ip] += dd; SD += dd }
                 }
                 CU[key] = $2 + 0; CD[key] = $3 + 0
                 next
@@ -227,11 +236,14 @@ fuse() {
         END {
                 dt = now - pts
                 if (dt < 1) dt = 1
+                # v5.6 总账封顶：ct 账面占比 × WAN 真实增量；幽灵虚增只会稀释占比
+                ku = (SU > 0) ? WTXD / SU : 0; if (ku > 1) ku = 1
+                kd = (SD > 0) ? WRXD / SD : 0; if (kd > 1) kd = 1
                 for (ip in GU) SEEN[ip] = 1
                 printf "{\"ts\":%d", now
                 body = ""
                 for (ip in SEEN) {
-                        u = (ip in UP ? UP[ip] : 0); d = (ip in DOWN ? DOWN[ip] : 0)
+                        u = (ip in UP ? UP[ip] * ku : 0); d = (ip in DOWN ? DOWN[ip] * kd : 0)
                         ngu = (ip in GU ? GU[ip] : 0) + u
                         ngd = (ip in GD ? GD[ip] : 0) + d
                         ndu = (ip in DU ? DU[ip] : 0) + u
@@ -247,6 +259,13 @@ fuse() {
 }
 
 seed() {
+        # v5.6：升级首启清零（旧账本今日/总计含幽灵虚高，不作数）。
+        # 必须连 PERSIST 头一起重写为 VER 5.6，否则后面的 else 恢复分支
+        # 会立即从旧 PERSIST 把虚高数据 tail 回 tot.prev（清零失效）。
+        if [ -s "$PERSIST" ] && ! head -1 "$PERSIST" 2>/dev/null | grep -q "^VER 5.6"; then
+                { echo "VER 5.6"; echo "DAY $(date +%F)"; } > "$PERSIST"
+                : > "$D/tot.prev"
+        fi
         if [ -s "$D/tot.prev" ]; then
                 n=$(awk 'NR==1{print NF; exit}' "$D/tot.prev" 2>/dev/null)
                 if [ "$n" = "5" ]; then return 0; fi
@@ -256,9 +275,9 @@ seed() {
         if [ -s "$PERSIST" ]; then
                 pday=$(sed -n '1s/^DAY //p' "$PERSIST")
                 if [ "$pday" = "$TODAY" ]; then
-                        tail -n +2 "$PERSIST" > "$D/tot.prev"
+                        tail -n +3 "$PERSIST" > "$D/tot.prev"
                 else
-                        tail -n +2 "$PERSIST" | awk '{printf "%s %.0f %.0f 0 0\n", $1, $2, $3}' > "$D/tot.prev"
+                        tail -n +3 "$PERSIST" | awk '{printf "%s %.0f %.0f 0 0\n", $1, $2, $3}' > "$D/tot.prev"
                 fi
         else
                 : > "$D/tot.prev"
@@ -266,7 +285,7 @@ seed() {
 }
 
 flush() {
-        { echo "DAY $TODAY"; cat "$D/tot.prev" 2>/dev/null; } > "$PERSIST.tmp" 2>/dev/null \
+        { echo "VER 5.6"; echo "DAY $TODAY"; cat "$D/tot.prev" 2>/dev/null; } > "$PERSIST.tmp" 2>/dev/null \
                 && mv "$PERSIST.tmp" "$PERSIST"
 }
 
@@ -338,7 +357,11 @@ while :; do
         [ -s "$D/ct.prev" ] && deghost "$D/ct.prev2" "$D/ct.prev" "$D/ct.now"
         clamp_ct "$D/ct.prev" "$D/ct.now" "$D/dev.prev" "$D/dev.now"
         pts=$(cat $D/ts 2>/dev/null || echo 0)
-        fuse "$now" "$pts" > $D/out.all 2>/dev/null
+        read -r wr1 wt1 lr1 lt1 < "$D/dev.prev" 2>/dev/null || { wr1=0; wt1=0; lr1=0; lt1=0; }
+        read -r wr2 wt2 lr2 lt2 < "$D/dev.now" 2>/dev/null || { wr2=0; wt2=0; lr2=0; lt2=0; }
+        WRXD=$(( wr2 - wr1 )); [ $WRXD -lt 0 ] && WRXD=0
+        WTXD=$(( wt2 - wt1 )); [ $WTXD -lt 0 ] && WTXD=0
+        fuse "$now" "$pts" "$WRXD" "$WTXD" > $D/out.all 2>/dev/null
         head -1 $D/out.all > "$TMP.tmp"
         mv "$TMP.tmp" "$TMP"
         chmod 644 "$TMP" 2>/dev/null
