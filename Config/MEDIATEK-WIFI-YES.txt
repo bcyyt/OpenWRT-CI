@@ -84,14 +84,12 @@ CONFIG_TARGET_DEVICE_mediatek_filogic_DEVICE_zyxel_ex5700-telenor=y
 CONFIG_PACKAGE_kmod-cryptodev=y
 CONFIG_PACKAGE_kmod-tls=y
 
-#eBPF 代理：daede（dae+daed 源码编译）+ honk（预编译注入），替代 HomeProxy
+#eBPF 代理：dae（源码编译）+ luci-app-dae，替代 HomeProxy
 CONFIG_PACKAGE_dae=y
 CONFIG_PACKAGE_luci-app-dae=y
-CONFIG_PACKAGE_honk=y
-CONFIG_PACKAGE_luci-app-honk=y
 CONFIG_PACKAGE_v2ray-geoip=y
 CONFIG_PACKAGE_v2ray-geosite=y
 CONFIG_PACKAGE_kmod-sched-bpf=y
 CONFIG_PACKAGE_kmod-nft-queue=y
-#内核原生 BTF（CO-RE eBPF 运行依赖，honk/dae 必需）
+#内核原生 BTF（CO-RE eBPF 运行依赖，dae 必需）
 CONFIG_KERNEL_DEBUG_INFO_BTF=y
