@@ -21,17 +21,17 @@ define Package/luci-app-openclash/conffiles
 endef
 
 define Build/Prepare
-        rm -rf $(PKG_BUILD_DIR)
-        mkdir -p $(PKG_BUILD_DIR)/ipk $(PKG_BUILD_DIR)/root
-        tar -C $(PKG_BUILD_DIR)/ipk -xzf $(DL_DIR)/$(PKG_SOURCE)
-        tar -C $(PKG_BUILD_DIR)/root -xzf $(PKG_BUILD_DIR)/ipk/data.tar.gz
+	rm -rf $(PKG_BUILD_DIR)
+	mkdir -p $(PKG_BUILD_DIR)/ipk $(PKG_BUILD_DIR)/root
+	tar -C $(PKG_BUILD_DIR)/ipk -xzf $(DL_DIR)/$(PKG_SOURCE)
+	tar -C $(PKG_BUILD_DIR)/root -xzf $(PKG_BUILD_DIR)/ipk/data.tar.gz
 endef
 
 define Build/Compile
 endef
 
 define Package/luci-app-openclash/install
-        $(CP) $(PKG_BUILD_DIR)/root/. $(1)/
+	$(CP) $(PKG_BUILD_DIR)/root/. $(1)/
 endef
 
 $(eval $(call BuildPackage,luci-app-openclash))
