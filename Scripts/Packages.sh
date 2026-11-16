@@ -155,53 +155,53 @@ BCYYT_SHA256() {
 #生成内置包Makefile：把预编译ipk的data.tar.gz原样装入rootfs
 #参数：包名 版本 描述 依赖 ipk解包命令(external make语法) conffiles列表 额外架构头部 编译期patch命令(可选,在root解包后执行)
 BCYYT_INJECT() {
-	description="prebuilt ipk inject: static skeleton + printf line-by-line inc (no heredoc)"
-	local PKG_NAME=$1
-	local PKG_VER=$2
-	local PKG_TITLE=$3
-	local PKG_DEPS=$4
-	local PKG_CONFFILES=$6
-	local PKG_HEADER=$7
-	local PKG_PATCH=$8
-	local PKG_DIR="./package/bcyyt/$PKG_NAME"
+        description="prebuilt ipk inject: static skeleton + printf line-by-line inc (no heredoc)"
+        local PKG_NAME=$1
+        local PKG_VER=$2
+        local PKG_TITLE=$3
+        local PKG_DEPS=$4
+        local PKG_CONFFILES=$6
+        local PKG_HEADER=$7
+        local PKG_PATCH=$8
+        local PKG_DIR="./package/bcyyt/$PKG_NAME"
 
-	mkdir -p "$PKG_DIR"
-	cp "$GITHUB_WORKSPACE/Scripts/inject/inject-common.Makefile" "$PKG_DIR/Makefile"
+        mkdir -p "$PKG_DIR"
+        cp "$GITHUB_WORKSPACE/Scripts/inject/inject-common.Makefile" "$PKG_DIR/Makefile"
 
-	{
-		printf '%s\n' \
-			"PKG_NAME:=$PKG_NAME" \
-			"PKG_VERSION:=$PKG_VER"
-		printf '%s\n' "$PKG_HEADER" | sed '/^$/d'
-		printf '%s\n' \
-			"define Package/$PKG_NAME" \
-			"  SECTION:=luci" \
-			"  CATEGORY:=LuCI" \
-			"  TITLE:=$PKG_TITLE" \
-			"  URL:=https://gitee.com/bcyyt/my-openwrt" \
-			"  DEPENDS:=$PKG_DEPS" \
-			"  PKGARCH:=all" \
-			"endef" \
-			"define Package/$PKG_NAME/conffiles"
-		printf '%s\n' "$PKG_CONFFILES" | sed '/^$/d'
-		printf '%s\n' "endef"
-		if [ -n "$PKG_PATCH" ]; then
-			printf '%s\n' \
-				"define Build/Prepare" \
-				"\trm -rf \$(PKG_BUILD_DIR)" \
-				"\tmkdir -p \$(PKG_BUILD_DIR)/ipk \$(PKG_BUILD_DIR)/root" \
-				"\ttar -C \$(PKG_BUILD_DIR)/ipk -xzf \$(DL_DIR)/\$(PKG_SOURCE)" \
-				"\ttar -C \$(PKG_BUILD_DIR)/root -xzf \$(PKG_BUILD_DIR)/ipk/data.tar.gz"
-			printf '\t%s\n' "$PKG_PATCH"
-			printf '%s\n' "endef"
-		fi
-	} > "$PKG_DIR/inject.inc"
+        {
+                printf '%s\n' \
+                        "PKG_NAME:=$PKG_NAME" \
+                        "PKG_VERSION:=$PKG_VER"
+                printf '%s\n' "$PKG_HEADER" | sed '/^$/d'
+                printf '%s\n' \
+                        "define Package/$PKG_NAME" \
+                        "  SECTION:=luci" \
+                        "  CATEGORY:=LuCI" \
+                        "  TITLE:=$PKG_TITLE" \
+                        "  URL:=https://gitee.com/bcyyt/my-openwrt" \
+                        "  DEPENDS:=$PKG_DEPS" \
+                        "  PKGARCH:=all" \
+                        "endef" \
+                        "define Package/$PKG_NAME/conffiles"
+                printf '%s\n' "$PKG_CONFFILES" | sed '/^$/d'
+                printf '%s\n' "endef"
+                if [ -n "$PKG_PATCH" ]; then
+                        printf '%s\n' \
+                                "define Build/Prepare" \
+                                "\trm -rf \$(PKG_BUILD_DIR)" \
+                                "\tmkdir -p \$(PKG_BUILD_DIR)/ipk \$(PKG_BUILD_DIR)/root" \
+                                "\ttar -C \$(PKG_BUILD_DIR)/ipk -xzf \$(DL_DIR)/\$(PKG_SOURCE)" \
+                                "\ttar -C \$(PKG_BUILD_DIR)/root -xzf \$(PKG_BUILD_DIR)/ipk/data.tar.gz"
+                        printf '\t%s\n' "$PKG_PATCH"
+                        printf '%s\n' "endef"
+                fi
+        } > "$PKG_DIR/inject.inc"
 
-	echo "$PKG_NAME $PKG_VER has been generated into $PKG_DIR/!"
+        echo "$PKG_NAME $PKG_VER has been generated into $PKG_DIR/!"
 
-	# 语法自检（包目录内执行，include 才能解析）
-	local WRT_ROOT=$PWD
-	(cd "$PKG_DIR" && make --no-print-directory -f Makefile TOPDIR="$WRT_ROOT" INCLUDE_DIR="$WRT_ROOT/include" -n >/dev/null 2>/tmp/inject_syntax.err) || { echo "$PKG_NAME Makefile syntax FAILED:"; head -5 /tmp/inject_syntax.err; }
+        # 语法自检（包目录内执行，include 才能解析）
+        local WRT_ROOT=$PWD
+        (cd "$PKG_DIR" && make --no-print-directory -f Makefile TOPDIR="$WRT_ROOT" INCLUDE_DIR="$WRT_ROOT/include" -n >/dev/null 2>/tmp/inject_syntax.err) || { echo "$PKG_NAME Makefile syntax FAILED:"; head -5 /tmp/inject_syntax.err; }
 }
 
 #===iptv-auth：版本与下载地址来自version.json，始终跟随OTA仓最新版===
@@ -315,6 +315,19 @@ ifeq (\$(ARCH),arm)
   PKG_HASH:=$NATFRP_HASH_armv7
 endif"
 
+#===zte-wifi（ZTE mesh 无线客户端详情）：自编组件独立成包（原先随 statusfw-patch 注入，statusfw 已按需求删除）===
+ZTE_DIR="./package/bcyyt/zte-wifi"
+mkdir -p "$ZTE_DIR/files"
+cp "$GITHUB_WORKSPACE/Scripts/inject/zte-wifi.Makefile" "$ZTE_DIR/Makefile"
+for zf in zte-wifi.py zte-initd zteinfo-cgi.sh zte-wifi-view.js zte-menu.json zte-acl.json zte-default-config; do
+        cp "$GITHUB_WORKSPACE/Scripts/$zf" "$ZTE_DIR/files/$zf" || echo "zte-wifi: $zf missing"
+done
+#语法自检（包目录内执行）
+WRT_ROOT=$PWD
+(cd "$ZTE_DIR" && make --no-print-directory -f Makefile TOPDIR="$WRT_ROOT" INCLUDE_DIR="$WRT_ROOT/include" -n >/dev/null 2>/tmp/zte_syntax.err) \
+        && echo "zte-wifi Makefile syntax: OK" \
+        || { echo "zte-wifi Makefile syntax FAILED:"; head -5 /tmp/zte_syntax.err; }
+
 #===dae + luci-app-dae（Daede 核心，eBPF 透明代理）：daeuniverse 官方 OpenWrt feed，源码编译===
 DAE_FEED="/tmp/daeuniverse-feed"
 if [ ! -f "$DAE_FEED/dae/build.sh" ]; then
@@ -332,6 +345,10 @@ if [ -f "$DAE_FEED/dae/build.sh" ]; then
         rm -rf ./package/bcyyt/dae/src/.git
         #内核自带 BTF（CONFIG_BTF），剔除 feed 的 vmlinux-btf 依赖（官方内核 BTF 与本自编译内核不匹配）
         sed -i 's/ +vmlinux-btf//' ./package/bcyyt/dae/Makefile
+        #屏蔽 feeds 同名包：symbol 冲突会致 dae 在 defconfig 阶段整体消失（上轮实证）
+        rm -rf ./package/feeds/packages/dae ./package/feeds/packages/daed
+        rm -rf ./package/feeds/luci/luci-app-dae ./package/feeds/luci/luci-app-daed ./package/feeds/luci/luci-app-daede
+        echo "feeds dae/daed/luci-app-dae(-daed/-daede) masked (symbol conflict)"
         DAE_VER=$(grep -m1 'PKG_VERSION:=' ./package/bcyyt/dae/Makefile | sed 's/.*:=//')
         echo "dae $DAE_VER + luci-app-dae + luci-lib-daeuniverse injected from daeuniverse feed (kernel-btf mode)"
 else
