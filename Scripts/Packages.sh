@@ -378,41 +378,30 @@ HONK_HASH_aarch64=$(BCYYT_SHA256 "$HONK_BASE/$HONK_ASSET_ARM")
 HONK_HASH_x86_64=$(BCYYT_SHA256 "$HONK_BASE/$HONK_ASSET_X86")
 LUCI_HONK_HASH=$(BCYYT_SHA256 "$HONK_BASE/$LUCI_HONK_ASSET")
 
-# 完全复刻 luci-app-natfrp 的已验证注入结构：ARCH 变量 + PKG_SOURCE 拼接 + 三个 ifeq 架构块
-BCYYT_INJECT "honk" "$HONK_VER" \
-        "honk - eBPF transparent proxy engine (dae-compatible), Rust+Aya" \
-        "+kmod-sched-core +kmod-sched-bpf +kmod-veth +kmod-nft-queue +ca-bundle +v2ray-geoip +v2ray-geosite @(aarch64||x86_64)" \
-        "tar -C \$(PKG_BUILD_DIR)/ipk -xzf \$(DL_DIR)/\$(PKG_SOURCE)" \
-        "/etc/honk/config.dae" \
-        "HONK_VER:=$HONK_VER
-HONK_ARCH:=aarch64_generic
-ifeq (\$(ARCH),x86_64)
-  HONK_ARCH:=x86_64
-endif
-PKG_SOURCE:=honk_\$(HONK_VER)_\$(HONK_ARCH)-openwrt-24.10.8.ipk
-PKG_SOURCE_URL:=$HONK_BASE
-PKG_HASH:=$HONK_HASH_aarch64
-ifeq (\$(ARCH),x86_64)
-  PKG_HASH:=$HONK_HASH_x86_64
-endif"
-
-# 调试 dump：CI 生成的 Makefile 打进日志（cat -A 可见空白字符），便于诊断 missing separator 类问题
-echo "--- debug: honk Makefile stats ---"
-wc -l -c ./package/bcyyt/honk/Makefile 2>/dev/null
-echo "--- debug: honk Makefile dump FULL (cat -A) ---"
-cat -A ./package/bcyyt/honk/Makefile 2>/dev/null
-
-BCYYT_INJECT "luci-app-honk" "$LUCI_HONK_VER" \
-        "LuCI page and Doona control panel for honk" \
-        "+luci-base +luci-compat +honk" \
-        "tar -C \$(PKG_BUILD_DIR)/ipk -xzf \$(DL_DIR)/\$(PKG_SOURCE)" \
-        "/etc/config/honk" \
-        "PKG_SOURCE:=$LUCI_HONK_ASSET
-PKG_SOURCE_URL:=$HONK_BASE
-PKG_HASH:=$LUCI_HONK_HASH"
-
-echo "--- debug: package/bcyyt/luci-app-honk/Makefile dump ---"
-cat -A ./package/bcyyt/luci-app-honk/Makefile 2>/dev/null | sed -n '1,30p'
+#===静态模板方案：Makefile 为仓库静态文件（TAB 缩进本地逐字节验证），动态值走单行 inc===
+#规避 bash 多行参数/heredoc 在 CI 环境生成 Makefile 的未知差异（missing separator）
+HONK_DIR="./package/bcyyt/honk"
+LUCI_HONK_DIR="./package/bcyyt/luci-app-honk"
+mkdir -p "$HONK_DIR" "$LUCI_HONK_DIR"
+cp "$GITHUB_WORKSPACE/Scripts/inject/honk.Makefile" "$HONK_DIR/Makefile"
+cp "$GITHUB_WORKSPACE/Scripts/inject/luci-app-honk.Makefile" "$LUCI_HONK_DIR/Makefile"
+#单行 printf 生成 inc（无 heredoc、无多行参数）
+printf 'HONK_VER:=%s\nPKG_HASH_AARCH64:=%s\nPKG_HASH_X86_64:=%s\n' \
+        "$HONK_VER" "$HONK_HASH_aarch64" "$HONK_HASH_x86_64" > "$HONK_DIR/honk.inc"
+printf 'PKG_VERSION:=%s\nPKG_SOURCE:=%s\nPKG_SOURCE_URL:=%s\nPKG_HASH:=%s\n' \
+        "$LUCI_HONK_VER" "$LUCI_HONK_ASSET" "$HONK_BASE" "$LUCI_HONK_HASH" > "$LUCI_HONK_DIR/honk-luci.inc"
+echo "honk $HONK_VER has been generated into $HONK_DIR/!"
+echo "luci-app-honk $LUCI_HONK_VER has been generated into $LUCI_HONK_DIR/!"
+echo "--- debug: honk.inc ---"
+cat "$HONK_DIR/honk.inc"
+echo "--- debug: make syntax check (honk) ---"
+make --no-print-directory -f "$HONK_DIR/Makefile" TOPDIR="$PWD" INCLUDE_DIR="$PWD/include" -n >/dev/null 2>/tmp/honk_syntax.err
+HONK_SYNTAX=$?
+if [ "$HONK_SYNTAX" -eq 0 ]; then echo "honk Makefile syntax: OK"; else echo "honk Makefile syntax FAILED:"; cat /tmp/honk_syntax.err | head -5; fi
+echo "--- debug: make syntax check (luci-app-honk) ---"
+make --no-print-directory -f "$LUCI_HONK_DIR/Makefile" TOPDIR="$PWD" INCLUDE_DIR="$PWD/include" -n >/dev/null 2>/tmp/luci_honk_syntax.err
+LUCI_HONK_SYNTAX=$?
+if [ "$LUCI_HONK_SYNTAX" -eq 0 ]; then echo "luci-app-honk Makefile syntax: OK"; else echo "luci-app-honk Makefile syntax FAILED:"; cat /tmp/luci_honk_syntax.err | head -5; fi
 
 #引入私有扩展脚本
 if [ -f "$GITHUB_WORKSPACE/Scripts/PRIVATE.sh" ]; then
