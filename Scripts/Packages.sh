@@ -66,7 +66,7 @@ UPDATE_PACKAGE "diskmanager" "4IceG/luci-app-mini-diskmanager" "main"
 UPDATE_PACKAGE "easytier" "EasyTier/luci-app-easytier" "main"
 UPDATE_PACKAGE "lucky" "gdy666/luci-app-lucky" "main"
 UPDATE_PACKAGE "qmodem" "FUjr/QModem" "main"
-UPDATE_PACKAGE "viking" "VIKINGYFY/packages" "main" "" "axonhub gecoosac miniupnpd sing-box luci-app-homeproxy luci-app-timewol luci-app-upnp luci-app-wolplus luci-app-wolultra"
+UPDATE_PACKAGE "viking" "VIKINGYFY/packages" "main" "" "axonhub gecoosac miniupnpd luci-app-timewol luci-app-upnp luci-app-wolplus luci-app-wolultra"
 
 UPDATE_PACKAGE "diskman" "sbwml/luci-app-diskman" "main"
 UPDATE_PACKAGE "mosdns" "sbwml/luci-app-mosdns" "v5" "" "v2dat"
@@ -189,11 +189,11 @@ define Package/$PKG_NAME
 endef
 
 define Build/Prepare
-	rm -rf \$(PKG_BUILD_DIR)
-	mkdir -p \$(PKG_BUILD_DIR)/ipk \$(PKG_BUILD_DIR)/root
-	$PKG_UNPACK
-	tar -C \$(PKG_BUILD_DIR)/root -xzf \$(PKG_BUILD_DIR)/ipk/data.tar.gz
-	$PKG_PATCH
+        rm -rf \$(PKG_BUILD_DIR)
+        mkdir -p \$(PKG_BUILD_DIR)/ipk \$(PKG_BUILD_DIR)/root
+        $PKG_UNPACK
+        tar -C \$(PKG_BUILD_DIR)/root -xzf \$(PKG_BUILD_DIR)/ipk/data.tar.gz
+        $PKG_PATCH
 endef
 
 define Build/Compile
@@ -204,7 +204,7 @@ $PKG_CONFFILES
 endef
 
 define Package/$PKG_NAME/install
-	\$(CP) \$(PKG_BUILD_DIR)/root/. \$(1)/
+        \$(CP) \$(PKG_BUILD_DIR)/root/. \$(1)/
 endef
 
 \$(eval \$(call BuildPackage,$PKG_NAME))
@@ -343,6 +343,72 @@ endif
 ifeq (\$(ARCH),arm)
   PKG_HASH:=$NATFRP_HASH_armv7
 endif"
+
+#===daede（dae+daed eBPF 透明代理）：源码编译进固件，运行依赖内核原生 BTF===
+# kenzok8/openwrt-daede：dae（内核态 eBPF 数据面，Go+eBPF）、daed（控制面板）、luci-app-daede（LuCI 界面）
+# dae 包自带 bpf-headers/golang host 依赖声明，feeds/packages 的 golang 由 make defconfig 自动接入
+rm -rf ./package/daede-upstream ./package/dae ./package/daed ./package/luci-app-daede
+git clone --depth=1 https://github.com/kenzok8/openwrt-daede ./package/daede-upstream
+for p in dae daed luci-app-daede; do cp -r ./package/daede-upstream/$p ./package/$p; done
+rm -rf ./package/daede-upstream
+echo "daede packages (dae/daed/luci-app-daede) imported from kenzok8/openwrt-daede"
+
+#===honk（eBPF 透明代理，dae 兼容）：QiuSimons/luci-app-honk release 预编译 ipk 注入===
+# honk-core 是 Rust+aya 静态二进制（aarch64_generic/x86_64），架构无关 ipk 内容直接装入 rootfs
+# luci-app-honk 含 LuCI 页面与 Doona 控制面板静态资源（noarch）
+HONK_REL=$(curl -fsSL --retry 3 --connect-timeout 15 "https://api.github.com/repos/QiuSimons/luci-app-honk/releases/latest" 2>/dev/null)
+HONK_TAG=$(echo "$HONK_REL" | jq -r '.tag_name' 2>/dev/null)
+HONK_ASSET_ARM=$(echo "$HONK_REL" | jq -r '.assets[].name' 2>/dev/null | grep -E '^honk_.*_aarch64_generic.*\.ipk$' | head -1)
+HONK_ASSET_X86=$(echo "$HONK_REL" | jq -r '.assets[].name' 2>/dev/null | grep -E '^honk_.*_x86_64.*\.ipk$' | head -1)
+LUCI_HONK_ASSET=$(echo "$HONK_REL" | jq -r '.assets[].name' 2>/dev/null | grep -E '^luci-app-honk_.*_all.*\.ipk$' | head -1)
+# 容错：API 失败或缺资产时回退到已验证的历史版本
+if [ -z "$HONK_TAG" ] || [ -z "$HONK_ASSET_ARM" ] || [ -z "$HONK_ASSET_X86" ] || [ -z "$LUCI_HONK_ASSET" ]; then
+        echo "honk release API miss, falling back to pinned version"
+        HONK_TAG="honk_2026.11.14_06eb039-r1"
+        HONK_ASSET_ARM="honk_2026.11.14.06eb039-r1_aarch64_generic-openwrt-24.10.8.ipk"
+        HONK_ASSET_X86="honk_2026.11.14.06eb039-r1_x86_64-openwrt-24.10.8.ipk"
+        LUCI_HONK_ASSET="luci-app-honk_1.1.4-r13_all-openwrt-24.10.8.ipk"
+fi
+HONK_VER=$(echo "$HONK_ASSET_ARM" | sed -E "s/^honk_(.*)_aarch64_generic.*/\1/")
+LUCI_HONK_VER=$(echo "$LUCI_HONK_ASSET" | sed -E "s/^luci-app-honk_(.*)_all.*/\1/")
+echo "honk latest version: $HONK_VER / luci-app-honk: $LUCI_HONK_VER"
+
+HONK_BASE="https://github.com/QiuSimons/luci-app-honk/releases/download/$HONK_TAG"
+HONK_HASH_aarch64=$(BCYYT_SHA256 "$HONK_BASE/$HONK_ASSET_ARM")
+HONK_HASH_x86_64=$(BCYYT_SHA256 "$HONK_BASE/$HONK_ASSET_X86")
+LUCI_HONK_HASH=$(BCYYT_SHA256 "$HONK_BASE/$LUCI_HONK_ASSET")
+
+BCYYT_INJECT "honk" "$HONK_VER" \
+        "honk - eBPF transparent proxy engine (dae-compatible), Rust+Aya" \
+        "+kmod-sched-core +kmod-sched-bpf +kmod-veth +kmod-nft-queue +ca-bundle +v2ray-geoip +v2ray-geosite @(aarch64||x86_64)" \
+        "tar -C \$(PKG_BUILD_DIR)/ipk -xzf \$(DL_DIR)/\$(PKG_SOURCE)" \
+        "/etc/honk/config.dae
+/etc/honk/config.d/
+/etc/config/honk" \
+        "HONK_ARCH:=aarch64_generic
+ifeq (\$(ARCH),x86_64)
+  HONK_ARCH:=x86_64
+endif
+PKG_SOURCE:=$HONK_ASSET_ARM
+ifeq (\$(ARCH),x86_64)
+  PKG_SOURCE:=$HONK_ASSET_X86
+endif
+PKG_SOURCE_URL:=$HONK_BASE
+ifeq (\$(ARCH),aarch64)
+  PKG_HASH:=$HONK_HASH_aarch64
+endif
+ifeq (\$(ARCH),x86_64)
+  PKG_HASH:=$HONK_HASH_x86_64
+endif"
+
+BCYYT_INJECT "luci-app-honk" "$LUCI_HONK_VER" \
+        "LuCI 页面与 Doona 控制面板（honk 前端）" \
+        "+luci-base +luci-compat +honk" \
+        "tar -C \$(PKG_BUILD_DIR)/ipk -xzf \$(DL_DIR)/\$(PKG_SOURCE)" \
+        "/etc/config/honk" \
+        "PKG_SOURCE:=$LUCI_HONK_ASSET
+PKG_SOURCE_URL:=$HONK_BASE
+PKG_HASH:=$LUCI_HONK_HASH"
 
 #引入私有扩展脚本
 if [ -f "$GITHUB_WORKSPACE/Scripts/PRIVATE.sh" ]; then
