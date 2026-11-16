@@ -385,16 +385,17 @@ LUCI_HONK_DIR="./package/bcyyt/luci-app-honk"
 mkdir -p "$HONK_DIR" "$LUCI_HONK_DIR"
 cp "$GITHUB_WORKSPACE/Scripts/inject/honk.Makefile" "$HONK_DIR/Makefile"
 cp "$GITHUB_WORKSPACE/Scripts/inject/luci-app-honk.Makefile" "$LUCI_HONK_DIR/Makefile"
-#单行 printf 生成 inc（无 heredoc、无多行参数）：完整 OpenWrt 元数据五件套
+#单行 printf 生成 inc（无 heredoc、无多行参数）：四件套，不加 PKG_RELEASE
+#（apk-tools 版本规范：PKG_VERSION 追加 -r1 会成双 -r 尾巴被拒；多字符字母段如 a9925bd 也非法）
+#honk 的 PKG_VERSION 截取 tag 日期段（2026.11.14.06eb039-r1 → 2026.11.14）
+HONK_VER_APK=$(echo "$HONK_VER" | cut -d. -f1-3)
 printf '%s\n' \
-        "PKG_VERSION:=$HONK_VER" \
-        "PKG_RELEASE:=1" \
+        "PKG_VERSION:=$HONK_VER_APK" \
         "PKG_SOURCE:=$HONK_ASSET_ARM" \
         "PKG_SOURCE_URL:=$HONK_BASE" \
         "PKG_HASH:=$HONK_HASH_aarch64" > "$HONK_DIR/honk.inc"
 printf '%s\n' \
         "PKG_VERSION:=$LUCI_HONK_VER" \
-        "PKG_RELEASE:=1" \
         "PKG_SOURCE:=$LUCI_HONK_ASSET" \
         "PKG_SOURCE_URL:=$HONK_BASE" \
         "PKG_HASH:=$LUCI_HONK_HASH" > "$LUCI_HONK_DIR/honk-luci.inc"
