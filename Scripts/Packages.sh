@@ -328,6 +328,32 @@ WRT_ROOT=$PWD
         && echo "zte-wifi Makefile syntax: OK" \
         || { echo "zte-wifi Makefile syntax FAILED:"; head -5 /tmp/zte_syntax.err; }
 
+#===luci-app-openclash（Clash 客户端）：vernesong 官方 release ipk 预编译注入（替代 dae 的弹性方案）===
+OC_REL=$(curl -fsSL --retry 3 --connect-timeout 15 "https://api.github.com/repos/vernesong/OpenClash/releases/latest" 2>/dev/null)
+OC_TAG=$(echo "$OC_REL" | jq -r '.tag_name' 2>/dev/null)
+OC_ASSET=$(echo "$OC_REL" | jq -r '.assets[].name' 2>/dev/null | grep -E '^luci-app-openclash_.*_all\.ipk$' | head -1)
+if [ -z "$OC_TAG" ] || [ -z "$OC_ASSET" ]; then
+        echo "OpenClash release API miss, falling back to pinned version"
+        OC_TAG="v0.48.002"
+        OC_ASSET="luci-app-openclash_0.48.002_all.ipk"
+fi
+OC_VER=$(echo "$OC_ASSET" | sed -E "s/^luci-app-openclash_(.*)_all\.ipk$/\1/")
+echo "OpenClash latest version: $OC_VER"
+OC_BASE="https://github.com/vernesong/OpenClash/releases/download/$OC_TAG"
+OC_HASH=$(BCYYT_SHA256 "$OC_BASE/$OC_ASSET")
+OC_DIR="./package/bcyyt/luci-app-openclash"
+mkdir -p "$OC_DIR"
+cp "$GITHUB_WORKSPACE/Scripts/inject/openclash.Makefile" "$OC_DIR/Makefile"
+printf '%s\n' \
+        "PKG_VERSION:=$OC_VER" \
+        "PKG_SOURCE:=$OC_ASSET" \
+        "PKG_SOURCE_URL:=$OC_BASE" \
+        "PKG_HASH:=$OC_HASH" > "$OC_DIR/openclash.inc"
+WRT_ROOT=$PWD
+(cd "$OC_DIR" && make --no-print-directory -f Makefile TOPDIR="$WRT_ROOT" INCLUDE_DIR="$WRT_ROOT/include" -n >/dev/null 2>/tmp/oc_syntax.err) \
+        && echo "openclash Makefile syntax: OK" \
+        || { echo "openclash Makefile syntax FAILED:"; head -5 /tmp/oc_syntax.err; }
+
 #===dae + luci-app-dae（Daede 核心，eBPF 透明代理）：daeuniverse 官方 OpenWrt feed，源码编译===
 DAE_FEED="/tmp/daeuniverse-feed"
 if [ ! -f "$DAE_FEED/dae/build.sh" ]; then
