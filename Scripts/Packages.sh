@@ -397,8 +397,10 @@ ifeq (\$(ARCH),x86_64)
 endif"
 
 # 调试 dump：CI 生成的 Makefile 打进日志（cat -A 可见空白字符），便于诊断 missing separator 类问题
-echo "--- debug: package/bcyyt/honk/Makefile dump ---"
-cat -A ./package/bcyyt/honk/Makefile 2>/dev/null | sed -n '1,40p'
+echo "--- debug: honk Makefile stats ---"
+wc -l -c ./package/bcyyt/honk/Makefile 2>/dev/null
+echo "--- debug: honk Makefile dump FULL (cat -A) ---"
+cat -A ./package/bcyyt/honk/Makefile 2>/dev/null
 
 BCYYT_INJECT "luci-app-honk" "$LUCI_HONK_VER" \
         "LuCI page and Doona control panel for honk" \
