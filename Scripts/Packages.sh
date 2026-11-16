@@ -354,46 +354,6 @@ WRT_ROOT=$PWD
         && echo "openclash Makefile syntax: OK" \
         || { echo "openclash Makefile syntax FAILED:"; head -5 /tmp/oc_syntax.err; }
 
-#===dae + luci-app-dae（Daede 核心，eBPF 透明代理）：daeuniverse 官方 OpenWrt feed，源码编译===
-DAE_FEED="/tmp/daeuniverse-feed"
-if [ ! -f "$DAE_FEED/dae/build.sh" ]; then
-        rm -rf "$DAE_FEED"
-        git clone --depth 1 https://github.com/daeuniverse/openwrt-packages.git "$DAE_FEED" || echo "daeuniverse feed clone FAILED"
-fi
-if [ -f "$DAE_FEED/dae/build.sh" ]; then
-        rm -rf ./package/bcyyt/dae ./package/bcyyt/luci-app-dae ./package/bcyyt/luci-lib-daeuniverse
-        cp -r "$DAE_FEED/dae" ./package/bcyyt/dae
-        cp -r "$DAE_FEED/luci-app-dae" ./package/bcyyt/luci-app-dae
-        cp -r "$DAE_FEED/luci-lib-daeuniverse" ./package/bcyyt/luci-lib-daeuniverse
-        #dae 完整源码（feed 仓库 src/ 只含 BTF shadow 文件）
-        rm -rf ./package/bcyyt/dae/src
-        git clone --depth 1 https://github.com/daeuniverse/dae.git ./package/bcyyt/dae/src || echo "dae source clone FAILED"
-        rm -rf ./package/bcyyt/dae/src/.git
-        #内核自带 BTF（CONFIG_BTF），剔除 feed 的 vmlinux-btf 依赖（官方内核 BTF 与本自编译内核不匹配）
-        sed -i 's/ +vmlinux-btf//' ./package/bcyyt/dae/Makefile
-        #屏蔽 feeds 同名包：symbol 冲突会致 dae 在 defconfig 阶段整体消失（上轮实证）
-        rm -rf ./package/feeds/packages/dae ./package/feeds/packages/daed
-        rm -rf ./package/feeds/luci/luci-app-dae ./package/feeds/luci/luci-app-daed ./package/feeds/luci/luci-app-daede
-        echo "feeds dae/daed/luci-app-dae(-daed/-daede) masked (symbol conflict)"
-        DAE_VER=$(grep -m1 'PKG_VERSION:=' ./package/bcyyt/dae/Makefile | sed 's/.*:=//')
-        echo "dae $DAE_VER + luci-app-dae + luci-lib-daeuniverse injected from daeuniverse feed (kernel-btf mode)"
-else
-        echo "WARNING: dae injection failed - dae incomplete"
-fi
-#host go 工具链（dae 源码编译必需；clang/llvm-strip runner 自带）
-if ! command -v go >/dev/null 2>&1; then
-        GO_TAR="go1.23.4.linux-amd64.tar.gz"
-        curl -fsSL --retry 3 --connect-timeout 15 "https://dl.google.com/go/$GO_TAR" -o /tmp/go.tgz \
-                || curl -fsSL --retry 3 --connect-timeout 15 "https://golang.google.cn/dl/$GO_TAR" -o /tmp/go.tgz \
-                || echo "go toolchain download FAILED"
-        if [ -f /tmp/go.tgz ]; then
-                rm -rf /usr/local/go
-                tar -C /usr/local -xzf /tmp/go.tgz
-                echo "/usr/local/go/bin" >> "$GITHUB_PATH"
-                echo "golang installed: $(/usr/local/go/bin/go version)"
-        fi
-fi
-
 #引入私有扩展脚本
 if [ -f "$GITHUB_WORKSPACE/Scripts/PRIVATE.sh" ]; then
         source "$GITHUB_WORKSPACE/Scripts/PRIVATE.sh"
