@@ -271,6 +271,12 @@ BCYYT_INJECT "luci-app-syskeep" "$SYSKEEP_VER" \
 PKG_SOURCE_URL:=$BCYYT_RAW/luci-app-syskeep
 PKG_HASH:=$SYSKEEP_HASH"
 
+#===luci-app-filemanager（feeds 26.315 版）与注入包 statusfw 内嵌的 filemanager 副本互相覆盖文件（apk ERROR trying to overwrite）===
+#剔除 feeds 版本，statusfw 注入包自带完整 filemanager 功能
+if [ -d ./package/feeds/luci/luci-app-filemanager ]; then
+	rm -rf ./package/feeds/luci/luci-app-filemanager
+	echo "feeds luci-app-filemanager removed (conflicts with injected statusfw)"
+fi
 #===luci-app-statusfw（状态与防火墙）：剔除状态页保留快捷方式（状态信息由Vantage仪表盘承担），版本跟随OTA仓最新版===
 STATUSFW_VER=$(curl -fsSL --retry 3 --connect-timeout 15 "$BCYYT_API/luci-app-statusfw" | jq -r ".[].name" 2>/dev/null | grep -E "^luci-app-statusfw_.*_x86_64\.ipk$" | sed "s/luci-app-statusfw_//;s/_x86_64.ipk//" | sort -V | tail -1)
 [ -n "$STATUSFW_VER" ] || STATUSFW_VER="5.0.15"
