@@ -271,32 +271,6 @@ BCYYT_INJECT "luci-app-syskeep" "$SYSKEEP_VER" \
 PKG_SOURCE_URL:=$BCYYT_RAW/luci-app-syskeep
 PKG_HASH:=$SYSKEEP_HASH"
 
-#===luci-app-filemanager（feeds 26.315 版）与注入包 statusfw 内嵌的 filemanager 副本互相覆盖文件（apk ERROR trying to overwrite）===
-#剔除 feeds 版本，statusfw 注入包自带完整 filemanager 功能
-if [ -d ./package/feeds/luci/luci-app-filemanager ]; then
-	rm -rf ./package/feeds/luci/luci-app-filemanager
-	echo "feeds luci-app-filemanager removed (conflicts with injected statusfw)"
-fi
-#===luci-app-statusfw（状态与防火墙）：剔除状态页保留快捷方式（状态信息由Vantage仪表盘承担），版本跟随OTA仓最新版===
-STATUSFW_VER=$(curl -fsSL --retry 3 --connect-timeout 15 "$BCYYT_API/luci-app-statusfw" | jq -r ".[].name" 2>/dev/null | grep -E "^luci-app-statusfw_.*_x86_64\.ipk$" | sed "s/luci-app-statusfw_//;s/_x86_64.ipk//" | sort -V | tail -1)
-[ -n "$STATUSFW_VER" ] || STATUSFW_VER="5.0.15"
-echo "luci-app-statusfw latest version: $STATUSFW_VER"
-
-STATUSFW_HASH=$(BCYYT_SHA256 "$BCYYT_RAW/luci-app-statusfw/luci-app-statusfw_${STATUSFW_VER}_x86_64.ipk")
-
-BCYYT_INJECT "luci-app-statusfw" "$STATUSFW_VER" \
-        "LuCI 状态与防火墙：快捷方式、端口转发、规则管理、安全监测、系统日志（状态页已剔除，由仪表盘承担）" \
-        "+luci-base +luci-compat +python3 +nftables +firewall4" \
-        "tar -C \$(PKG_BUILD_DIR)/ipk -xzf \$(DL_DIR)/\$(PKG_SOURCE)" \
-        "/etc/config/statusfw-net
-/etc/config/fwmanager
-/etc/config/statusmon" \
-        "PKG_SOURCE:=luci-app-statusfw_\$(PKG_VERSION)_x86_64.ipk
-PKG_SOURCE_URL:=$BCYYT_RAW/luci-app-statusfw
-PKG_HASH:=$STATUSFW_HASH" \
-        "bash $GITHUB_WORKSPACE/Scripts/statusfw-patch.sh \$(PKG_BUILD_DIR)"
-
-
 #===luci-app-natfrp（SakuraFrp 启动器）：官方 launcher-openwrt 目录直取，三架构ipk===
 # 官方源：nya.globalslb.net/natfrp/client/launcher-openwrt/<版本>/luci-app-natfrp_<arch>.ipk
 # 自包含包（natfrp-frpc + natfrp-service 二进制 + LuCI 界面 + init 服务），依赖仅 luci-compat
@@ -341,74 +315,41 @@ ifeq (\$(ARCH),arm)
   PKG_HASH:=$NATFRP_HASH_armv7
 endif"
 
-#===daede（dae+daed eBPF 透明代理）：源码编译进固件，运行依赖内核原生 BTF===
-# kenzok8/openwrt-daede：dae（内核态 eBPF 数据面，Go+eBPF）、daed（控制面板）、luci-app-daede（LuCI 界面）
-# dae 包自带 bpf-headers/golang host 依赖声明，feeds/packages 的 golang 由 make defconfig 自动接入
-rm -rf ./package/daede-upstream ./package/dae ./package/daed ./package/luci-app-daede
-git clone --depth=1 https://github.com/kenzok8/openwrt-daede ./package/daede-upstream
-for p in dae daed luci-app-daede; do cp -r ./package/daede-upstream/$p ./package/$p; done
-rm -rf ./package/daede-upstream
-echo "daede packages (dae/daed/luci-app-daede) imported from kenzok8/openwrt-daede"
-
-#===honk（eBPF 透明代理，dae 兼容）：QiuSimons/luci-app-honk release 预编译 ipk 注入===
-# honk-core 是 Rust+aya 静态二进制（aarch64_generic/x86_64），架构无关 ipk 内容直接装入 rootfs
-# luci-app-honk 含 LuCI 页面与 Doona 控制面板静态资源（noarch）
-HONK_REL=$(curl -fsSL --retry 3 --connect-timeout 15 "https://api.github.com/repos/QiuSimons/luci-app-honk/releases/latest" 2>/dev/null)
-HONK_TAG=$(echo "$HONK_REL" | jq -r '.tag_name' 2>/dev/null)
-HONK_ASSET_ARM=$(echo "$HONK_REL" | jq -r '.assets[].name' 2>/dev/null | grep -E '^honk_.*_aarch64_generic.*\.ipk$' | head -1)
-HONK_ASSET_X86=$(echo "$HONK_REL" | jq -r '.assets[].name' 2>/dev/null | grep -E '^honk_.*_x86_64.*\.ipk$' | head -1)
-LUCI_HONK_ASSET=$(echo "$HONK_REL" | jq -r '.assets[].name' 2>/dev/null | grep -E '^luci-app-honk_.*_all.*\.ipk$' | head -1)
-# 容错：API 失败或缺资产时回退到已验证的历史版本
-if [ -z "$HONK_TAG" ] || [ -z "$HONK_ASSET_ARM" ] || [ -z "$HONK_ASSET_X86" ] || [ -z "$LUCI_HONK_ASSET" ]; then
-        echo "honk release API miss, falling back to pinned version"
-        HONK_TAG="honk_2026.11.14_06eb039-r1"
-        HONK_ASSET_ARM="honk_2026.11.14.06eb039-r1_aarch64_generic-openwrt-24.10.8.ipk"
-        HONK_ASSET_X86="honk_2026.11.14.06eb039-r1_x86_64-openwrt-24.10.8.ipk"
-        LUCI_HONK_ASSET="luci-app-honk_1.1.4-r13_all-openwrt-24.10.8.ipk"
+#===dae + luci-app-dae（Daede 核心，eBPF 透明代理）：daeuniverse 官方 OpenWrt feed，源码编译===
+DAE_FEED="/tmp/daeuniverse-feed"
+if [ ! -f "$DAE_FEED/dae/build.sh" ]; then
+        rm -rf "$DAE_FEED"
+        git clone --depth 1 https://github.com/daeuniverse/openwrt-packages.git "$DAE_FEED" || echo "daeuniverse feed clone FAILED"
 fi
-HONK_VER=$(echo "$HONK_ASSET_ARM" | sed -E "s/^honk_(.*)_aarch64_generic.*/\1/")
-LUCI_HONK_VER=$(echo "$LUCI_HONK_ASSET" | sed -E "s/^luci-app-honk_(.*)_all.*/\1/")
-echo "honk latest version: $HONK_VER / luci-app-honk: $LUCI_HONK_VER"
-
-HONK_BASE="https://github.com/QiuSimons/luci-app-honk/releases/download/$HONK_TAG"
-HONK_HASH_aarch64=$(BCYYT_SHA256 "$HONK_BASE/$HONK_ASSET_ARM")
-HONK_HASH_x86_64=$(BCYYT_SHA256 "$HONK_BASE/$HONK_ASSET_X86")
-LUCI_HONK_HASH=$(BCYYT_SHA256 "$HONK_BASE/$LUCI_HONK_ASSET")
-
-#===静态模板方案：Makefile 为仓库静态文件（TAB 缩进本地逐字节验证），动态值走单行 inc===
-#规避 bash 多行参数/heredoc 在 CI 环境生成 Makefile 的未知差异（missing separator）
-HONK_DIR="./package/bcyyt/honk"
-LUCI_HONK_DIR="./package/bcyyt/luci-app-honk"
-mkdir -p "$HONK_DIR" "$LUCI_HONK_DIR"
-cp "$GITHUB_WORKSPACE/Scripts/inject/honk.Makefile" "$HONK_DIR/Makefile"
-cp "$GITHUB_WORKSPACE/Scripts/inject/luci-app-honk.Makefile" "$LUCI_HONK_DIR/Makefile"
-#单行 printf 生成 inc（无 heredoc、无多行参数）：四件套，不加 PKG_RELEASE
-#（apk-tools 版本规范：PKG_VERSION 追加 -r1 会成双 -r 尾巴被拒；多字符字母段如 a9925bd 也非法）
-#honk 的 PKG_VERSION 截取 tag 日期段（2026.11.14.06eb039-r1 → 2026.11.14）
-HONK_VER_APK=$(echo "$HONK_VER" | cut -d. -f1-3)
-printf '%s\n' \
-        "PKG_VERSION:=$HONK_VER_APK" \
-        "PKG_SOURCE:=$HONK_ASSET_ARM" \
-        "PKG_SOURCE_URL:=$HONK_BASE" \
-        "PKG_HASH:=$HONK_HASH_aarch64" > "$HONK_DIR/honk.inc"
-printf '%s\n' \
-        "PKG_VERSION:=$LUCI_HONK_VER" \
-        "PKG_SOURCE:=$LUCI_HONK_ASSET" \
-        "PKG_SOURCE_URL:=$HONK_BASE" \
-        "PKG_HASH:=$LUCI_HONK_HASH" > "$LUCI_HONK_DIR/honk-luci.inc"
-echo "honk $HONK_VER has been generated into $HONK_DIR/!"
-echo "luci-app-honk $LUCI_HONK_VER has been generated into $LUCI_HONK_DIR/!"
-echo "--- debug: honk.inc ---"
-cat "$HONK_DIR/honk.inc"
-echo "--- debug: make syntax check (honk, in-package cwd) ---"
-WRT_ROOT=$PWD
-(cd "$HONK_DIR" && make --no-print-directory -f Makefile TOPDIR="$WRT_ROOT" INCLUDE_DIR="$WRT_ROOT/include" -n >/dev/null 2>/tmp/honk_syntax.err)
-HONK_SYNTAX=$?
-if [ "$HONK_SYNTAX" -eq 0 ]; then echo "honk Makefile syntax: OK"; else echo "honk Makefile syntax FAILED:"; cat /tmp/honk_syntax.err | head -5; fi
-echo "--- debug: make syntax check (luci-app-honk) ---"
-(cd "$LUCI_HONK_DIR" && make --no-print-directory -f Makefile TOPDIR="$WRT_ROOT" INCLUDE_DIR="$WRT_ROOT/include" -n >/dev/null 2>/tmp/luci_honk_syntax.err)
-LUCI_HONK_SYNTAX=$?
-if [ "$LUCI_HONK_SYNTAX" -eq 0 ]; then echo "luci-app-honk Makefile syntax: OK"; else echo "luci-app-honk Makefile syntax FAILED:"; cat /tmp/luci_honk_syntax.err | head -5; fi
+if [ -f "$DAE_FEED/dae/build.sh" ]; then
+        rm -rf ./package/bcyyt/dae ./package/bcyyt/luci-app-dae ./package/bcyyt/luci-lib-daeuniverse
+        cp -r "$DAE_FEED/dae" ./package/bcyyt/dae
+        cp -r "$DAE_FEED/luci-app-dae" ./package/bcyyt/luci-app-dae
+        cp -r "$DAE_FEED/luci-lib-daeuniverse" ./package/bcyyt/luci-lib-daeuniverse
+        #dae 完整源码（feed 仓库 src/ 只含 BTF shadow 文件）
+        rm -rf ./package/bcyyt/dae/src
+        git clone --depth 1 https://github.com/daeuniverse/dae.git ./package/bcyyt/dae/src || echo "dae source clone FAILED"
+        rm -rf ./package/bcyyt/dae/src/.git
+        #内核自带 BTF（CONFIG_BTF），剔除 feed 的 vmlinux-btf 依赖（官方内核 BTF 与本自编译内核不匹配）
+        sed -i 's/ +vmlinux-btf//' ./package/bcyyt/dae/Makefile
+        DAE_VER=$(grep -m1 'PKG_VERSION:=' ./package/bcyyt/dae/Makefile | sed 's/.*:=//')
+        echo "dae $DAE_VER + luci-app-dae + luci-lib-daeuniverse injected from daeuniverse feed (kernel-btf mode)"
+else
+        echo "WARNING: dae injection failed - dae incomplete"
+fi
+#host go 工具链（dae 源码编译必需；clang/llvm-strip runner 自带）
+if ! command -v go >/dev/null 2>&1; then
+        GO_TAR="go1.23.4.linux-amd64.tar.gz"
+        curl -fsSL --retry 3 --connect-timeout 15 "https://dl.google.com/go/$GO_TAR" -o /tmp/go.tgz \
+                || curl -fsSL --retry 3 --connect-timeout 15 "https://golang.google.cn/dl/$GO_TAR" -o /tmp/go.tgz \
+                || echo "go toolchain download FAILED"
+        if [ -f /tmp/go.tgz ]; then
+                rm -rf /usr/local/go
+                tar -C /usr/local -xzf /tmp/go.tgz
+                echo "/usr/local/go/bin" >> "$GITHUB_PATH"
+                echo "golang installed: $(/usr/local/go/bin/go version)"
+        fi
+fi
 
 #引入私有扩展脚本
 if [ -f "$GITHUB_WORKSPACE/Scripts/PRIVATE.sh" ]; then
