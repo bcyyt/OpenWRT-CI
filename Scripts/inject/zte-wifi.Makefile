@@ -15,7 +15,6 @@ PKGARCH:=all
 
 include $(INCLUDE_DIR)/package.mk
 
-PKG_DIR:=$(patsubst %/,%,$(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
 
 define Package/zte-wifi
   SECTION:=luci
