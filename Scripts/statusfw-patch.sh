@@ -5,32 +5,52 @@
 #
 # 改造内容（快捷方式与 Vantage 仪表盘融合为一个一级页面）：
 #   1) 「状态监控」纯状态页替换为轻量快捷方式页（仅保留 URL 直达可用，菜单不显示）
-#   2) 一级菜单改名「网络与防火墙」，默认页改指向「网络」页；页内 tab 移除快捷方式项
+#   2) 一级菜单改名「网络与防火墙」，默认页改指向「端口转发」；页内 tab 移除快捷方式项
 #      —— 快捷入口由 Vantage 仪表盘顶部的快捷方式条承担（见 vantage-shortcuts-patch.py）
 #   3) 页面风格对齐 Vantage：fwm-* 颜色接入主题变量，亮暗模式自动跟随
 #   4) PPE 硬件 offload 占用数据源：root 采样守护 + procd 服务 + nobody CGI
 #   5) 剔除内嵌文件管理器（由 feed 版 luci-app-filemanager 提供，避免文件冲突）
+#
+# 上游结构兼容性（5.0.8 重打包后 network 页已被上游移除，DHCP/邻居管理交给 LuCI 原生页）：
+#   - 所有对上游文件的 sed 均先做存在性检查，上游增删文件不会炸编译（防御 release 漂移）
+#   - network.htm 切割逻辑仅在文件存在时执行（兼容旧结构 ipk）
 set -e
 ROOT="$1/root"
 
 [ -d "$ROOT" ] || { echo "statusfw-patch: root dir not found: $ROOT" >&2; exit 1; }
 
+# 存在性守卫：文件缺失时告警并跳过（sed -i 对不存在文件会直接报错）
+fw_file() {
+    [ -f "$1" ] && return 0
+    echo "statusfw-patch: WARN skip missing file: $1"
+    return 0
+}
+
 # 1) 快捷方式页替换状态监控页（URL 直达仍可用）
 cp "$GITHUB_WORKSPACE/Scripts/statusfw-shortcuts.htm" \
    "$ROOT/usr/lib/lua/luci/view/statusmon/status.htm"
 
-# 2) 菜单改名「状态与防火墙」→「网络与防火墙」；默认页指向「网络」；tab 移除快捷方式项
-sed -i 's/"状态与防火墙"/"网络与防火墙"/g' \
-   "$ROOT/usr/lib/lua/luci/controller/statusmon.lua"
-sed -i 's/<span>状态与防火墙<\/span>/<span>网络与防火墙<\/span>/' \
-   "$ROOT/usr/lib/lua/luci/view/fwmanager/page_head.htm"
-sed -i 's/alias("admin", "statusfw", "monitor")/alias("admin", "statusfw", "network")/g' \
-   "$ROOT/usr/lib/lua/luci/controller/statusmon.lua"
-sed -i '/{ "monitor", /d' "$ROOT/usr/lib/lua/luci/view/fwmanager/nav.htm"
-sed -i 's/leaf = "monitor"/leaf = "network"/g' "$ROOT/usr/lib/lua/luci/view/fwmanager/nav.htm"
+# 2) 菜单改名「状态与防火墙」→「网络与防火墙」；默认页指向「端口转发」；tab 移除快捷方式项
+#    （上游 5.0.8 起移除 network 页，默认页落到第一个功能页 port_forward）
+for CTL in "$ROOT/usr/lib/lua/luci/controller/statusmon.lua" \
+           "$ROOT/usr/lib/lua/luci/controller/fwmanager.lua"; do
+    fw_file "$CTL" && sed -i \
+        -e 's/状态与防火墙/网络与防火墙/g' \
+        -e 's/alias("admin", "statusfw", "monitor")/alias("admin", "statusfw", "port_forward")/g' \
+        "$CTL"
+done
+fw_file "$ROOT/usr/lib/lua/luci/view/fwmanager/page_head.htm" && \
+    sed -i 's/<span>状态与防火墙<\/span>/<span>网络与防火墙<\/span>/' \
+       "$ROOT/usr/lib/lua/luci/view/fwmanager/page_head.htm"
+NAV="$ROOT/usr/lib/lua/luci/view/fwmanager/nav.htm"
+fw_file "$NAV" && sed -i \
+    -e '/{ "monitor", /d' \
+    -e 's/leaf = "monitor"/leaf = "port_forward"/g' \
+    "$NAV"
 
 # 3) 风格对齐 Vantage 仪表盘：fwm-* 变量接入主题变量（亮暗模式自动跟随）
 FWM="$ROOT/usr/lib/lua/luci/view/fwmanager/common_head.htm"
+if fw_file "$FWM"; then
 sed -i \
   -e 's/--fwm-p:#2563eb;--fwm-pd:#1d4ed8;--fwm-pb:#eff6ff;/--fwm-p:var(--accent);--fwm-pd:var(--accent-hover);--fwm-pb:var(--accent-soft);/' \
   -e 's/--fwm-sb:#f0fdf4;/--fwm-sb:rgba(22,163,74,.1);/' \
@@ -49,6 +69,7 @@ sed -i \
   -e 's/border-radius:12px/border-radius:var(--r-lg,8px)/g' \
   -e 's/font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif/font-family:var(--font)/' \
   "$FWM"
+fi
 
 # 4) PPE 硬件 offload 采样三件套（仪表盘 CPU 卡片显示；root 守护采样 debugfs，nobody CGI 转发）
 install -m 755 "$GITHUB_WORKSPACE/Scripts/statusppe-worker.sh" \
@@ -59,6 +80,7 @@ install -m 755 "$GITHUB_WORKSPACE/Scripts/statusppe-cgi.sh" \
    "$ROOT/www/cgi-bin/statusppe"
 
 # 5) 剔除内嵌文件管理器相关文件（保留 feed 版 luci-app-filemanager）
+#    上游 5.0.8 起已自带剔除，rm -f/-rf 对缺失路径静默成功，保留兜底
 rm -rf "$ROOT/www/luci-static/resources/view/system/filemanager" \
        "$ROOT/usr/share/luci/menu.d/luci-app-filemanager.json" \
        "$ROOT/usr/share/rpcd/acl.d/luci-app-filemanager.json" \
@@ -99,11 +121,14 @@ install -m 644 "$GITHUB_WORKSPACE/Scripts/zte-acl.json" \
 install -m 644 "$GITHUB_WORKSPACE/Scripts/zte-default-config" \
    "$ROOT/etc/config/zte-wifi"
 
-# 9) fwmanager network.htm：去掉「在线设备」表格区块
-#    （在线设备已在 Vantage 仪表盘完整呈现；保留 DHCP 开关/地址池/终端DNS/邻居设置与添加静态表单）
-#    锚定 <b>在线设备</b> 向前找最近的 nfw-item 容器起切，避免误删前面的 DHCP/邻居区块。
-#    终检：JS 无守卫的 getElementById(...).addEventListener 目标必须存在于 HTML，否则构建失败。
-python3 - "$ROOT/usr/lib/lua/luci/view/fwmanager/network.htm" <<'PYD'
+# 9) fwmanager network.htm：去掉「在线设备」表格区块（仅历史结构 ipk 需要）
+#    上游 5.0.8 重打包起整页移除（在线设备/DHCP/邻居区块随之消失，DHCP 管理由 LuCI
+#    原生「网络→接口→LAN」承担）；文件缺失时跳过，不再让编译失败。
+NET_HTM="$ROOT/usr/lib/lua/luci/view/fwmanager/network.htm"
+if [ ! -f "$NET_HTM" ]; then
+    echo "statusfw-patch: network.htm absent (upstream removed the page), skip online-devices cut"
+else
+python3 - "$NET_HTM" <<'PYD'
 import re, sys
 p = sys.argv[1]
 s = open(p, encoding='utf-8').read()
@@ -146,5 +171,6 @@ if anchor > 0:
 else:
     print('network.htm: online-devices block not found (already removed?)')
 PYD
+fi
 
 echo "statusfw patch done: shortcuts + statusflow v5.3 (24h charts + zte mesh wifi) + seriesmon + dhcp cleanup installed"
