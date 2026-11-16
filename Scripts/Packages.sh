@@ -385,21 +385,30 @@ LUCI_HONK_DIR="./package/bcyyt/luci-app-honk"
 mkdir -p "$HONK_DIR" "$LUCI_HONK_DIR"
 cp "$GITHUB_WORKSPACE/Scripts/inject/honk.Makefile" "$HONK_DIR/Makefile"
 cp "$GITHUB_WORKSPACE/Scripts/inject/luci-app-honk.Makefile" "$LUCI_HONK_DIR/Makefile"
-#单行 printf 生成 inc（无 heredoc、无多行参数）
-printf 'HONK_VER:=%s\nPKG_HASH_AARCH64:=%s\nPKG_HASH_X86_64:=%s\n' \
-        "$HONK_VER" "$HONK_HASH_aarch64" "$HONK_HASH_x86_64" > "$HONK_DIR/honk.inc"
-printf 'PKG_VERSION:=%s\nPKG_SOURCE:=%s\nPKG_SOURCE_URL:=%s\nPKG_HASH:=%s\n' \
-        "$LUCI_HONK_VER" "$LUCI_HONK_ASSET" "$HONK_BASE" "$LUCI_HONK_HASH" > "$LUCI_HONK_DIR/honk-luci.inc"
+#单行 printf 生成 inc（无 heredoc、无多行参数）：完整 OpenWrt 元数据五件套
+printf '%s\n' \
+        "PKG_VERSION:=$HONK_VER" \
+        "PKG_RELEASE:=1" \
+        "PKG_SOURCE:=$HONK_ASSET_ARM" \
+        "PKG_SOURCE_URL:=$HONK_BASE" \
+        "PKG_HASH:=$HONK_HASH_aarch64" > "$HONK_DIR/honk.inc"
+printf '%s\n' \
+        "PKG_VERSION:=$LUCI_HONK_VER" \
+        "PKG_RELEASE:=1" \
+        "PKG_SOURCE:=$LUCI_HONK_ASSET" \
+        "PKG_SOURCE_URL:=$HONK_BASE" \
+        "PKG_HASH:=$LUCI_HONK_HASH" > "$LUCI_HONK_DIR/honk-luci.inc"
 echo "honk $HONK_VER has been generated into $HONK_DIR/!"
 echo "luci-app-honk $LUCI_HONK_VER has been generated into $LUCI_HONK_DIR/!"
 echo "--- debug: honk.inc ---"
 cat "$HONK_DIR/honk.inc"
-echo "--- debug: make syntax check (honk) ---"
-make --no-print-directory -f "$HONK_DIR/Makefile" TOPDIR="$PWD" INCLUDE_DIR="$PWD/include" -n >/dev/null 2>/tmp/honk_syntax.err
+echo "--- debug: make syntax check (honk, in-package cwd) ---"
+WRT_ROOT=$PWD
+(cd "$HONK_DIR" && make --no-print-directory -f Makefile TOPDIR="$WRT_ROOT" INCLUDE_DIR="$WRT_ROOT/include" -n >/dev/null 2>/tmp/honk_syntax.err)
 HONK_SYNTAX=$?
 if [ "$HONK_SYNTAX" -eq 0 ]; then echo "honk Makefile syntax: OK"; else echo "honk Makefile syntax FAILED:"; cat /tmp/honk_syntax.err | head -5; fi
 echo "--- debug: make syntax check (luci-app-honk) ---"
-make --no-print-directory -f "$LUCI_HONK_DIR/Makefile" TOPDIR="$PWD" INCLUDE_DIR="$PWD/include" -n >/dev/null 2>/tmp/luci_honk_syntax.err
+(cd "$LUCI_HONK_DIR" && make --no-print-directory -f Makefile TOPDIR="$WRT_ROOT" INCLUDE_DIR="$WRT_ROOT/include" -n >/dev/null 2>/tmp/luci_honk_syntax.err)
 LUCI_HONK_SYNTAX=$?
 if [ "$LUCI_HONK_SYNTAX" -eq 0 ]; then echo "luci-app-honk Makefile syntax: OK"; else echo "luci-app-honk Makefile syntax FAILED:"; cat /tmp/luci_honk_syntax.err | head -5; fi
 
