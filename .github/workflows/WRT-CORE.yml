@@ -83,7 +83,7 @@ jobs:
           sudo apt-get -yqq clean
 
           sudo apt-get install -y --no-install-recommends \
-            bc bison build-essential bzip2 ca-certificates ccache clang \
+            bc bison build-essential bzip2 ca-certificates ccache clang dwarves \
             cmake cpio curl device-tree-compiler dos2unix file flex \
             g++-multilib gawk gcc-multilib genisoimage gettext git jq \
             libbpf-dev libclang-dev libdw-dev libelf-dev libncurses-dev libssl-dev lld \
