@@ -1,5 +1,7 @@
-#科学插件调整
-CONFIG_PACKAGE_luci-app-homeproxy=y
+#科学插件调整：HomeProxy 已卸载，由 dae/daed + honk（eBPF 原生加速）替代
+CONFIG_PACKAGE_luci-app-homeproxy=n
+CONFIG_PACKAGE_luci-i18n-homeproxy-zh-cn=n
+CONFIG_PACKAGE_sing-box=n
 #增加插件
 CONFIG_PACKAGE_lucky=y
 CONFIG_PACKAGE_luci-app-lucky=y
