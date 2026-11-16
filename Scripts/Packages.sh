@@ -378,37 +378,39 @@ HONK_HASH_aarch64=$(BCYYT_SHA256 "$HONK_BASE/$HONK_ASSET_ARM")
 HONK_HASH_x86_64=$(BCYYT_SHA256 "$HONK_BASE/$HONK_ASSET_X86")
 LUCI_HONK_HASH=$(BCYYT_SHA256 "$HONK_BASE/$LUCI_HONK_ASSET")
 
+# 完全复刻 luci-app-natfrp 的已验证注入结构：ARCH 变量 + PKG_SOURCE 拼接 + 三个 ifeq 架构块
 BCYYT_INJECT "honk" "$HONK_VER" \
         "honk - eBPF transparent proxy engine (dae-compatible), Rust+Aya" \
         "+kmod-sched-core +kmod-sched-bpf +kmod-veth +kmod-nft-queue +ca-bundle +v2ray-geoip +v2ray-geosite @(aarch64||x86_64)" \
         "tar -C \$(PKG_BUILD_DIR)/ipk -xzf \$(DL_DIR)/\$(PKG_SOURCE)" \
-        "/etc/honk/config.dae
-/etc/honk/config.d/
-/etc/config/honk" \
-        "HONK_ARCH:=aarch64_generic
+        "/etc/honk/config.dae" \
+        "HONK_VER:=$HONK_VER
+HONK_ARCH:=aarch64_generic
 ifeq (\$(ARCH),x86_64)
   HONK_ARCH:=x86_64
 endif
-PKG_SOURCE:=$HONK_ASSET_ARM
-ifeq (\$(ARCH),x86_64)
-  PKG_SOURCE:=$HONK_ASSET_X86
-endif
+PKG_SOURCE:=honk_\$(HONK_VER)_\$(HONK_ARCH)-openwrt-24.10.8.ipk
 PKG_SOURCE_URL:=$HONK_BASE
-ifeq (\$(ARCH),aarch64)
-  PKG_HASH:=$HONK_HASH_aarch64
-endif
+PKG_HASH:=$HONK_HASH_aarch64
 ifeq (\$(ARCH),x86_64)
   PKG_HASH:=$HONK_HASH_x86_64
 endif"
 
+# 调试 dump：CI 生成的 Makefile 打进日志（cat -A 可见空白字符），便于诊断 missing separator 类问题
+echo "--- debug: package/bcyyt/honk/Makefile dump ---"
+cat -A ./package/bcyyt/honk/Makefile 2>/dev/null | sed -n '1,40p'
+
 BCYYT_INJECT "luci-app-honk" "$LUCI_HONK_VER" \
-        "LuCI 页面与 Doona 控制面板（honk 前端）" \
+        "LuCI page and Doona control panel for honk" \
         "+luci-base +luci-compat +honk" \
         "tar -C \$(PKG_BUILD_DIR)/ipk -xzf \$(DL_DIR)/\$(PKG_SOURCE)" \
         "/etc/config/honk" \
         "PKG_SOURCE:=$LUCI_HONK_ASSET
 PKG_SOURCE_URL:=$HONK_BASE
 PKG_HASH:=$LUCI_HONK_HASH"
+
+echo "--- debug: package/bcyyt/luci-app-honk/Makefile dump ---"
+cat -A ./package/bcyyt/luci-app-honk/Makefile 2>/dev/null | sed -n '1,30p'
 
 #引入私有扩展脚本
 if [ -f "$GITHUB_WORKSPACE/Scripts/PRIVATE.sh" ]; then
