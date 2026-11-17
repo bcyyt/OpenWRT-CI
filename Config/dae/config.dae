@@ -1,0 +1,54 @@
+# dae 配置 — 由 jbcc.yaml 自动转换（v2.1.2 语法）
+# 生成时间: 2026-11-17  追云加速 anytls/hysteria2/trojan → hy2+trojan
+global {
+    tproxy_port: 12345
+    log_level: info
+    lan_interface: br-lan
+    wan_interface: pppoe-wan
+    auto_config_kernel_parameter: true
+    tcp_check_url: 'http://cp.cloudflare.com,1.1.1.1'
+    udp_check_dns: 'dns.google:53,8.8.8.8'
+    check_interval: 30s
+    check_tolerance: 50ms
+    dial_mode: domain
+    sniffing_timeout: 30ms
+    bandwidth_max_tx: '50 mbps'
+    bandwidth_max_rx: '300 mbps'
+    so_mark_from_dae: 2023
+}
+
+subscription {
+    zhuiyun: 'file:///etc/dae/zhuiyun.sub'
+}
+
+dns {
+    ipversion_prefer: 4
+    upstream {
+        alidns: 'udp://dns.alidns.com:53'
+        googledns: 'tcp+udp://dns.google:53'
+    }
+    routing {
+        request {
+            qname(geosite:cn) -> alidns
+            qname(geosite:category-games@cn) -> alidns
+            fallback: googledns
+        }
+    }
+}
+
+group {
+    proxy {
+        filter: subtag(zhuiyun) && !name(keyword: '流量') && !name(keyword: '到期') && !name(keyword: '失联')
+        policy: min_moving_avg
+    }
+}
+
+routing {
+    dip(224.0.0.0/3, 'ff00::/8') -> direct
+    dip(geoip:private) -> direct
+    pname(dnsmasq) -> direct
+    dip(geoip:cn) -> direct
+    domain(geosite:cn) -> direct
+    domain(suffix: zhuiyun.shop) -> direct
+    fallback: proxy
+}
