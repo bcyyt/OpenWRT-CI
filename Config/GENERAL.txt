@@ -142,3 +142,6 @@ CONFIG_DEBUG_INFO_BTF=y
 CONFIG_MODULE_ALLOW_BTF_MISMATCH=y
 # kmod-xdp-sockets-diag 可见性：@KERNEL_XDP_SOCKETS 是 OpenWrt 根配置符号（dae 硬依赖）
 CONFIG_KERNEL_XDP_SOCKETS=y
+# kernel debug info -> BTF（OpenWrt 根配置层传递，双保险）
+CONFIG_KERNEL_DEBUG_INFO=y
+CONFIG_KERNEL_DEBUG_INFO_BTF=y
