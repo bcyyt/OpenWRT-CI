@@ -135,5 +135,3 @@ CONFIG_VETH=y
 CONFIG_DEBUG_INFO_BTF=y
 BPFEO
 fi
-    echo "[Settings] kernel BTF enabled in filogic config-6.18"
-fi
