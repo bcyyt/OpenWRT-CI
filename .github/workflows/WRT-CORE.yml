@@ -227,14 +227,19 @@ jobs:
         if: ${{ !inputs.WRT_TEST }}
         run: |
           cd ./wrt/
-          VMLINUX=$(find build_dir -maxdepth 4 -name vmlinux -path "*linux-*" ! -path "*bpf-headers*" ! -path "*tools*" 2>/dev/null | head -1)
+          # 原始内核 vmlinux（未 strip，depth5）；KDIR 顶层副本是 strip 过的，不含调试段
+          VMLINUX=$(find build_dir -maxdepth 5 -type f -name vmlinux -path "*linux-6*" ! -path "*bpf-headers*" ! -path "*tools*" 2>/dev/null | head -1)
           if [ -n "$VMLINUX" ] && [ -f "$VMLINUX" ]; then
             echo "== vmlinux: $VMLINUX =="
+            readelf -S "$VMLINUX" | grep -E "\.(BTF|debug_info)" || true
             if readelf -S "$VMLINUX" 2>/dev/null | grep -q "\.BTF"; then
               echo "RESULT_VMLINUX_BTF_SECTION=PRESENT"
-              readelf -S "$VMLINUX" | grep "\.BTF"
             else
               echo "RESULT_VMLINUX_BTF_SECTION=MISSING"
+              echo "-- all vmlinux candidates for diagnosis: --"
+              find build_dir -maxdepth 5 -type f -name vmlinux ! -path "*bpf-headers*" ! -path "*tools*" 2>/dev/null | while read -r f; do
+                if readelf -S "$f" 2>/dev/null | grep -q "\.BTF"; then echo "  HAS-BTF  $f"; else echo "  no-btf   $f"; fi
+              done
               exit 1
             fi
           else
