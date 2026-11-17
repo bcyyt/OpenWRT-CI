@@ -86,6 +86,16 @@ echo "CONFIG_PACKAGE_luci-theme-$WRT_THEME=y" >> ./.config
 echo "CONFIG_PACKAGE_luci-app-$WRT_THEME=y" >> ./.config
 echo "CONFIG_PACKAGE_luci-app-$WRT_THEME-config=y" >> ./.config
 
+#===仪表盘/代理运行时包固化（2026-11-17）：原依赖 workflow_dispatch 手动输入 PACKAGE，不输入即丢失===
+# 仅 MEDIATEK-WIFI-*（VIKINGYFY 源，无 statusfw）；CS 线 statusfw 自带 statusmon 系组件，跳过防文件冲突
+case "$WRT_CONFIG" in
+  MEDIATEK-WIFI-*)
+        echo "CONFIG_PACKAGE_luci-app-statusmon=y" >> ./.config
+        echo "CONFIG_PACKAGE_zte-wifi=y" >> ./.config
+        echo "CONFIG_PACKAGE_luci-app-openclash=y" >> ./.config
+        ;;
+esac
+
 #引入私有扩展配置
 if [ -f "$GITHUB_WORKSPACE/Config/PRIVATE.txt" ]; then
         echo "Applying private configurations from PRIVATE.txt..."

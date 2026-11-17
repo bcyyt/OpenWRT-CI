@@ -354,6 +354,19 @@ WRT_ROOT=$PWD
         && echo "openclash Makefile syntax: OK" \
         || { echo "openclash Makefile syntax FAILED:"; head -5 /tmp/oc_syntax.err; }
 
+#===luci-app-statusmon（仪表盘运行时后端）：自编组件独立成包（原先随 statusfw-patch 注入，statusfw 已按需求删除）===
+# statusmon v4.48 = 系统状态/快捷方式数据源；statusppe = PPE+CPU 采样；statusflow = 客户端速率+今日流量+24h 曲线；seriesmon = 曲线端点
+SM_DIR="./package/bcyyt/luci-app-statusmon"
+mkdir -p "$SM_DIR/files"
+cp "$GITHUB_WORKSPACE/Scripts/inject/statusmon.Makefile" "$SM_DIR/Makefile"
+for sf in statusmon statusppe-worker.sh statusppe-initd statusppe-cgi.sh statusflow-worker.sh statusflow-initd statusflow-cgi.sh seriesmon-cgi.sh; do
+	cp "$GITHUB_WORKSPACE/Scripts/$sf" "$SM_DIR/files/$sf" || echo "statusmon: $sf missing"
+done
+WRT_ROOT=$PWD
+(cd "$SM_DIR" && make --no-print-directory -f Makefile TOPDIR="$WRT_ROOT" INCLUDE_DIR="$WRT_ROOT/include" -n >/dev/null 2>/tmp/sm_syntax.err) \
+        && echo "statusmon Makefile syntax: OK" \
+        || { echo "statusmon Makefile syntax FAILED:"; head -5 /tmp/sm_syntax.err; }
+
 #引入私有扩展脚本
 if [ -f "$GITHUB_WORKSPACE/Scripts/PRIVATE.sh" ]; then
         source "$GITHUB_WORKSPACE/Scripts/PRIVATE.sh"
