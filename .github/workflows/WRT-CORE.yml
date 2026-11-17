@@ -193,12 +193,12 @@ jobs:
           $GITHUB_WORKSPACE/Scripts/Settings.sh
 
           # dae config overlay (files/ -> firmware /etc/dae/)
-          mkdir -p ./wrt/files/etc/dae ./wrt/files/etc/uci-defaults
-          cp $GITHUB_WORKSPACE/Config/dae/config.dae ./wrt/files/etc/dae/config.dae
-          cp $GITHUB_WORKSPACE/Config/dae/zhuiyun.sub ./wrt/files/etc/dae/zhuiyun.sub
-          printf "%s\n" "/etc/init.d/dae enable && /etc/init.d/dae start || /etc/init.d/dae restart || true" > ./wrt/files/etc/uci-defaults/99-dae-enable
-          printf "%s\n" "/etc/init.d/openclash stop 2>/dev/null; /etc/init.d/openclash disable 2>/dev/null" > ./wrt/files/etc/uci-defaults/98-openclash-off
-          chmod 600 ./wrt/files/etc/dae/config.dae
+          mkdir -p ./package/base-files/files/etc/dae ./package/base-files/files/etc/uci-defaults
+          cp $GITHUB_WORKSPACE/Config/dae/config.dae ./package/base-files/files/etc/dae/config.dae
+          cp $GITHUB_WORKSPACE/Config/dae/zhuiyun.sub ./package/base-files/files/etc/dae/zhuiyun.sub
+          printf "%s\n" "/etc/init.d/dae enable && /etc/init.d/dae start || /etc/init.d/dae restart || true" > ./package/base-files/files/etc/uci-defaults/99-dae-enable
+          printf "%s\n" "/etc/init.d/openclash stop 2>/dev/null; /etc/init.d/openclash disable 2>/dev/null" > ./package/base-files/files/etc/uci-defaults/98-openclash-off
+          chmod 600 ./package/base-files/files/etc/dae/config.dae
           $GITHUB_WORKSPACE/.github/scripts/prepare-build-host.sh
 
           make defconfig -j$(nproc) && make clean -j$(nproc)
