@@ -191,6 +191,13 @@ jobs:
           fi
 
           $GITHUB_WORKSPACE/Scripts/Settings.sh
+
+          # dae config overlay (files/ -> firmware /etc/dae/)
+          mkdir -p ./wrt/files/etc/dae ./wrt/files/etc/uci-defaults
+          cp $GITHUB_WORKSPACE/Config/dae/config.dae ./wrt/files/etc/dae/config.dae
+          cp $GITHUB_WORKSPACE/Config/dae/zhuiyun.sub ./wrt/files/etc/dae/zhuiyun.sub
+          printf "%s\n" "/etc/init.d/dae enable && /etc/init.d/dae start || true" > ./wrt/files/etc/uci-defaults/99-dae-enable
+          chmod 600 ./wrt/files/etc/dae/config.dae
           $GITHUB_WORKSPACE/.github/scripts/prepare-build-host.sh
 
           make defconfig -j$(nproc) && make clean -j$(nproc)
