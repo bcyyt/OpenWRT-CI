@@ -196,7 +196,8 @@ jobs:
           mkdir -p ./wrt/files/etc/dae ./wrt/files/etc/uci-defaults
           cp $GITHUB_WORKSPACE/Config/dae/config.dae ./wrt/files/etc/dae/config.dae
           cp $GITHUB_WORKSPACE/Config/dae/zhuiyun.sub ./wrt/files/etc/dae/zhuiyun.sub
-          printf "%s\n" "/etc/init.d/dae enable && /etc/init.d/dae start || true" > ./wrt/files/etc/uci-defaults/99-dae-enable
+          printf "%s\n" "/etc/init.d/dae enable && /etc/init.d/dae start || /etc/init.d/dae restart || true" > ./wrt/files/etc/uci-defaults/99-dae-enable
+          printf "%s\n" "/etc/init.d/openclash stop 2>/dev/null; /etc/init.d/openclash disable 2>/dev/null" > ./wrt/files/etc/uci-defaults/98-openclash-off
           chmod 600 ./wrt/files/etc/dae/config.dae
           $GITHUB_WORKSPACE/.github/scripts/prepare-build-host.sh
 
