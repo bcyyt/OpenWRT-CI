@@ -116,3 +116,9 @@ if [[ "${WRT_TARGET^^}" == *"QUALCOMMAX"* ]]; then
                 echo "qualcommax set up nowifi successfully!"
         fi
 fi
+
+#dae eBPF 内核 BTF 支持：kernel 符号必须进 target kernel config（根 .config 不生效）
+if [ -f target/linux/mediatek/filogic/config-6.18 ] && ! grep -q CONFIG_DEBUG_INFO_BTF target/linux/mediatek/filogic/config-6.18; then
+    echo "CONFIG_DEBUG_INFO_BTF=y" >> target/linux/mediatek/filogic/config-6.18
+    echo "[Settings] kernel BTF enabled in filogic config-6.18"
+fi
