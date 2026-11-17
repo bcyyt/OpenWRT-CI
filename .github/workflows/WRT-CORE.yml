@@ -223,6 +223,19 @@ jobs:
           make -j$(nproc) BUILD_TIME_LOG="$GITHUB_WORKSPACE/build-reports/parallel.tsv" || \
             make -j1 V=s BUILD_TIME_LOG="$GITHUB_WORKSPACE/build-reports/serial.tsv"
 
+      - name: Verify Kernel BTF
+        if: ${{ !inputs.WRT_TEST }}
+        run: |
+          cd ./wrt/
+          KCFG=$(find build_dir -maxdepth 5 -name ".config" -path "*linux*" 2>/dev/null | head -1)
+          if [ -n "$KCFG" ]; then
+            echo "Kernel config: $KCFG"
+            grep -E "DEBUG_INFO_(NONE|REDUCED|FULL|BTF)=" "$KCFG" || true
+            grep -q "^CONFIG_DEBUG_INFO_BTF=y" "$KCFG" && echo "KERNEL_BTF=ON" || echo "KERNEL_BTF=OFF"
+          else
+            echo "kernel .config not found (skip)"
+          fi
+
       - name: Collect Build Reports
         if: ${{ !inputs.WRT_TEST && always() }}
         continue-on-error: true
