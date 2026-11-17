@@ -69,3 +69,8 @@ mkdir -p "$REPORT_DIR"
 	printf 'BPF LLVM prefix: %s\n' "$LLVM_ROOT"
 	"$LLVM_ROOT/bin/clang" --version
 } | tee "$REPORT_DIR/host-toolchains.txt"
+
+# kernel BTF generation requires pahole (dwarves)
+if ! command -v pahole >/dev/null 2>&1; then
+    sudo apt-get install -y dwarves
+fi
