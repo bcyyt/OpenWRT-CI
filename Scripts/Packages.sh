@@ -208,12 +208,12 @@ BCYYT_INJECT() {
 # 容错：OTA 仓只更新了 apk、尚未上传对应 ipk 时（version.json 已指向新版本但 ipk 404），
 # 自动回退到「最近一个三架构 ipk 齐全」的历史版本，避免编译失败；ipk 补传后自动跟上。
 IPTV_RAW_VER=$(curl -fsSL --retry 3 --connect-timeout 15 "$BCYYT_RAW/iptv-auth/version.json" | jq -r ".version" 2>/dev/null)
-[ -n "$IPTV_RAW_VER" ] || IPTV_RAW_VER="2.3.70-r15"
-iptv_ipk_ok() { curl -fsIL --retry 2 --connect-timeout 10 "$BCYYT_RAW/iptv-auth/iptv-auth_${1}_aarch64.ipk" > /dev/null 2>&1; }
+[ -n "$IPTV_RAW_VER" ] || IPTV_RAW_VER="2.3.80-r5"
+iptv_ipk_ok() { curl -fsIL --retry 3 --connect-timeout 10 "$BCYYT_RAW/iptv-auth/iptv-auth_${1}_aarch64.ipk" > /dev/null 2>&1; }
 IPTV_VER="$IPTV_RAW_VER"
 if ! iptv_ipk_ok "$IPTV_VER"; then
         echo "iptv-auth $IPTV_VER ipk missing on OTA repo (apk-only release), falling back..."
-        for IPTV_FALLBACK in $(curl -fsSL --retry 3 --connect-timeout 15 "$BCYYT_RAW/iptv-auth/version.json" | jq -r ".changelogs[].version" 2>/dev/null); do
+        for IPTV_FALLBACK in $(curl -fsSL --retry 3 --connect-timeout 15 "$BCYYT_RAW/iptv-auth/version.json" | jq -r ".changelogs[].version" 2>/dev/null) 2.3.80-r5 2.3.80-r3; do
                 if iptv_ipk_ok "$IPTV_FALLBACK"; then IPTV_VER="$IPTV_FALLBACK"; break; fi
         done
         [ "$IPTV_VER" != "$IPTV_RAW_VER" ] && echo "iptv-auth ipk fallback: $IPTV_RAW_VER -> $IPTV_VER (upload r${IPTV_RAW_VER##*-r} ipk to restore)"
