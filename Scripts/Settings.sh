@@ -117,8 +117,23 @@ if [[ "${WRT_TARGET^^}" == *"QUALCOMMAX"* ]]; then
         fi
 fi
 
-#dae eBPF 内核 BTF 支持：kernel 符号必须进 target kernel config（根 .config 不生效）
-if [ -f target/linux/mediatek/filogic/config-6.18 ] && ! grep -q CONFIG_DEBUG_INFO_BTF target/linux/mediatek/filogic/config-6.18; then
-    echo "CONFIG_DEBUG_INFO_BTF=y" >> target/linux/mediatek/filogic/config-6.18
+#dae eBPF kernel support stack (kmod-sched-bpf/kmod-xdp-sockets-diag/kmod-veth + BTF)
+KCF=target/linux/mediatek/filogic/config-6.18
+if ! grep -q "^CONFIG_BPF_SYSCALL=y" $KCF 2>/dev/null; then
+cat >> $KCF <<'BPFEO'
+CONFIG_BPF=y
+CONFIG_BPF_SYSCALL=y
+CONFIG_BPF_JIT=y
+CONFIG_BPF_UNPRIV_DEFAULT_OFF=y
+CONFIG_CGROUP_BPF=y
+CONFIG_NET_SCHED=y
+CONFIG_NET_CLS_BPF=y
+CONFIG_NET_CLS_ACT=y
+CONFIG_XDP_SOCKETS=y
+CONFIG_XDP_SOCKETS_DIAG=y
+CONFIG_VETH=y
+CONFIG_DEBUG_INFO_BTF=y
+BPFEO
+fi
     echo "[Settings] kernel BTF enabled in filogic config-6.18"
 fi
