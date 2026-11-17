@@ -193,13 +193,9 @@ jobs:
           $GITHUB_WORKSPACE/Scripts/Settings.sh
 
           # dae config overlay (files/ -> firmware /etc/dae/)
-          mkdir -p ./package/base-files/files/etc/dae ./package/base-files/files/etc/uci-defaults
-          cp $GITHUB_WORKSPACE/Config/dae/config.dae ./package/base-files/files/etc/dae/config.dae
-          cp $GITHUB_WORKSPACE/Config/dae/zhuiyun.sub ./package/base-files/files/etc/dae/zhuiyun.sub
+          mkdir -p ./package/base-files/files/etc/uci-defaults
           printf "%s\n" "/etc/init.d/daed enable && /etc/init.d/daed start || true" > ./package/base-files/files/etc/uci-defaults/99-daed-enable
-          printf "%s\n" "/etc/init.d/dae disable 2>/dev/null || true" > ./package/base-files/files/etc/uci-defaults/97-dae-standby
           printf "%s\n" "/etc/init.d/openclash stop 2>/dev/null; /etc/init.d/openclash disable 2>/dev/null" > ./package/base-files/files/etc/uci-defaults/98-openclash-off
-          chmod 600 ./package/base-files/files/etc/dae/config.dae
           $GITHUB_WORKSPACE/.github/scripts/prepare-build-host.sh
 
           make defconfig -j$(nproc) && make clean -j$(nproc)
