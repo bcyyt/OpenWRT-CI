@@ -227,13 +227,18 @@ jobs:
         if: ${{ !inputs.WRT_TEST }}
         run: |
           cd ./wrt/
-          KCFG=$(find build_dir -maxdepth 5 -name ".config" -path "*linux*" 2>/dev/null | head -1)
-          if [ -n "$KCFG" ]; then
-            echo "Kernel config: $KCFG"
-            grep -E "DEBUG_INFO_(NONE|REDUCED|FULL|BTF)=" "$KCFG" || true
-            grep -q "^CONFIG_DEBUG_INFO_BTF=y" "$KCFG" && echo "KERNEL_BTF=ON" || echo "KERNEL_BTF=OFF"
+          VMLINUX=$(find build_dir -maxdepth 4 -name vmlinux -path "*linux-*" ! -path "*bpf-headers*" ! -path "*tools*" 2>/dev/null | head -1)
+          if [ -n "$VMLINUX" ] && [ -f "$VMLINUX" ]; then
+            echo "== vmlinux: $VMLINUX =="
+            if readelf -S "$VMLINUX" 2>/dev/null | grep -q "\.BTF"; then
+              echo "RESULT_VMLINUX_BTF_SECTION=PRESENT"
+              readelf -S "$VMLINUX" | grep "\.BTF"
+            else
+              echo "RESULT_VMLINUX_BTF_SECTION=MISSING"
+              exit 1
+            fi
           else
-            echo "kernel .config not found (skip)"
+            echo "vmlinux not found (skip)"
           fi
 
       - name: Collect Build Reports
