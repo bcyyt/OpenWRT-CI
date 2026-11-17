@@ -133,8 +133,6 @@ CONFIG_PACKAGE_usbutils=y
 CONFIG_PACKAGE_xz-utils=y
 
 #科学插件：dae 透明代理（eBPF 分流，替代 OpenClash）
-CONFIG_PACKAGE_dae=y
-CONFIG_PACKAGE_luci-app-dae=y
 #BPF 工具链：用构建机 host LLVM（prepare-build-host.sh 已验证），满足 dae 的 BPF_DEPENDS
 CONFIG_BPF_TOOLCHAIN_HOST=y
 #内核：开启 BTF（dae eBPF 程序加载必需）
@@ -145,6 +143,5 @@ CONFIG_KERNEL_XDP_SOCKETS=y
 # kernel debug info -> BTF（OpenWrt 根配置层传递，双保险）
 CONFIG_KERNEL_DEBUG_INFO=y
 CONFIG_KERNEL_DEBUG_INFO_BTF=y
-# daed：dae 的 Web 面板版（控制台可视化管理），与 dae 二选一运行
 CONFIG_PACKAGE_daed=y
 CONFIG_PACKAGE_luci-app-daed=y
