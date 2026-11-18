@@ -154,6 +154,9 @@ jobs:
             ./wrt/.ccache
             ./wrt/staging_dir/host*
             ./wrt/staging_dir/tool*
+            ./wrt/tmp/go-build
+            ./wrt/dl/go-mod-cache
+            ~/.npm
 
       - name: Prepare Restored Build Cache
         if: ${{ !inputs.WRT_TEST && steps.cache-restore.outputs.cache-matched-key != '' }}
@@ -272,6 +275,9 @@ jobs:
             ./wrt/.ccache
             ./wrt/staging_dir/host*
             ./wrt/staging_dir/tool*
+            ./wrt/tmp/go-build
+            ./wrt/dl/go-mod-cache
+            ~/.npm
 
       - name: Machine Information
         run: |
