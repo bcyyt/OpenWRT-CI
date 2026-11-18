@@ -29,13 +29,18 @@ while :; do
                 fi
         fi
 
-        # PPE 表项占用（entries 全量表）
+        # PPE 表项占用（entries 全量表；cat 一次后用户态计数，6次debugfs dump→2次）
         t0=0; a0=0; b0=0; t1=0; a1=0; b1=0
         for p in /sys/kernel/debug/ppe0/entries /sys/kernel/debug/ppe1/entries; do
                 [ -r "$p" ] || continue
-                t=$(wc -l < "$p" 2>/dev/null); [ -n "$t" ] || t=0
-                a=$(grep -c 'IPv4' "$p" 2>/dev/null); [ -n "$a" ] || a=0
-                b=$(grep -c 'IPv6' "$p" 2>/dev/null); [ -n "$b" ] || b=0
+                ent=$(cat "$p" 2>/dev/null)
+                if [ -n "$ent" ]; then
+                        t=$(printf '%s\n' "$ent" | wc -l)
+                        a=$(printf '%s\n' "$ent" | grep -c 'IPv4')
+                        b=$(printf '%s\n' "$ent" | grep -c 'IPv6')
+                else
+                        t=0; a=0; b=0
+                fi
                 case "$p" in
                         *ppe0*) t0=$t; a0=$a; b0=$b ;;
                         *ppe1*) t1=$t; a1=$a; b1=$b ;;

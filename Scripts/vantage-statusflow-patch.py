@@ -314,6 +314,31 @@ ov = patch(ov,
 
 # CSS（追加在原 statusflow CSS 之后）
 
+# ---------- CPU EMA 平滑（仪表盘虚高修复 2026-11-18）----------
+# 主题 cpu.pct 为 1~2s 短窗口瞬时差分，后台采样器/轮询自身毛刺被放大显示
+# （实测 5s 窗口峰值 13% vs 55s 均值 5.6%）。keepCpu 是 st.cpu 唯一写入口：
+# pct 与各核 cores 改走 EMA(α=0.25)；历史曲线仍推原始值（series.push 用局部
+# cpu.pct 不受影响），主数字/健康芯片/每核条随之平滑，页面重载经 writeCpu 续平滑值。
+if 'emaCores' in ov:
+    print('statusflow: cpu-ema already patched, skip')
+else:
+    anchor = ('keepCpu:function(cpu,now){var d=now-(this.cpuSavedAt||0);'
+              'this.st.cpu=cpu;this.st.cpuMeasured=true;'
+              'if(!(d>=0&&d<CPU_SAVE_MS)){this.cpuSavedAt=now;'
+              'writeCpu({pct:cpu.pct,cores:cpu.cores,t:now});}},')
+    ema_repl = ('keepCpu:function(cpu,now){var d=now-(this.cpuSavedAt||0);'
+                'var st=this.st;'
+                'var pv=(st.cpu&&isFinite(st.cpu.ema))?st.cpu.ema:((st.cpu&&isFinite(st.cpu.pct))?st.cpu.pct:null);'
+                'var ema=(pv==null)?cpu.pct:pv+(cpu.pct-pv)*0.25;'
+                'var ec=(st.cpu&&st.cpu.emaCores&&st.cpu.emaCores.length===cpu.cores.length)?st.cpu.emaCores:cpu.cores.slice();'
+                'for(var i=0;i<cpu.cores.length;i++){var v=cpu.cores[i];'
+                'ec[i]=isFinite(v)?(isFinite(ec[i])?ec[i]+(v-ec[i])*0.25:v):v;}'
+                'st.cpu={pct:ema,ema:ema,emaCores:ec,cores:ec};st.cpuMeasured=true;'
+                'if(!(d>=0&&d<CPU_SAVE_MS)){this.cpuSavedAt=now;'
+                'writeCpu({pct:ema,cores:ec,t:now});}},')
+    ov = patch(ov, re.escape(anchor), ema_repl, 'keepCpu cpu-ema')
+    print('statusflow: cpu-ema smoothing injected (keepCpu)')
+
 open(ov_path, 'w', encoding='utf-8').write(ov)
 print(f'vantage-statusflow: overview.js patched ({len(ov)} bytes)')
 
