@@ -360,12 +360,24 @@ SM_DIR="./package/bcyyt/luci-app-statusmon"
 mkdir -p "$SM_DIR/files"
 cp "$GITHUB_WORKSPACE/Scripts/inject/statusmon.Makefile" "$SM_DIR/Makefile"
 for sf in statusmon statusppe-worker.sh statusppe-initd statusppe-cgi.sh statusflow-worker.sh statusflow-initd statusflow-cgi.sh seriesmon-cgi.sh; do
-	cp "$GITHUB_WORKSPACE/Scripts/$sf" "$SM_DIR/files/$sf" || echo "statusmon: $sf missing"
+        cp "$GITHUB_WORKSPACE/Scripts/$sf" "$SM_DIR/files/$sf" || echo "statusmon: $sf missing"
 done
 WRT_ROOT=$PWD
 (cd "$SM_DIR" && make --no-print-directory -f Makefile TOPDIR="$WRT_ROOT" INCLUDE_DIR="$WRT_ROOT/include" -n >/dev/null 2>/tmp/sm_syntax.err) \
         && echo "statusmon Makefile syntax: OK" \
         || { echo "statusmon Makefile syntax FAILED:"; head -5 /tmp/sm_syntax.err; }
+
+#===irq-tune（MT7988 以太网中断分核 + TX 队列 XPS）：自编组件独立成包（2026-11-18）===
+# boot 期一次性调优：eth 中断向量按核摊开 + TX 队列 XPS；rc.d 符号链接随包内置自启
+# 仅 MediaTek 目标启用（Settings.sh），其它平台脚本自动跳过无副作用
+IT_DIR="./package/bcyyt/irq-tune"
+mkdir -p "$IT_DIR/files"
+cp "$GITHUB_WORKSPACE/Scripts/inject/irq-tune.Makefile" "$IT_DIR/Makefile"
+cp "$GITHUB_WORKSPACE/Scripts/irq-tune-initd" "$IT_DIR/files/irq-tune-initd"
+WRT_ROOT=$PWD
+(cd "$IT_DIR" && make --no-print-directory -f Makefile TOPDIR="$WRT_ROOT" INCLUDE_DIR="$WRT_ROOT/include" -n >/dev/null 2>/tmp/it_syntax.err) \
+        && echo "irq-tune Makefile syntax: OK" \
+        || { echo "irq-tune Makefile syntax FAILED:"; head -5 /tmp/it_syntax.err; }
 
 #引入私有扩展脚本
 if [ -f "$GITHUB_WORKSPACE/Scripts/PRIVATE.sh" ]; then

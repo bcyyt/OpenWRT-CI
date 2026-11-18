@@ -108,6 +108,13 @@ case "$WRT_CONFIG" in
         ;;
 esac
 
+#===irq-tune（MT7988 以太网中断分核 + TX XPS，2026-11-18）：WIFI/CS 两线通用，包内自带 rc.d 自启===
+case "$WRT_CONFIG" in
+  MEDIATEK-*)
+        echo "CONFIG_PACKAGE_irq-tune=y" >> ./.config
+        ;;
+esac
+
 #引入私有扩展配置
 if [ -f "$GITHUB_WORKSPACE/Config/PRIVATE.txt" ]; then
         echo "Applying private configurations from PRIVATE.txt..."

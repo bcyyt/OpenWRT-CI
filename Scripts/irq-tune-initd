@@ -1,0 +1,57 @@
+#!/bin/sh /etc/rc.common
+# irq-tune — MT7988 以太网中断分核 + TX 队列 XPS（2026-11-18 S20P 实测调优固化）
+#
+# 背景：MT7988 两个以太网 GIC 向量默认全落 CPU0（实测 eth0 97万次/eth1 114万次，
+# 其余三核为 0），TX 16 队列无 XPS；代理大流量时 CPU0 先饱和，仪表盘第一核偏高。
+# 策略：
+#   1) 以太网中断向量按在线核均匀摊开（4核2向量 → CPU0/CPU2）
+#      —— 虚拟中断号动态发现（grep /proc/interrupts），内核升级 vIRQ 漂移不失效
+#   2) eth* TX 队列按核轮转写 xps_cpus（发包路径与收包软中断同核化）
+# 说明：affinity/XPS 为内核运行时状态，重启复位，故随 boot 每次执行；幂等无守护。
+# 非 MediaTek 平台匹配不到 15100000.ethernet，全部跳过，无副作用。
+
+START=99
+
+mask_of() {
+	echo $(( 1 << ($1 % 32) ))
+}
+
+apply_tuning() {
+	local ncpu n i v cpu qd tq
+	ncpu=$(grep -c ^processor /proc/cpuinfo 2>/dev/null)
+	[ "$ncpu" -ge 1 ] 2>/dev/null || ncpu=1
+	[ "$ncpu" -le 32 ] || ncpu=32
+
+	# 1) 以太网中断向量分核（均匀摊开）
+	n=0
+	for v in $(grep '15100000\.ethernet' /proc/interrupts 2>/dev/null | awk -F: '{gsub(/ /, "", $1); print $1}'); do
+		n=$((n + 1))
+	done
+	if [ "$n" -ge 1 ]; then
+		i=0
+		for v in $(grep '15100000\.ethernet' /proc/interrupts 2>/dev/null | awk -F: '{gsub(/ /, "", $1); print $1}'); do
+			cpu=$(( i * ncpu / n ))
+			if echo $(mask_of "$cpu") > /proc/irq/"$v"/smp_affinity 2>/dev/null; then
+				logger -t irq-tune "eth IRQ $v -> CPU$cpu"
+			fi
+			i=$((i + 1))
+		done
+	fi
+
+	# 2) TX 队列 XPS：在线核轮转（glob 字典序不影响每核均分）
+	for qd in /sys/class/net/eth*/queues; do
+		[ -d "$qd" ] || continue
+		i=0
+		for tq in "$qd"/tx-*; do
+			[ -w "$tq/xps_cpus" ] || continue
+			echo $(mask_of $(( i % ncpu ))) > "$tq/xps_cpus" 2>/dev/null
+			i=$((i + 1))
+		done
+		[ "$i" -ge 1 ] && logger -t irq-tune "XPS: $(basename ${qd%/queues}) $i tx queues spread over $ncpu cores"
+	done
+	return 0
+}
+
+start() {
+	apply_tuning
+}
