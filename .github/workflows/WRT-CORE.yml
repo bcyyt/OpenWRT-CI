@@ -199,6 +199,26 @@ jobs:
           mkdir -p ./package/base-files/files/etc/uci-defaults
           printf "%s\n" "/etc/init.d/daed enable && /etc/init.d/daed start || true" > ./package/base-files/files/etc/uci-defaults/99-daed-enable
           printf "%s\n" "/etc/init.d/openclash stop 2>/dev/null; /etc/init.d/openclash disable 2>/dev/null" > ./package/base-files/files/etc/uci-defaults/98-openclash-off
+
+          # [踩坑修复 2026-11-18] 固件 ROM 自带的 v2ray geosite.dat 缺失 dae 所需的
+          # 分类（含 gfw），daed 加载 routing 规则时报
+          #   "ApplyRulesOptimizers error: code gfw not found in /usr/share/daed/geosite.dat"
+          # 并回滚为空配置 → 代理整体失效。
+          # 构建时下载 Loyalsoldier 完整版，经 files/ 覆盖 rootfs 的
+          # /usr/share/v2ray/geosite.dat（/usr/share/daed/geosite.dat 是指向它的符号链接）。
+          # 详见仓库根 TROUBLESHOOTING.md 坑1。
+          mkdir -p ./files/usr/share/v2ray
+          GEOSITE_URL="https://github.com/Loyalsoldier/v2ray-rules-dat/releases/download/latest/geosite.dat"
+          curl -fsSL --retry 3 --connect-timeout 15 -o ./files/usr/share/v2ray/geosite.dat "$GEOSITE_URL" \
+            || curl -fsSL --retry 3 --connect-timeout 15 -o ./files/usr/share/v2ray/geosite.dat \
+               "https://cdn.jsdelivr.net/gh/Loyalsoldier/v2ray-rules-dat@release/geosite.dat"
+          GEOSITE_SIZE=$(stat -c%s ./files/usr/share/v2ray/geosite.dat 2>/dev/null || echo 0)
+          if [ "$GEOSITE_SIZE" -lt 5000000 ]; then
+            echo "FATAL: geosite.dat download failed or invalid (size=$GEOSITE_SIZE)"
+            exit 1
+          fi
+          echo "geosite.dat (Loyalsoldier full) staged: $GEOSITE_SIZE bytes"
+
           $GITHUB_WORKSPACE/.github/scripts/prepare-build-host.sh
 
           make defconfig -j$(nproc) && make clean -j$(nproc)
