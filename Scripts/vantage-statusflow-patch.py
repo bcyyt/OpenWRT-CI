@@ -18,11 +18,14 @@
 #   9) CPU 火花线与 uplink/cpu 健康芯片点击直达历史抽屉；#perf hash 直达
 import re, sys
 
-def patch(src, pattern, repl, what, count=1, flags=0):
+def patch(src, pattern, repl, what, count=1, flags=0, fatal=True):
     new, n = re.subn(pattern, repl, src, count=count, flags=flags)
     if n != count:
         print(f'statusflow: anchor {what!r} matched {n} times (expect {count})', file=sys.stderr)
-        sys.exit(1)
+        if fatal:
+            sys.exit(1)
+        print(f'statusflow: WARNING: section {what!r} skipped (non-fatal)', file=sys.stderr)
+        return src
     return new
 
 # ---------- overview.js ----------
@@ -325,7 +328,7 @@ else:
     anchor = ('keepCpu:function(cpu,now){var d=now-(this.cpuSavedAt||0);'
               'this.st.cpu=cpu;this.st.cpuMeasured=true;'
               'if(!(d>=0&&d<CPU_SAVE_MS)){this.cpuSavedAt=now;'
-              'writeCpu({pct:cpu.pct,cores:cpu.cores,t:now});}},')
+              'writeCpu({pct:cpu.pct,cores:cpu.cores,t:now});}}')
     ema_repl = ('keepCpu:function(cpu,now){var d=now-(this.cpuSavedAt||0);'
                 'var st=this.st;'
                 'var pv=(st.cpu&&isFinite(st.cpu.ema))?st.cpu.ema:((st.cpu&&isFinite(st.cpu.pct))?st.cpu.pct:null);'
@@ -335,8 +338,8 @@ else:
                 'ec[i]=isFinite(v)?(isFinite(ec[i])?ec[i]+(v-ec[i])*0.25:v):v;}'
                 'st.cpu={pct:ema,ema:ema,emaCores:ec,cores:ec};st.cpuMeasured=true;'
                 'if(!(d>=0&&d<CPU_SAVE_MS)){this.cpuSavedAt=now;'
-                'writeCpu({pct:ema,cores:ec,t:now});}},')
-    ov = patch(ov, re.escape(anchor), ema_repl, 'keepCpu cpu-ema')
+                'writeCpu({pct:ema,cores:ec,t:now});}}')
+    ov = patch(ov, re.escape(anchor), ema_repl, 'keepCpu cpu-ema', fatal=False)
     print('statusflow: cpu-ema smoothing injected (keepCpu)')
 
 open(ov_path, 'w', encoding='utf-8').write(ov)
