@@ -50,7 +50,19 @@ RMEMMAX
 #===自动挂载eMMC剩余分区为数据盘：mmcblk0p6(data) → /mnt/data===
 #首次启动自动格式化并写入fstab；幂等：已挂载/已配置则跳过；绝不重格已有数据的分区
 mkdir -p ./package/base-files/files/etc/uci-defaults
-cat > ./package/base-files/files/etc/uci-defaults/99-datadisk <<'DATADISK'
+#===刷机保配置：daed/natfrp 数据目录进 sysupgrade 保留列表（幂等，开机自检）===
+# LuCI 保存配置时会重写 sysupgrade.conf 洗掉非包声明行，故开机每次自检补齐
+mkdir -p ./package/base-files/files/etc/uci-defaults
+cat > ./package/base-files/files/etc/uci-defaults/99-keep-confs <<'KEEPCONF'
+#!/bin/sh
+for f in /etc/config/daed /etc/config/natfrp /etc/daed /etc/natfrp; do
+        [ -e "$f" ] || continue
+        grep -qxF "$f" /etc/sysupgrade.conf 2>/dev/null || echo "$f" >> /etc/sysupgrade.conf
+done
+exit 0
+KEEPCONF
+
+cat > ./package/base-files/files/etc/uci-defaults/99-datadisk <<'DATADISK
 #!/bin/sh
 DEV="/dev/mmcblk0p6"
 MNT="/mnt/data"
@@ -92,7 +104,7 @@ case "$WRT_CONFIG" in
   MEDIATEK-WIFI-*)
         echo "CONFIG_PACKAGE_luci-app-statusmon=y" >> ./.config
         echo "CONFIG_PACKAGE_zte-wifi=y" >> ./.config
-        echo "CONFIG_PACKAGE_luci-app-openclash=y" >> ./.config
+        # 2026-11-18: daed 全面接管代理，openclash 移出固件（运行时也可 apk del）
         ;;
 esac
 
