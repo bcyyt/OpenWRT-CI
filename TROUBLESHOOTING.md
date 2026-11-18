@@ -103,3 +103,22 @@ uci commit firewall
 ```
 
 重启后 PD 自动重新获取（30 秒内拿到新 /60），LAN 客户端 SLAAC 秒拿地址。
+
+## 附：geosite.dat 自动更新守护（2026-11-18 部署）
+
+上游 Loyalsoldier **每日 22:04** 发版；routing 的 `fallback: direct` 意味着
+dat 过期后新被墙站点会漏到直连（打不开），因此规则库必须保持新鲜。
+
+- 固件出厂：构建时打入当时最新完整版（上面坑1的修复）
+- 运行期：`/etc/daed-geosite-update.sh` 每周一 04:17 由 cron 拉最新版
+  - 双下载源（jsdelivr 主 + ghfast 备）
+  - md5 相同则跳过（幂等）；体积 <5MB 拒收
+  - 替换后重启 daed，轮询等待 `Bind to WAN`（最多 45s）确认新规则加载成功
+  - 加载失败自动回滚旧 dat 并重启
+  - 并发锁带 PID 陈锁自愈
+- 日志：`/var/log/geosite-update.log`；手动触发直接跑该脚本
+- 注意：脚本在 `/etc/`（sysupgrade 保留），刷机后 cron 条目由
+  uci-defaults 97-geosite-cron 自动重建
+
+v1 脚本曾因健康检查用 `tail -60` 找 Bind，被启动初期刷屏的节点 ALIVE
+日志挤出窗口造成误判回滚——v3 改为重启后日志全量 grep + 轮询。
