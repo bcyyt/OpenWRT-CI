@@ -62,7 +62,7 @@ done
 exit 0
 KEEPCONF
 
-cat > ./package/base-files/files/etc/uci-defaults/99-datadisk <<'DATADISK
+cat > ./package/base-files/files/etc/uci-defaults/99-datadisk <<'DATADISK'
 #!/bin/sh
 DEV="/dev/mmcblk0p6"
 MNT="/mnt/data"
