@@ -221,6 +221,7 @@ jobs:
 
           # [自动更新守护] daed geosite.dat 每周更新（上游 Loyalsoldier 每日 22:04 发版）
           # 脚本含: md5 幂等 / 体积校验 / Bind 轮询健康检查 / 失败自动回滚, 线上已实测
+          mkdir -p ./files/etc
           cp $GITHUB_WORKSPACE/Scripts/geosite-update.sh ./files/etc/daed-geosite-update.sh
           printf "%s\n" "/etc/init.d/cron enable; (crontab -l 2>/dev/null | grep -v daed-geosite; echo '17 4 * * 1 /etc/daed-geosite-update.sh') | crontab -" > ./package/base-files/files/etc/uci-defaults/97-geosite-cron
 
