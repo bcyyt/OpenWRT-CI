@@ -91,6 +91,73 @@ mount | grep -q " on $MNT " || mount "$DEV" "$MNT" 2>/dev/null
 exit 0
 DATADISK
 
+
+#===DNS 上游固化（2026-11-19）：dnsmasq → AliDNS 双上游并发 + 大缓存，开机首启/升级后自动生效===
+# 注：daed 在跑时 dnsmasq 上游仅作兜底（dae 劫持分流），daed 停机时直接走 223.5.5.5/223.6.6.6
+cat > ./package/base-files/files/etc/uci-defaults/99-dns-tune <<'DNSTUNE'
+#!/bin/sh
+uci -q batch <<UCI >/dev/null 2>&1
+delete dhcp.@dnsmasq[0].server
+add_list dhcp.@dnsmasq[0].server='223.5.5.5'
+add_list dhcp.@dnsmasq[0].server='223.6.6.6'
+set dhcp.@dnsmasq[0].noresolv='1'
+set dhcp.@dnsmasq[0].allservers='1'
+set dhcp.@dnsmasq[0].cachesize='8000'
+set dhcp.@dnsmasq[0].min_cache_ttl='3600'
+set dhcp.@dnsmasq[0].use_stale_cache='3600'
+set dhcp.@dnsmasq[0].nonegcache='1'
+commit dhcp
+UCI
+exit 0
+DNSTUNE
+
+#===daed 防DNS投毒路由工具（2026-11-19）：8.8.8.8 DNS 走代理 + dnsmasq 不再豁免劫持===
+# 现网已生效；/etc/daed 在 sysupgrade 保留清单内，仅全新安装/重置 daed 后需手动跑一次：
+#   daed-routing-tune
+mkdir -p ./package/base-files/files/usr/bin
+cat > ./package/base-files/files/usr/bin/daed-routing-tune <<'TUNE'
+#!/bin/sh
+# daed 路由防投毒调优：dip(8.8.8.8,8.8.4.4)->proxy 置顶 + dnsmasq 移出 must_direct 豁免
+python3 - <<'PY' || exit 1
+import sqlite3, subprocess, sys, time
+DB = '/etc/daed/wing.db'
+NEW = (
+    "routing {\n"
+    "dip(8.8.8.8, 8.8.4.4) -> proxy\n"
+    "pname(NetworkManager, systemd-resolved, natfrp-frpc) -> must_direct\n"
+    "dip(geoip:private) -> direct\n"
+    "domain(geosite:gfw) -> proxy\n"
+    "fallback: direct\n"
+    "}"
+)
+try:
+    import sqlite3 as s
+except ImportError:
+    print('缺 python3-sqlite3，请先安装：apk add python3-sqlite3（或 opkg）'); sys.exit(1)
+def sh(c): return subprocess.run(c, shell=True, capture_output=True, text=True, timeout=90)
+def pid(): return sh("pgrep -f 'daed run' | head -1").stdout.strip()
+try:
+    db = s.connect('file:%s?mode=ro' % DB, uri=True)
+    row = db.execute('SELECT routing FROM routings WHERE selected=1').fetchone()
+    db.close()
+    if row and row[0].strip() == NEW.strip():
+        print('路由已是目标配置，无需修改'); sys.exit(0)
+except Exception as e:
+    print('读取 daed 配置库失败(%s)：请先启动一次 daed 再运行本工具' % e); sys.exit(1)
+sh('/etc/init.d/daed stop; sleep 2')
+if pid():
+    sh('pkill -f "daed run"; sleep 3')
+db = s.connect(DB)
+db.execute('UPDATE routings SET routing=?, version=version+1 WHERE selected=1', (NEW,))
+db.commit(); db.close()
+sh('/etc/init.d/daed start'); time.sleep(5)
+ok = bool(pid())
+print('daed ' + ('防投毒路由已应用，运行中' if ok else '启动失败！请检查 /etc/init.d/daed'))
+sys.exit(0 if ok else 1)
+PY
+TUNE
+chmod +x ./package/base-files/files/usr/bin/daed-routing-tune
+
 #配置文件修改
 echo "CONFIG_PACKAGE_luci=y" >> ./.config
 echo "CONFIG_LUCI_LANG_zh_Hans=y" >> ./.config
