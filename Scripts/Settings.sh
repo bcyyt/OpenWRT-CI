@@ -93,18 +93,20 @@ DATADISK
 
 
 #===DNS 上游固化（2026-11-19）：dnsmasq → AliDNS 双上游并发 + 大缓存，开机首启/升级后自动生效===
-# 注：daed 在跑时 dnsmasq 上游仅作兜底（dae 劫持分流），daed 停机时直接走 223.5.5.5/223.6.6.6
+# 注：daed 对 53 端口仅计数放行（不劫持不代理），DNS 全链路走 dnsmasq → AliDNS 直连
+# 选项名依据固件源码 dnsmasq.init 校验：noresolv/allservers/cachesize/min_cache_ttl/nonegcache 均有效
+# use_stale_cache 已删：init 脚本无此 uci 映射（stale-cache 需 conf-dir 逃生通道，暂不做）
 cat > ./package/base-files/files/etc/uci-defaults/99-dns-tune <<'DNSTUNE'
 #!/bin/sh
 uci -q batch <<UCI >/dev/null 2>&1
 delete dhcp.@dnsmasq[0].server
+delete dhcp.@dnsmasq[0].noresolvers
 add_list dhcp.@dnsmasq[0].server='223.5.5.5'
 add_list dhcp.@dnsmasq[0].server='223.6.6.6'
 set dhcp.@dnsmasq[0].noresolv='1'
 set dhcp.@dnsmasq[0].allservers='1'
 set dhcp.@dnsmasq[0].cachesize='8000'
 set dhcp.@dnsmasq[0].min_cache_ttl='3600'
-set dhcp.@dnsmasq[0].use_stale_cache='3600'
 set dhcp.@dnsmasq[0].nonegcache='1'
 commit dhcp
 UCI
