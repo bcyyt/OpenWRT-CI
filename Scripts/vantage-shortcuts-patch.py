@@ -114,8 +114,8 @@ METHOD = """
                 var self = this;
                 function fmtPpe(d) {
                         function part(name, p) {
-                                if (!p || !p.t) return name + ': 0 (绑v4:0 v6:0)';
-                                return name + ': ' + p.t + ' (绑v4:' + (p.bv4 != null ? p.bv4 : 0) + ' v6:' + (p.bv6 != null ? p.bv6 : 0) + ')';
+                                if (!p || !p.t) return name + ': 0 (绑定v4:0 / v6:0)';
+                                return name + ': ' + p.t + ' (绑定v4:' + (p.bv4 != null ? p.bv4 : 0) + ' / v6:' + (p.bv6 != null ? p.bv6 : 0) + ')';
                         }
                         return 'USR: ' + (d.usr || 0) + '% SYS: ' + (d.sys || 0) + '% ' + part('PPE0', d.ppe0) + ' ' + part('PPE1', d.ppe1);
                 }
