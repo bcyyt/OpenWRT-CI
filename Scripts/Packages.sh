@@ -63,14 +63,13 @@ UPDATE_PACKAGE "passwall" "Openwrt-Passwall/openwrt-passwall" "main" "pkg"
 UPDATE_PACKAGE "passwall2" "Openwrt-Passwall/openwrt-passwall2" "main" "pkg"
 
 #===daede（kenzok8 增强版 daed，恩山 1.28 线）：仅 S20P-612 线替换官方 daed 包源（2026-11-19）===
-# 2026-11-19 修正：main HEAD（2026.11.17）go.mod 要求 Go>=1.27，超出 25.12 树 golang 1.26.10，编译失败；
-# 钉住 a2dfba0（2026.11.09-r3，含 TCP relay 修复，Go1.26 兼容）。feed golang 升 1.27 后可切回 main。
+# main HEAD（2026.11.17）go.mod 要求 Go>=1.27：构建依赖显式切换到 25.12 feed 自带的 golang1.27
 if [[ "$WRT_CONFIG" == MEDIATEK-S20P-* ]]; then
         find ./feeds/luci/ ./feeds/packages/ -maxdepth 3 -type d -iname '*daed*' -exec rm -rf {} + 2>/dev/null
         git clone -q https://github.com/kenzok8/openwrt-daede.git ./package/openwrt-daede
-        git -C ./package/openwrt-daede checkout -q a2dfba0b27
         rm -rf ./package/openwrt-daede/.git
-        echo "daede pinned to a2dfba0b27 (daed 2026.11.09-r3, TCP relay fix included)"
+        sed -i 's|golang/host|golang1.27/host|' ./package/openwrt-daede/daed/Makefile
+        echo "daede main(2026.11.17) + golang1.27 applied"
 fi
 
 UPDATE_PACKAGE "diskmanager" "4IceG/luci-app-mini-diskmanager" "main"
