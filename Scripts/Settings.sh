@@ -180,10 +180,10 @@ case "$WRT_CONFIG" in
         ;;
 esac
 
-#===daede 前端切换（2026-11-19）：S20P-612 线 daed 包源已在 Packages.sh 替换为 kenzok8/openwrt-daede===
+#===daede 前端切换（2026-11-19）：S20P-612 + WIFI-618 两线 daed 包源已在 Packages.sh 替换为 kenzok8/openwrt-daede===
 #官方 luci-app-daed 关闭防双管理，改用 luci-app-daede（UCI 统一管 dae/daed，可热切换）
 case "$WRT_CONFIG" in
-  MEDIATEK-S20P-*)
+  MEDIATEK-S20P-*|MEDIATEK-WIFI-*)
         echo "CONFIG_PACKAGE_luci-app-daed=n" >> ./.config
         echo "CONFIG_PACKAGE_luci-app-daede=y" >> ./.config
         ;;
