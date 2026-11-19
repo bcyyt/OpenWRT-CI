@@ -47,6 +47,8 @@
 #           自愈：累计时自动确保 nft 规则表与 cron 任务存在（重启后 cron 存续，首轮即重建规则）；
 #           分类顺序修正：web(80/443/8443) 先于 video(8000-8999)，修复 8443 被区间吞没；
 #           弃用旧 /tmp/statusmon-proto-state.json conntrack 增量方案（保留 ?summary=1 实时分类供客户端弹窗）
+# v4.49 变更：复用概览数据源(ubus)；内置25s响应缓存；CPU曲线点与环统一口径(cpu_avg)；
+#           内存历史公式对齐环(used=total-free-cached-buffers)；ARM温控名(cpu-thermal)支持
 # v4.10 变更：温度数据源修正 —— 优先 x86_pkg_temp（内核 x86 包温度，与 LuCI 首页一致）
 #           其次 coretemp Package，修正此前误用 thermal_zone0=acpitz 主板传感器导致与首页不符；
 #           轮询开销优化（实测 112ms/次 → 目标 ≤60ms）：
@@ -540,13 +542,13 @@ _sm_sys_hist_cpu() {
 _sm_sys_hist_temp() {
     local t z h
     for z in /sys/class/thermal/thermal_zone*; do
-        [ -f "$z/type" ] && [ "$(cat "$z/type" 2>/dev/null)" = "x86_pkg_temp" ] && [ -f "$z/temp" ] && {
+        [ -f "$z/type" ] && [ "$(cat "$z/type" 2>/dev/null)" = "x86_pkg_temp" -o "$(cat "$z/type" 2>/dev/null)" = "cpu-thermal" -o "$(cat "$z/type" 2>/dev/null)" = "cpu_thermal" ] && [ -f "$z/temp" ] && {
             t=$(cat "$z/temp" 2>/dev/null)
             [ -n "$t" ] && { awk -v v="$t" 'BEGIN{printf "%.1f", v/1000}'; return; }
         }
     done
     for h in /sys/class/hwmon/hwmon*; do
-        [ -f "$h/name" ] && [ "$(cat "$h/name" 2>/dev/null)" = "coretemp" ] && [ -f "$h/temp1_input" ] && {
+        [ -f "$h/name" ] && [ "$(cat "$h/name" 2>/dev/null)" = "coretemp" -o "$(cat "$h/name" 2>/dev/null)" = "cpu_thermal" ] && [ -f "$h/temp1_input" ] && {
             t=$(cat "$h/temp1_input" 2>/dev/null)
             [ -n "$t" ] && { awk -v v="$t" 'BEGIN{printf "%.1f", v/1000}'; return; }
         }
@@ -591,8 +593,10 @@ _sm_sys_hist_disk() {
 _sm_sys_hist_mem() {
     awk '
       /^MemTotal:/{t=$2}
-      /^MemAvailable:/{a=$2}
-      END{if(t>0) printf "%d", int((t-a)*100/t+0.5); else print 0}
+      /^MemFree:/{f=$2}
+      /^Cached:/{c=$2}
+      /^Buffers:/{b=$2}
+      END{if(t>0){u=t-f-c-b;if(u<0)u=0;printf "%d", int(u*100/t+0.5)} else print 0}
     ' /proc/meminfo 2>/dev/null
 }
 
@@ -602,6 +606,16 @@ sys_hist_sample() {
     [ -s "$SYS_HIST_TMP" ] || { [ -s "$SYS_HIST_FILE" ] && cp -f "$SYS_HIST_FILE" "$SYS_HIST_TMP" 2>/dev/null; }
     [ -f "$SYS_HIST_CPU" ] || first=1
     cpu=$(_sm_sys_hist_cpu)
+    # 统一口径：优先 worker 的 30 秒滚动均值（与 CPU 环同源），过期回退 1 分钟差分
+    if [ -r /tmp/statusppe.json ]; then
+        _sh_ts=$(sed -n 's/.*"ts":\([0-9]*\).*/\1/p' /tmp/statusppe.json 2>/dev/null)
+        _sh_avg=$(sed -n 's/.*"cpu_avg":\([0-9]*\).*/\1/p' /tmp/statusppe.json 2>/dev/null)
+        if [ -n "$_sh_ts" ] && [ -n "$_sh_avg" ] && [ "$_sh_avg" -ge 0 ] 2>/dev/null; then
+            if [ $(( $(date +%s) - _sh_ts )) -le 15 ] 2>/dev/null; then
+                cpu=$_sh_avg
+            fi
+        fi
+    fi
     mem=$(_sm_sys_hist_mem)
     temp=${_sm_cpu_temp_now:-$(_sm_sys_hist_temp)}
     disk=${_sm_disk_temp_now:-$(_sm_sys_hist_disk)}
@@ -1490,6 +1504,22 @@ fi
 DT=$((NOW - PREV_TS))
 [ "$DT" -lt 1 ] && DT=1
 
+# ===== 响应缓存（v4.49）：仅无参数纯轮询；重活(nft×13+conntrack)单次约3秒CPU，
+#      25秒TTL让页面5秒轮询大部分命中（0.02秒），仪表盘自身开销从约19%降到约5% =====
+_sm_cache=/tmp/statusmon-cache.json
+_sm_cts=/tmp/statusmon-cache.ts
+if [ -s "$_sm_cache" ] && [ -s "$_sm_cts" ]; then
+    _sm_cage=$(( $(date +%s) - $(cat "$_sm_cts" 2>/dev/null) ))
+    case "$_sm_cage" in ''|*[!0-9]*) _sm_cage=999 ;; esac
+    if [ "$_sm_cage" -le 25 ]; then
+        cat "$_sm_cache"
+        exit 0
+    fi
+fi
+date +%s > "$_sm_cts"
+exec 9>&1
+exec > "$_sm_cache.tmp.$$"
+
 # ===== 系统 =====
 hostname=$(cat /proc/sys/kernel/hostname 2>/dev/null)
 kernel=$(uname -r 2>/dev/null)
@@ -2137,6 +2167,51 @@ month_cats=$(_sm_scale_cats "$month_cats" "$month_total_rx" "$month_total_tx")
 HW_OFFLOAD=$(_sm_hw_offload)
 traffic_json='{"month":"'"$TRA_MONTH"'","today":{"rx":'"$today_rx"',"tx":'"$today_tx"'}, "total":{"rx":'"$month_total_rx"',"tx":'"$month_total_tx"'}, "hw_offload":'"$HW_OFFLOAD"', "cats":'"$month_cats"'}'
 
+# ===== 复用概览页数据源（ubus system info/board + getTempInfo + worker CPU，v4.49）=====
+if command -v ubus >/dev/null 2>&1; then
+    _ub_info=$(ubus call system info 2>/dev/null)
+    if [ -n "$_ub_info" ]; then
+        _ub_up=$(printf '%s' "$_ub_info" | jsonfilter -e '@.uptime' 2>/dev/null)
+        _ub_l1=$(printf '%s' "$_ub_info" | jsonfilter -e '@.load[0]' 2>/dev/null)
+        _ub_l5=$(printf '%s' "$_ub_info" | jsonfilter -e '@.load[1]' 2>/dev/null)
+        _ub_l15=$(printf '%s' "$_ub_info" | jsonfilter -e '@.load[2]' 2>/dev/null)
+        _ub_mt=$(printf '%s' "$_ub_info" | jsonfilter -e '@.memory.total' 2>/dev/null)
+        _ub_mf=$(printf '%s' "$_ub_info" | jsonfilter -e '@.memory.free' 2>/dev/null)
+        _ub_ma=$(printf '%s' "$_ub_info" | jsonfilter -e '@.memory.available' 2>/dev/null)
+        _ub_mc=$(printf '%s' "$_ub_info" | jsonfilter -e '@.memory.cached' 2>/dev/null)
+        _ub_mb=$(printf '%s' "$_ub_info" | jsonfilter -e '@.memory.buffered' 2>/dev/null)
+        case "$_ub_up" in ''|*[!0-9]*) ;; *) uptime_s=$_ub_up ;; esac
+        case "$_ub_l1" in ''|*[!0-9]*) ;; *) load1=$(awk -v v="$_ub_l1" 'BEGIN{printf "%.2f", v/65536}') ;; esac
+        case "$_ub_l5" in ''|*[!0-9]*) ;; *) load5=$(awk -v v="$_ub_l5" 'BEGIN{printf "%.2f", v/65536}') ;; esac
+        case "$_ub_l15" in ''|*[!0-9]*) ;; *) load15=$(awk -v v="$_ub_l15" 'BEGIN{printf "%.2f", v/65536}') ;; esac
+        if [ -n "$_ub_mt" ] && [ "$_ub_mt" -gt 0 ] 2>/dev/null; then
+            mem_total=$((_ub_mt / 1024)); mem_free=$((_ub_mf / 1024))
+            mem_avail=$((_ub_ma / 1024)); mem_cached=$((_ub_mc / 1024)); mem_buf=$((_ub_mb / 1024))
+            mem_used=$((mem_total - mem_free - mem_cached - mem_buf))
+        fi
+    fi
+    _ub_board=$(ubus call system board 2>/dev/null)
+    if [ -n "$_ub_board" ]; then
+        _ub_hn=$(printf '%s' "$_ub_board" | jsonfilter -e '@.hostname' 2>/dev/null)
+        _ub_kr=$(printf '%s' "$_ub_board" | jsonfilter -e '@.kernel' 2>/dev/null)
+        _ub_bn=$(printf '%s' "$_ub_board" | jsonfilter -e '@.board_name' 2>/dev/null)
+        [ -n "$_ub_hn" ] && hostname=$_ub_hn
+        [ -n "$_ub_kr" ] && kernel=$_ub_kr
+        [ -n "$_ub_bn" ] && board=$_ub_bn
+    fi
+    if [ -r /tmp/statusppe.json ]; then
+        _wk_ts=$(sed -n 's/.*"ts":\([0-9]*\).*/\1/p' /tmp/statusppe.json 2>/dev/null)
+        _wk_cpu=$(sed -n 's/.*"cpu":\([0-9]*\).*/\1/p' /tmp/statusppe.json 2>/dev/null)
+        if [ -n "$_wk_ts" ] && [ -n "$_wk_cpu" ] && [ "$_wk_cpu" -ge 0 ] 2>/dev/null; then
+            if [ $(( $(date +%s) - _wk_ts )) -le 15 ] 2>/dev/null; then
+                cpu_usage=$_wk_cpu
+            fi
+        fi
+    fi
+    _ub_t=$(ubus call luci getTempInfo 2>/dev/null | sed -n 's/.*CPU:[ ]*\([0-9.]*\).*/\1/p')
+    case "$_ub_t" in ''|*[!0-9.]*) ;; *) temp_c=$_ub_t ;; esac
+fi
+
 # ===== 输出 JSON =====
 cat <<JSONEOF
 {
@@ -2191,3 +2266,6 @@ cat <<JSONEOF
   "timestamp": $NOW
 }
 JSONEOF
+exec 1>&9 9>&-
+[ -s "$_sm_cache.tmp.$$" ] && mv -f "$_sm_cache.tmp.$$" "$_sm_cache"
+cat "$_sm_cache"

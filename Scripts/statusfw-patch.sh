@@ -4,11 +4,12 @@
 # 参数：$1 = PKG_BUILD_DIR（内含 root/ 已解包的固件根文件系统）
 #
 # 改造内容（快捷方式与 Vantage 仪表盘融合为一个一级页面）：
-#   1) 「状态监控」纯状态页替换为轻量快捷方式页（仅保留 URL 直达可用，菜单不显示）
+#   1) 「状态监控」页替换为全功能仪表盘（三环+PPE卡+24h曲线；数据与概览页同源，
+#      worker 5秒采样 ubus getCPUUsage/system info，CGI 内置 25s 响应缓存）
 #   2) 一级菜单改名「网络与防火墙」，默认页改指向「端口转发」；页内 tab 移除快捷方式项
 #      —— 快捷入口由 Vantage 仪表盘顶部的快捷方式条承担（见 vantage-shortcuts-patch.py）
 #   3) 页面风格对齐 Vantage：fwm-* 颜色接入主题变量，亮暗模式自动跟随
-#   4) PPE 硬件 offload 占用数据源：root 采样守护 + procd 服务 + nobody CGI
+#   4) PPE 硬件 offload 占用数据源：root 采样守护（+CPU 概览同源采样/30秒滚动均值）+ procd 服务 + nobody CGI
 #   5) 剔除内嵌文件管理器（由 feed 版 luci-app-filemanager 提供，避免文件冲突）
 #
 # 上游结构兼容性（5.0.8 重打包后 network 页已被上游移除，DHCP/邻居管理交给 LuCI 原生页）：
