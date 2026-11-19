@@ -96,7 +96,7 @@ while :; do
         printf '%d %d %d\n' "$t" "$u" "$s" > "$ST"
 
         printf '{"hw":%d,"cpu":%d,"cpu_avg":%d,"usr":%d,"sys":%d,"ppe0":{"t":%d,"v4":%d,"v6":%d,"b":%d,"bv4":%d,"bv6":%d},"ppe1":{"t":%d,"v4":%d,"v6":%d,"b":%d,"bv4":%d,"bv6":%d},"ts":%d}\n' \
-                "$hw" "$cu" "$cua" "$usr" "$sys" "$t0" "$a0" "$b0" "\$bd0" "\$ba0" "\$bb0" "\$t1" "$a1" "$b1" "\$bd1" "\$ba1" "\$bb1" "\$now" > "$TMP.tmp"
+                "$hw" "$cu" "$cua" "$usr" "$sys" "$t0" "$a0" "$b0" "$bd0" "$ba0" "$bb0" "$t1" "$a1" "$b1" "$bd1" "$ba1" "$bb1" "$now" > "$TMP.tmp"
         mv "$TMP.tmp" "$TMP"
         chmod 644 "$TMP" 2>/dev/null
 
