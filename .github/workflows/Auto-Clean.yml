@@ -4,7 +4,10 @@
 name: Auto-Clean
 
 on:
-  #手动清理（已停用每日自动清理：仓库转私有，断开自动编译触发链，节省Actions额度）
+  #定时清理：每天北京时间 06:00（UTC 22:00，两线固件编译完成后）
+  schedule:
+    - cron: '0 22 * * *'
+  #手动清理
   workflow_dispatch:
 
 permissions: write-all
