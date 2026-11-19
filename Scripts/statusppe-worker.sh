@@ -32,6 +32,7 @@ while :; do
         # PPE 表项占用（entries 全量表；cat 一次后用户态计数，6次debugfs dump→2次）
         # 2026-11-19: 双布局适配——6.18 主线为 ppe0/ppe1 分目录；chasey-dev 6.12 为 mtk_ppe/entries 单文件
         t0=0; a0=0; b0=0; t1=0; a1=0; b1=0
+		ba0=0; bb0=0; ba1=0; bb1=0
         if [ -r /sys/kernel/debug/ppe0/entries ] || [ -r /sys/kernel/debug/ppe1/entries ]; then
                 for p in /sys/kernel/debug/ppe0/entries /sys/kernel/debug/ppe1/entries; do
                         [ -r "$p" ] || continue
@@ -43,9 +44,18 @@ while :; do
                         else
                                 t=0; a=0; b=0
                         fi
+				ba=0; bb=0
+				bf=$(printf '%s' "$p" | sed 's|/entries$|/bind|')
+				if [ -r "$bf" ]; then
+					bent=$(cat "$bf" 2>/dev/null)
+					if [ -n "$bent" ]; then
+						ba=$(printf '%s\n' "$bent" | grep -c 'IPv4')
+						bb=$(printf '%s\n' "$bent" | grep -c 'IPv6')
+					fi
+				fi
                         case "$p" in
-                                *ppe0*) t0=$t; a0=$a; b0=$b ;;
-                                *ppe1*) t1=$t; a1=$a; b1=$b ;;
+                                *ppe0*) t0=$t; a0=$a; b0=$b ; ba0=$ba; bb0=$bb ;;
+                                *ppe1*) t1=$t; a1=$a; b1=$b ; ba1=$ba; bb1=$bb ;;
                         esac
                 done
         elif [ -r /sys/kernel/debug/mtk_ppe/entries ]; then
@@ -61,8 +71,8 @@ while :; do
         now=$(date +%s)
         printf '%d %d %d\n' "$t" "$u" "$s" > "$ST"
 
-        printf '{"hw":%d,"usr":%d,"sys":%d,"ppe0":{"t":%d,"v4":%d,"v6":%d},"ppe1":{"t":%d,"v4":%d,"v6":%d},"ts":%d}\n' \
-                "$hw" "$usr" "$sys" "$t0" "$a0" "$b0" "$t1" "$a1" "$b1" "$now" > "$TMP.tmp"
+        printf '{"hw":%d,"usr":%d,"sys":%d,"ppe0":{"t":%d,"v4":%d,"v6":%d,"bv4":%d,"bv6":%d},"ppe1":{"t":%d,"v4":%d,"v6":%d,"bv4":%d,"bv6":%d},"ts":%d}\n' \
+                "$hw" "$usr" "$sys" "$t0" "$a0" "\$b0" "\$ba0" "\$bb0" "\$t1" "$a1" "\$b1" "\$ba1" "\$bb1" "\$now" > "$TMP.tmp"
         mv "$TMP.tmp" "$TMP"
         chmod 644 "$TMP" 2>/dev/null
 
