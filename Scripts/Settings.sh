@@ -168,10 +168,19 @@ echo "CONFIG_PACKAGE_luci-app-$WRT_THEME-config=y" >> ./.config
 #===仪表盘/代理运行时包固化（2026-11-17）：原依赖 workflow_dispatch 手动输入 PACKAGE，不输入即丢失===
 # 仅 MEDIATEK-WIFI-*（VIKINGYFY 源，无 statusfw）；CS 线 statusfw 自带 statusmon 系组件，跳过防文件冲突
 case "$WRT_CONFIG" in
-  MEDIATEK-WIFI-*)
+  MEDIATEK-WIFI-*|MEDIATEK-S20P-*)
         echo "CONFIG_PACKAGE_luci-app-statusmon=y" >> ./.config
         echo "CONFIG_PACKAGE_zte-wifi=y" >> ./.config
         # 2026-11-18: daed 全面接管代理，openclash 移出固件（运行时也可 apk del）
+        ;;
+esac
+
+#===daede 前端切换（2026-11-19）：S20P-612 线 daed 包源已在 Packages.sh 替换为 kenzok8/openwrt-daede===
+#官方 luci-app-daed 关闭防双管理，改用 luci-app-daede（UCI 统一管 dae/daed，可热切换）
+case "$WRT_CONFIG" in
+  MEDIATEK-S20P-*)
+        echo "CONFIG_PACKAGE_luci-app-daed=n" >> ./.config
+        echo "CONFIG_PACKAGE_luci-app-daede=y" >> ./.config
         ;;
 esac
 
@@ -204,7 +213,9 @@ if [[ "${WRT_TARGET^^}" == *"QUALCOMMAX"* ]]; then
 fi
 
 #dae eBPF kernel support stack (kmod-sched-bpf/kmod-xdp-sockets-diag/kmod-veth + BTF)
-KCF=target/linux/mediatek/filogic/config-6.18
+#2026-11-19: 按源码树实际内核版本自适应（VIKINGYFY@owrt=6.18 / chasey-dev@25.12=6.12，daede 需 BTF）
+KCF=$(ls -1 target/linux/mediatek/filogic/config-6.* 2>/dev/null | sort -V | tail -1)
+KCF=${KCF:-target/linux/mediatek/filogic/config-6.18}
 if ! grep -q "^CONFIG_BPF_SYSCALL=y" $KCF 2>/dev/null; then
 cat >> $KCF <<'BPFEO'
 CONFIG_BPF=y
