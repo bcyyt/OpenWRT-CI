@@ -1,6 +1,6 @@
 #设备平台（全新独立线 S20P-612：chasey-dev mt798x SDK 源码 · 内核 6.12 · S20P 单设备 · 无 WiFi 纯路由）
 #引擎：HNAT 硬转发为主（树原生设计，turboacc-mtk 管理），开源 mtk_ppe 增强补丁随树内建
-#插件：自编定制件（zte-wifi/statusmon/statusppe/irq-tune）+ daede（kenzok8 增强版 daed）+ Argon 主题（工作流指定）
+#插件：irq-tune + daede（kenzok8 增强版 daed）+ Argon 主题（工作流指定）；zte/statusmon 系展示层已取消（原为 Vantage 主题注入，2026-11-19）
 #删除第三方全家桶（保持纯净，只带自己的定制）
 CONFIG_PACKAGE_luci-app-gecoosac=n
 CONFIG_PACKAGE_luci-app-wolultra=n
