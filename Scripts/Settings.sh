@@ -166,9 +166,10 @@ echo "CONFIG_PACKAGE_luci-app-$WRT_THEME=y" >> ./.config
 echo "CONFIG_PACKAGE_luci-app-$WRT_THEME-config=y" >> ./.config
 
 #===仪表盘/代理运行时包固化（2026-11-17）：原依赖 workflow_dispatch 手动输入 PACKAGE，不输入即丢失===
-# 仅 MEDIATEK-WIFI-*（VIKINGYFY 源，无 statusfw）；CS 线 statusfw 自带 statusmon 系组件，跳过防文件冲突
+# 仅 MEDIATEK-WIFI-*（VIKINGYFY 源，无 statusfw）
 # 2026-11-19: S20P-612 线（Argon）Vantage 主题件（zte-wifi 等）维持取消；
 #   状态监控以"原生独立页面"方案恢复——luci-app-statusmon-dash 全功能仪表盘页
+# 2026-11-19: CS 线已整体下线删除（workflow + Config）
 case "$WRT_CONFIG" in
   MEDIATEK-WIFI-*)
         echo "CONFIG_PACKAGE_luci-app-statusmon=y" >> ./.config
