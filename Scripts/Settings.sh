@@ -167,8 +167,10 @@ echo "CONFIG_PACKAGE_luci-app-$WRT_THEME-config=y" >> ./.config
 
 #===仪表盘/代理运行时包固化（2026-11-17）：原依赖 workflow_dispatch 手动输入 PACKAGE，不输入即丢失===
 # 仅 MEDIATEK-WIFI-*（VIKINGYFY 源，无 statusfw）；CS 线 statusfw 自带 statusmon 系组件，跳过防文件冲突
+# 2026-11-19: S20P-612 线（Argon）取消全部主题注入件——statusmon/zte-wifi 的展示层原绑 Vantage 仪表盘，
+# Argon 下无效且数据裸奔，待后续以"原生独立页面"方案重做后再启用
 case "$WRT_CONFIG" in
-  MEDIATEK-WIFI-*|MEDIATEK-S20P-*)
+  MEDIATEK-WIFI-*)
         echo "CONFIG_PACKAGE_luci-app-statusmon=y" >> ./.config
         echo "CONFIG_PACKAGE_zte-wifi=y" >> ./.config
         # 2026-11-18: daed 全面接管代理，openclash 移出固件（运行时也可 apk del）
