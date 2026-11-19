@@ -1,0 +1,5 @@
+#!/bin/sh
+# 首启注册 24h 曲线每分钟累计 cron（幂等：标记存在即跳过）
+grep -q 'statusmon-acct-accumulate' /etc/crontabs/root 2>/dev/null || \
+	echo '* * * * * QUERY_STRING=accumulate=1 /www/cgi-bin/statusmon >/dev/null 2>&1 # statusmon-acct-accumulate' >> /etc/crontabs/root
+exit 0

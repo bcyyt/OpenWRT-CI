@@ -377,6 +377,22 @@ WRT_ROOT=$PWD
         && echo "statusmon Makefile syntax: OK" \
         || { echo "statusmon Makefile syntax FAILED:"; head -5 /tmp/sm_syntax.err; }
 
+#===luci-app-statusmon-dash（S20P-612 专用：全功能状态监控仪表盘页 + 同源后端）===
+# 2026-11-19: 612 线"原生独立页面"方案落地——三环/PPE卡/24h曲线，数据与概览同源；
+# 618 线的 luci-app-statusmon 纯后端维持原状，两包 CONFLICTS 互斥永不共存
+SMD_DIR="./package/bcyyt/luci-app-statusmon-dash"
+mkdir -p "$SMD_DIR/files"
+cp "$GITHUB_WORKSPACE/Scripts/inject/statusmon-dash.Makefile" "$SMD_DIR/Makefile"
+for sf in statusmon-dash-cgi statusppe-worker-dash.sh statusppe-cgi.sh statusppe-initd \
+          statusmon-dash-controller.lua statusmon-dash-view.htm fwmanager-common-head.htm statusmon-dash-ucid; do
+        cp "$GITHUB_WORKSPACE/Scripts/$sf" "$SMD_DIR/files/$sf" || echo "statusmon-dash: $sf missing"
+done
+#语法自检（包目录内执行）
+WRT_ROOT=$PWD
+(cd "$SMD_DIR" && make --no-print-directory -f Makefile TOPDIR="$WRT_ROOT" INCLUDE_DIR="$WRT_ROOT/include" -n >/dev/null 2>/tmp/smd_syntax.err) \
+        && echo "statusmon-dash Makefile syntax: OK" \
+        || { echo "statusmon-dash Makefile syntax FAILED:"; head -5 /tmp/smd_syntax.err; }
+
 #===irq-tune（MT7988 以太网中断分核 + TX 队列 XPS）：自编组件独立成包（2026-11-18）===
 # boot 期一次性调优：eth 中断向量按核摊开 + TX 队列 XPS；rc.d 符号链接随包内置自启
 # 仅 MediaTek 目标启用（Settings.sh），其它平台脚本自动跳过无副作用
