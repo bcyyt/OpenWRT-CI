@@ -62,6 +62,12 @@ UPDATE_PACKAGE "openclash" "vernesong/OpenClash" "dev" "pkg"
 UPDATE_PACKAGE "passwall" "Openwrt-Passwall/openwrt-passwall" "main" "pkg"
 UPDATE_PACKAGE "passwall2" "Openwrt-Passwall/openwrt-passwall2" "main" "pkg"
 
+#===daede（kenzok8 增强版 daed，恩山 1.28 线）：仅 S20P-612 线替换官方 daed 包源（2026-11-19）===
+#追官方 main + olicesx 性能基线 + PGO 编译；luci-app-daede 为 UCI 前端（dae/daed 热切换）
+if [[ "$WRT_CONFIG" == MEDIATEK-S20P-* ]]; then
+        UPDATE_PACKAGE "daed" "kenzok8/openwrt-daede" "main"
+fi
+
 UPDATE_PACKAGE "diskmanager" "4IceG/luci-app-mini-diskmanager" "main"
 UPDATE_PACKAGE "easytier" "EasyTier/luci-app-easytier" "main"
 UPDATE_PACKAGE "lucky" "gdy666/luci-app-lucky" "main"
