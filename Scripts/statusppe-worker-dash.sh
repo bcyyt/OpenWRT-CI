@@ -32,6 +32,7 @@ while :; do
         # PPE 表项占用（entries 全量表；cat 一次后用户态计数，6次debugfs dump→2次）
         # 2026-11-19: 双布局适配——6.18 主线为 ppe0/ppe1 分目录；chasey-dev 6.12 为 mtk_ppe/entries 单文件
         t0=0; a0=0; b0=0; t1=0; a1=0; b1=0
+		ba0=0; bb0=0; ba1=0; bb1=0
         if [ -r /sys/kernel/debug/ppe0/entries ] || [ -r /sys/kernel/debug/ppe1/entries ]; then
                 for p in /sys/kernel/debug/ppe0/entries /sys/kernel/debug/ppe1/entries; do
                         [ -r "$p" ] || continue
@@ -73,6 +74,10 @@ while :; do
                         b0=$(printf '%s\n' "$he" | grep -c 'ppe=0.*IPV6')
                         a1=$(printf '%s\n' "$he" | grep -c 'ppe=1.*IPV4')
                         b1=$(printf '%s\n' "$he" | grep -c 'ppe=1.*IPV6')
+		ba0=$(printf '%s\n' "$he" | grep -c 'ppe=0.*state=BIND.*IPV4')
+		bb0=$(printf '%s\n' "$he" | grep -c 'ppe=0.*state=BIND.*IPV6')
+		ba1=$(printf '%s\n' "$he" | grep -c 'ppe=1.*state=BIND.*IPV4')
+		bb1=$(printf '%s\n' "$he" | grep -c 'ppe=1.*state=BIND.*IPV6')
                 fi
         fi
 
@@ -90,8 +95,8 @@ while :; do
         now=$(date +%s)
         printf '%d %d %d\n' "$t" "$u" "$s" > "$ST"
 
-        printf '{"hw":%d,"cpu":%d,"cpu_avg":%d,"usr":%d,"sys":%d,"ppe0":{"t":%d,"v4":%d,"v6":%d,"b":%d},"ppe1":{"t":%d,"v4":%d,"v6":%d,"b":%d},"ts":%d}\n' \
-                "$hw" "$cu" "$cua" "$usr" "$sys" "$t0" "$a0" "$b0" "$bd0" "$t1" "$a1" "$b1" "$bd1" "$now" > "$TMP.tmp"
+        printf '{"hw":%d,"cpu":%d,"cpu_avg":%d,"usr":%d,"sys":%d,"ppe0":{"t":%d,"v4":%d,"v6":%d,"b":%d,"bv4":%d,"bv6":%d},"ppe1":{"t":%d,"v4":%d,"v6":%d,"b":%d,"bv4":%d,"bv6":%d},"ts":%d}\n' \
+                "$hw" "$cu" "$cua" "$usr" "$sys" "$t0" "$a0" "$b0" "\$bd0" "\$ba0" "\$bb0" "\$t1" "$a1" "$b1" "\$bd1" "\$ba1" "\$bb1" "\$now" > "$TMP.tmp"
         mv "$TMP.tmp" "$TMP"
         chmod 644 "$TMP" 2>/dev/null
 
