@@ -56,3 +56,9 @@ FIX "vantage-statusflow" "$PACKAGE_PATH/luci-theme-vantage" python3 \
 	"$GITHUB_WORKSPACE/Scripts/vantage-statusflow-patch.py" \
 	"$PACKAGE_PATH/luci-theme-vantage/luci-app-vantage/htdocs/luci-static/resources/view/vantage/overview.js" \
 	"$PACKAGE_PATH/luci-theme-vantage/luci-app-vantage/htdocs/luci-static/resources/vantage/app.css"
+
+#uHTTPd HTTP(S) 访问页补全：固件精简版只剩 redirect_https，补回 HTTP/HTTPS 监听编辑字段
+#（main + luci 双实例 DynamicList；2026-11-20 S20P 实机验证通过）
+FIX "luci-mod-system-uhttpd-view" "$PACKAGE_PATH/feeds/luci/modules/luci-mod-system" cp \
+        "$GITHUB_WORKSPACE/Scripts/uhttpd-view.js" \
+        "$PACKAGE_PATH/feeds/luci/modules/luci-mod-system/htdocs/luci-static/resources/view/system/uhttpd.js"
