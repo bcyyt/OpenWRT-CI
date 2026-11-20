@@ -59,6 +59,8 @@ FIX "vantage-statusflow" "$PACKAGE_PATH/luci-theme-vantage" python3 \
 
 #uHTTPd HTTP(S) 访问页补全：固件精简版只剩 redirect_https，补回 HTTP/HTTPS 监听编辑字段
 #（main + luci 双实例 DynamicList；2026-11-20 S20P 实机验证通过）
-FIX "luci-mod-system-uhttpd-view" "$PACKAGE_PATH/feeds/luci/modules/luci-mod-system" cp \
+#（luci-mod-system 是 feeds 包：源码树在 ./feeds/luci/modules/，feeds install 后 package/feeds 下为符号链接；
+#  2026-11-20 构建实复现原 $PACKAGE_PATH/feeds/... 路径不存在，被守卫静默跳过致补丁未编入）
+FIX "luci-mod-system-uhttpd-view" "$FEEDS_PATH/luci/modules/luci-mod-system" cp \
         "$GITHUB_WORKSPACE/Scripts/uhttpd-view.js" \
-        "$PACKAGE_PATH/feeds/luci/modules/luci-mod-system/htdocs/luci-static/resources/view/system/uhttpd.js"
+        "$FEEDS_PATH/luci/modules/luci-mod-system/htdocs/luci-static/resources/view/system/uhttpd.js"
