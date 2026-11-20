@@ -57,7 +57,7 @@ cat > ./package/base-files/files/etc/uci-defaults/99-keep-confs <<'KEEPCONF'
 #!/bin/sh
 # 去掉存在性检查：首启时 /etc/natfrp 尚未生成也要先写入保留清单
 #（sysupgrade 对缺失路径自动跳过，natfrp 配置好后的下一次升级即受保护；2026-11-20 实际翻车点）
-for f in /etc/config/daed /etc/config/natfrp /etc/daed /etc/natfrp; do
+for f in /etc/config/daed /etc/config/natfrp /etc/daed /etc/natfrp /etc/statusflow /etc/statusmon; do
         grep -qxF "$f" /etc/sysupgrade.conf 2>/dev/null || echo "$f" >> /etc/sysupgrade.conf
 done
 exit 0
