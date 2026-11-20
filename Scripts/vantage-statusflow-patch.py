@@ -148,6 +148,9 @@ ov = patch(ov, r"(\t\tswitch \(key\) \{\n)(\t\tcase 'name':)",
 #    故默认 ip 改注入 readSorts() 函数体，page:1 仍注入 ui 对象；旧字面量格式保留为兜底
 _ov4, _n4 = re.subn(r"(sorts: readSorts\(\), kind: 'wifi', filter: '', chip: 'all', drawer: null, editing: null, hover: null)( \};)",
     r"\1, page: 1\2", ov, count=1)
+if _n4 == 0:  # minified 产物（运行时部署场景）
+    _ov4, _n4 = re.subn(r"(sorts:readSorts\(\),kind:'wifi',filter:'',chip:'all',drawer:null,editing:null,hover:null)(\};)",
+        r"\1,page: 1\2", ov, count=1)
 if _n4 == 1:
     ov = _ov4
     ov = patch(ov, r"(\{ wifi: \{ key: )'name'(, dir: 1 \}, wired: \{ key: )'name'(, dir: 1 \} \}, v = null)",
