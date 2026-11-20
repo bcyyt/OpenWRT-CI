@@ -113,6 +113,20 @@ UCI
 exit 0
 DNSTUNE
 
+#===NTP 时间源统一阿里云（2026-11-20）：cn.ntp.org.cn 被 dnsmasq rebind 防护拦截，时间同步反复失败===
+# 顺带消掉每 4 分钟一次的 DNS-rebind 告警噪音；uci-defaults 首启/升级后自动生效
+cat > ./package/base-files/files/etc/uci-defaults/99-ntp-aliyun <<'NTPALI'
+#!/bin/sh
+uci -q batch <<UCI >/dev/null 2>&1
+delete system.ntp.server
+add_list system.ntp.server='ntp.aliyun.com'
+add_list system.ntp.server='ntp1.aliyun.com'
+add_list system.ntp.server='ntp2.aliyun.com'
+commit system
+UCI
+exit 0
+NTPALI
+
 #===daed 防DNS投毒路由工具（2026-11-19）：8.8.8.8 DNS 走代理 + dnsmasq 不再豁免劫持===
 # 现网已生效；/etc/daed 在 sysupgrade 保留清单内，仅全新安装/重置 daed 后需手动跑一次：
 #   daed-routing-tune
