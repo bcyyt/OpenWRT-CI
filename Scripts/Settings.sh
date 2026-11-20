@@ -55,8 +55,9 @@ mkdir -p ./package/base-files/files/etc/uci-defaults
 mkdir -p ./package/base-files/files/etc/uci-defaults
 cat > ./package/base-files/files/etc/uci-defaults/99-keep-confs <<'KEEPCONF'
 #!/bin/sh
+# 去掉存在性检查：首启时 /etc/natfrp 尚未生成也要先写入保留清单
+#（sysupgrade 对缺失路径自动跳过，natfrp 配置好后的下一次升级即受保护；2026-11-20 实际翻车点）
 for f in /etc/config/daed /etc/config/natfrp /etc/daed /etc/natfrp; do
-        [ -e "$f" ] || continue
         grep -qxF "$f" /etc/sysupgrade.conf 2>/dev/null || echo "$f" >> /etc/sysupgrade.conf
 done
 exit 0
@@ -68,15 +69,23 @@ DEV="/dev/mmcblk0p6"
 MNT="/mnt/data"
 [ -b "$DEV" ] || exit 0
 mkdir -p "$MNT"
-mount | grep -q " on $MNT " && exit 0
 UUID=$(blkid -s UUID -o value "$DEV" 2>/dev/null)
 if [ -z "$UUID" ]; then
         command -v mkfs.ext4 >/dev/null 2>&1 || exit 0
+        mount | grep -q " on $MNT " && exit 0
         mkfs.ext4 -L data "$DEV" >/dev/null 2>&1 || exit 0
         UUID=$(blkid -s UUID -o value "$DEV" 2>/dev/null)
         [ -n "$UUID" ] || exit 0
 fi
-if ! uci -q show fstab 2>/dev/null | grep -q "$UUID"; then
+# 已配置 = 存在 enabled=1 且 target=$MNT 的条目（不能只按 uuid 去重：
+# block detect 也会生成同 uuid 的 enabled=0 条目，裸 uuid 匹配会被骗过 → 数据盘双挂载）
+_ok=0
+_i=0
+while uci -q get fstab.@mount[$_i] >/dev/null 2>&1; do
+        [ "$(uci -q get fstab.@mount[$_i].target)" = "$MNT" ] && [ "$(uci -q get fstab.@mount[$_i].enabled)" = "1" ] && _ok=1
+        _i=$((_i+1))
+done
+if [ "$_ok" = "0" ]; then
         touch /etc/config/fstab
         uci -q batch <<UCI >/dev/null 2>&1
 add fstab mount
@@ -86,6 +95,8 @@ set fstab.@mount[-1].enabled='1'
 commit fstab
 UCI
 fi
+# fstab 修复完成后，已挂载即可收工（下次开机由 blockd 正式认领，不再匿名双挂）
+mount | grep -q " on $MNT " && exit 0
 block mount >/dev/null 2>&1
 mount | grep -q " on $MNT " || mount "$DEV" "$MNT" 2>/dev/null
 exit 0
