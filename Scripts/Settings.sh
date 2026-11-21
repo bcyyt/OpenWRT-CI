@@ -261,7 +261,7 @@ so only define it for older kernels.
 --- a/backport-include/linux/socket.h
 +++ b/backport-include/linux/socket.h
 @@ -11,7 +11,7 @@
- #define SOL_NFC\t\t280
+ #define SOL_NFC		280
  #endif
  
 -#if LINUX_VERSION_IS_LESS(6,19,0)
@@ -270,14 +270,14 @@ so only define it for older kernels.
   * struct sockaddr_unsized - Unspecified size sockaddr for callbacks
   * @sa_family: Address family (AF_UNIX, AF_INET, AF_INET6, etc.)
 @@ -28,7 +28,7 @@ struct sockaddr_unsized {
- \t__kernel_sa_family_t\tsa_family;\t/* address family, AF_xxx */
- \tchar\t\t\tsa_data[];\t/* flexible address data */
+ 	__kernel_sa_family_t	sa_family;	/* address family, AF_xxx */
+ 	char			sa_data[];	/* flexible address data */
  };
 -#endif /* < 6.19 */
 +#endif /* < 6.18.57 */
  
  #ifndef __sockaddr_check_size
- #define __sockaddr_check_size(size)\t\t\
+ #define __sockaddr_check_size(size)	\
 SAP
         echo "lede mac80211 sockaddr_unsized patch injected"
         ;;
