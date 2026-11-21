@@ -65,6 +65,12 @@ KEEPCONF
 
 cat > ./package/base-files/files/etc/uci-defaults/99-datadisk <<'DATADISK'
 #!/bin/sh
+#机型守卫（2026-11-21）：p6 预留数据分区仅 SuperGateway S20 系列成立；
+#SBE1V1K(IPQ9574) eMMC 为 OEM 多分区布局（p1..p27+），误格 p6 会毁厂商分区
+case "$(cat /tmp/sysinfo/board_name 2>/dev/null)" in
+        supergateway,s20*) ;;
+        *) exit 0 ;;
+esac
 DEV="/dev/mmcblk0p6"
 MNT="/mnt/data"
 [ -b "$DEV" ] || exit 0
@@ -193,12 +199,12 @@ echo "CONFIG_PACKAGE_luci-app-$WRT_THEME=y" >> ./.config
 echo "CONFIG_PACKAGE_luci-app-$WRT_THEME-config=y" >> ./.config
 
 #===仪表盘/代理运行时包固化（2026-11-17）：原依赖 workflow_dispatch 手动输入 PACKAGE，不输入即丢失===
-# 仅 MEDIATEK-WIFI-*（VIKINGYFY 源，无 statusfw）
+# 仅 MEDIATEK-WIFI-*（VIKINGYFY 源，无 statusfw）；2026-11-21: IPQ95XX（SBE1V1K）线并入
 # 2026-11-19: S20P-612 线（Argon）Vantage 主题件（zte-wifi 等）维持取消；
 #   状态监控以"原生独立页面"方案恢复——luci-app-statusmon-dash 全功能仪表盘页
 # 2026-11-19: CS 线已整体下线删除（workflow + Config）
 case "$WRT_CONFIG" in
-  MEDIATEK-WIFI-*)
+  MEDIATEK-WIFI-*|IPQ95XX)
         echo "CONFIG_PACKAGE_luci-app-statusmon=y" >> ./.config
         echo "CONFIG_PACKAGE_zte-wifi=y" >> ./.config
         # 2026-11-18: daed 全面接管代理，openclash 移出固件（运行时也可 apk del）
