@@ -247,6 +247,42 @@ case "$WRT_CONFIG" in
         ;;
 esac
 
+#===LEDE mac80211 sockaddr_unsized 修复（2026-11-22，run#3 根因）===
+#内核 6.18.57+ 自带 struct sockaddr_unsized（socket.h），backports-7.2 垫片仍在
+#<6.19 guard 下重定义 → net.h 原型作用域类型与 qmi.c cast 不匹配，-Werror 致命
+#（ath12k/qmi.c:4382，run#3 双腿 2h53m 均挂于此）。移植 V大树 patches/build/160。
+case "$WRT_SOURCE" in
+  coolsnowwolf/lede)
+        mkdir -p package/kernel/mac80211/patches/build
+        cat > package/kernel/mac80211/patches/build/160-backports-sockaddr_unsized-is-in-6.18.57.patch <<'SAP'
+Linux 6.18.57 backported struct sockaddr_unsized to include/linux/socket.h,
+so only define it for older kernels.
+
+--- a/backport-include/linux/socket.h
++++ b/backport-include/linux/socket.h
+@@ -11,7 +11,7 @@
+ #define SOL_NFC\t\t280
+ #endif
+ 
+-#if LINUX_VERSION_IS_LESS(6,19,0)
++#if LINUX_VERSION_IS_LESS(6,18,57)
+ /**
+  * struct sockaddr_unsized - Unspecified size sockaddr for callbacks
+  * @sa_family: Address family (AF_UNIX, AF_INET, AF_INET6, etc.)
+@@ -28,7 +28,7 @@ struct sockaddr_unsized {
+ \t__kernel_sa_family_t\tsa_family;\t/* address family, AF_xxx */
+ \tchar\t\t\tsa_data[];\t/* flexible address data */
+ };
+-#endif /* < 6.19 */
++#endif /* < 6.18.57 */
+ 
+ #ifndef __sockaddr_check_size
+ #define __sockaddr_check_size(size)\t\t\
+SAP
+        echo "lede mac80211 sockaddr_unsized patch injected"
+        ;;
+esac
+
 #===irq-tune（MT7988 以太网中断分核 + TX XPS，2026-11-18）：WIFI/CS 两线通用，包内自带 rc.d 自启===
 case "$WRT_CONFIG" in
   MEDIATEK-*)
