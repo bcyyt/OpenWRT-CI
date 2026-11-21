@@ -31,3 +31,10 @@ CONFIG_PACKAGE_hostapd-basic=n
 CONFIG_PACKAGE_wpa-supplicant=n
 CONFIG_PACKAGE_iw=n
 CONFIG_PACKAGE_wireless-tools=n
+
+#──iptv-auth 抓号依赖（2026-11-21 V大树体检结论：包在树上、配置未选）──
+#T1 关学习/T3 镜像所需：bridge 命令 + 完整版 tc + clsact/mirred 内核模块
+#（kmod-veth/ip-full 由 GENERAL.txt 通用层覆盖；kmod 无法从官方 feed 后补——内核不匹配）
+CONFIG_PACKAGE_tc-full=y
+CONFIG_PACKAGE_ip-bridge=y
+CONFIG_PACKAGE_kmod-sched-core=y
