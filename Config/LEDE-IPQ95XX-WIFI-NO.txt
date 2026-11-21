@@ -14,3 +14,12 @@ CONFIG_PACKAGE_iptv-auth=y
 CONFIG_PACKAGE_luci-app-openclash=y
 #文件管理：sbwml quickfile(Packages.sh 已克隆)
 CONFIG_PACKAGE_luci-app-quickfile=y
+
+#──iptv-auth 抓号依赖（LEDE 侧补齐，2026-11-21 评估）─────────────
+#lede 无 kmod-veth 包（owrt 线靠 GENERAL.txt 内置）→ veth 内建进内核：
+#镜像策略（tc mirred 硬件镜像→veth 对捕获）与 T1 学习聚合均依赖 veth，缺则降级直抓桥
+CONFIG_KERNEL_VETH=y
+#tc 完整版（mirred 动作）+ bridge 命令（T1 关学习）+ clsact/mirred 内核模块
+CONFIG_PACKAGE_tc-full=y
+CONFIG_PACKAGE_ip-bridge=y
+CONFIG_PACKAGE_kmod-sched-core=y
