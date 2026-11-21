@@ -214,6 +214,26 @@ case "$WRT_CONFIG" in
         ;;
 esac
 
+#===IPQ95XX-WIFI-NO（SBE1V1K 纯有线线，2026-11-21）：完整剥离无线栈===
+#仪表盘保留（有线侧监控全功能）；zte-wifi 在无线路由器上才有数据，显式关闭
+case "$WRT_CONFIG" in
+  IPQ95XX-WIFI-NO)
+        echo "CONFIG_PACKAGE_luci-app-statusmon=y" >> ./.config
+        echo "CONFIG_PACKAGE_zte-wifi=n" >> ./.config
+        #设备定义剥无线包：ath12k 固件 blob + 校准数据。
+        #DEVICE_PACKAGES 是镜像级依赖，config 负选项拦不住，必须改 .mk；
+        #保留风扇/LED/RTL8261 万兆 PHY 四件套
+        [ -f target/linux/qualcommbe/image/ipq95xx.mk ] && sed -i \
+                '/^define Device\/askey_sbe1v1k$/,/^endef$/{
+                        s/ipq-wifi-askey_sbe1v1k //g
+                        s/ath12k-firmware-qcn9274-ddwrt //g
+                }' target/linux/qualcommbe/image/ipq95xx.mk
+        #双保险：防止固件/校准包从其它依赖链回流
+        echo "CONFIG_PACKAGE_ath12k-firmware-qcn9274-ddwrt=n" >> ./.config
+        echo "CONFIG_PACKAGE_ipq-wifi-askey_sbe1v1k=n" >> ./.config
+        ;;
+esac
+
 #===daede 前端切换（2026-11-19）：S20P-612 + WIFI-618 两线 daed 包源已在 Packages.sh 替换为 kenzok8/openwrt-daede===
 #官方 luci-app-daed 关闭防双管理，改用 luci-app-daede（UCI 统一管 dae/daed，可热切换）
 case "$WRT_CONFIG" in
