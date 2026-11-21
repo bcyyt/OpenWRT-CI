@@ -1,13 +1,13 @@
 #LEDE(coolsnowwolf/lede) IPQ95XX 编译配置：SBE1V1K 单设备聚焦线(2026-11-21)
 #与 owrt 线差异：lede 无 daed/daede 源码包 → 代理启用 OpenClash(ipk 注入)；
+#仪表盘系（statusmon 后端/Vantage 注入）不编入：bootstrap 非 v 主题（2026-11-21 决策）；
+#后续如需状态监控，可启用 luci-app-statusmon-dash（S20P 同款主题无关独立页）
 #lede LuCI 为旧版冻结线 → 主题 bootstrap 零风险；文件管理用 quickfile 替代 filemanager
 #设备平台
 CONFIG_TARGET_qualcommbe=y
 CONFIG_TARGET_qualcommbe_ipq95xx=y
 #设备列表(仅本机，其余 IPQ95XX 设备默认不编译，聚焦提速)
 CONFIG_TARGET_DEVICE_qualcommbe_ipq95xx_DEVICE_askey_sbe1v1k=y
-#内置组件(对齐 owrt 线 Settings.sh IPQ95XX 分支的效果，此处显式固化)
-CONFIG_PACKAGE_luci-app-statusmon=y
 CONFIG_PACKAGE_zte-wifi=y
 #iptv-auth 预编译注入包(aarch64 ipk, gitee OTA 源, PKGARCH:=all)
 CONFIG_PACKAGE_iptv-auth=y
