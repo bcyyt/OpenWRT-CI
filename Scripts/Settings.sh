@@ -217,8 +217,12 @@ esac
 #===IPQ95XX-WIFI-NO（SBE1V1K 纯有线线，2026-11-21）：完整剥离无线栈===
 #仪表盘保留（有线侧监控全功能）；zte-wifi 在无线路由器上才有数据，显式关闭
 case "$WRT_CONFIG" in
-  IPQ95XX-WIFI-NO)
-        echo "CONFIG_PACKAGE_luci-app-statusmon=y" >> ./.config
+  IPQ95XX-WIFI-NO|LEDE-IPQ95XX-WIFI-NO)
+        #2026-11-21: LEDE 纯有线线并入（无线剥离逻辑同源，lede ipq95xx.mk 设备定义与 owrt 一字不差）
+        #仪表盘后端按主题门控：bootstrap 非 v 主题线不编入 statusmon（同 2026-11-21 LEDE 决策）
+        if [ "$WRT_THEME" = "vantage" ]; then
+                echo "CONFIG_PACKAGE_luci-app-statusmon=y" >> ./.config
+        fi
         echo "CONFIG_PACKAGE_zte-wifi=n" >> ./.config
         #设备定义剥无线包：ath12k 固件 blob + 校准数据。
         #DEVICE_PACKAGES 是镜像级依赖，config 负选项拦不住，必须改 .mk；
