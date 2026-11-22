@@ -54,9 +54,7 @@ UPDATE_PACKAGE "footstrap" "VizzleTF/luci-theme-footstrap" "main"
 UPDATE_PACKAGE "kucat" "sirpdboy/luci-theme-kucat" "master"
 UPDATE_PACKAGE "kucat-config" "sirpdboy/luci-app-kucat-config" "master"
 UPDATE_PACKAGE "shadcn" "eamonxg/luci-theme-shadcn" "main"
-#2026-11-21: Vantage 主题仅 v 主题线注入；非 v 主题线（LEDE/S20P 等）跳过克隆，
-#Handles.sh 三处 vantage 补丁随 FIX [ -d ] 守卫自动缺席跳过
-[ "$WRT_THEME" = "vantage" ] && UPDATE_PACKAGE "vantage" "anothaDev/luci-theme-vantage" "main"
+UPDATE_PACKAGE "vantage" "anothaDev/luci-theme-vantage" "main"
 
 UPDATE_PACKAGE "momo" "nikkinikki-org/OpenWrt-momo" "main"
 UPDATE_PACKAGE "nikki" "nikkinikki-org/OpenWrt-nikki" "main"
@@ -369,8 +367,6 @@ WRT_ROOT=$PWD
 
 #===luci-app-statusmon（仪表盘运行时后端）：自编组件独立成包（原先随 statusfw-patch 注入，statusfw 已按需求删除）===
 # statusmon v4.48 = 系统状态/快捷方式数据源；statusppe = PPE+CPU 采样；statusflow = 客户端速率+今日流量+24h 曲线；seriesmon = 曲线端点
-#2026-11-21: 仅 v 主题线注入（服务于 Vantage 仪表盘；LEDE/S20P 等非 v 线不编入，同 11-19 S20P 展示层取消决策）
-if [ "$WRT_THEME" = "vantage" ]; then
 SM_DIR="./package/bcyyt/luci-app-statusmon"
 mkdir -p "$SM_DIR/files"
 cp "$GITHUB_WORKSPACE/Scripts/inject/statusmon.Makefile" "$SM_DIR/Makefile"
@@ -381,7 +377,6 @@ WRT_ROOT=$PWD
 (cd "$SM_DIR" && make --no-print-directory -f Makefile TOPDIR="$WRT_ROOT" INCLUDE_DIR="$WRT_ROOT/include" -n >/dev/null 2>/tmp/sm_syntax.err) \
         && echo "statusmon Makefile syntax: OK" \
         || { echo "statusmon Makefile syntax FAILED:"; head -5 /tmp/sm_syntax.err; }
-fi
 
 #===luci-app-statusmon-dash（S20P-612 专用：全功能状态监控仪表盘页 + 同源后端）===
 # 2026-11-19: 612 线"原生独立页面"方案落地——三环/PPE卡/24h曲线，数据与概览同源；

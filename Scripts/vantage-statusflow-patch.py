@@ -144,24 +144,10 @@ ov = patch(ov, r"(\t\tswitch \(key\) \{\n)(\t\tcase 'name':)",
     alt=r"(switch\(key\)\{)(case'name':)")
 
 # 4) 默认排序 ip 升序 + 分页状态
-#    v1.0.21：上游将 sorts 硬编码默认值改为 readSorts() 动态读取（列排序可持久化），
-#    故默认 ip 改注入 readSorts() 函数体，page:1 仍注入 ui 对象；旧字面量格式保留为兜底
-_ov4, _n4 = re.subn(r"(sorts: readSorts\(\), kind: 'wifi', filter: '', chip: 'all', drawer: null, editing: null, hover: null)( \};)",
-    r"\1, page: 1\2", ov, count=1)
-if _n4 == 0:  # minified 产物（运行时部署场景）
-    _ov4, _n4 = re.subn(r"(sorts:readSorts\(\),kind:'wifi',filter:'',chip:'all',drawer:null,editing:null,hover:null)(\};)",
-        r"\1,page: 1\2", ov, count=1)
-if _n4 == 1:
-    ov = _ov4
-    ov = patch(ov, r"(\{ wifi: \{ key: )'name'(, dir: 1 \}, wired: \{ key: )'name'(, dir: 1 \} \}, v = null)",
-        r"\1'ip'\2'ip'\3",
-        'readSorts ip default', fatal=False,
-        alt=r"(\{wifi:\{key:)'name'(,dir:1\},wired:\{key:)'name'(,dir:1\}\},v=null)")
-else:
-    ov = patch(ov, r"sorts: \{ wifi: \{ key: 'live', dir: -1 \}, wired: \{ key: 'seen', dir: 1 \} \}(, kind: 'wifi', filter: '', chip: 'all', drawer: null, editing: null, hover: null) \};",
-        r"sorts: { wifi: { key: 'ip', dir: 1 }, wired: { key: 'ip', dir: 1 } }\1, page: 1 };",
-        'ui sorts',
-        alt=r"sorts:\{wifi:\{key:'live',dir:-1\},wired:\{key:'seen',dir:1\}\}(,kind:'wifi',filter:'',chip:'all',drawer:null,editing:null,hover:null)\};")
+ov = patch(ov, r"sorts: \{ wifi: \{ key: 'live', dir: -1 \}, wired: \{ key: 'seen', dir: 1 \} \}(, kind: 'wifi', filter: '', chip: 'all', drawer: null, editing: null, hover: null) \};",
+    r"sorts: { wifi: { key: 'ip', dir: 1 }, wired: { key: 'ip', dir: 1 } }\1, page: 1 };",
+    'ui sorts',
+    alt=r"sorts:\{wifi:\{key:'live',dir:-1\},wired:\{key:'seen',dir:1\}\}(,kind:'wifi',filter:'',chip:'all',drawer:null,editing:null,hover:null)\};")
 
 # 5) maxRate 统计同源
 ov = patch(ov, r"(all\.forEach\(function\(c\) \{ var r = wired \? )self\.portRate\(c\)( : st\.staRates\[c\.mac\];)",
