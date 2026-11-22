@@ -323,3 +323,19 @@ CONFIG_DEBUG_INFO=y
 CONFIG_DEBUG_INFO_BTF=y
 BPFEO
 fi
+
+#===qualcommbe CMA 256MB（2026-11-22，恩山 gubin_nt 实测移植）===
+#ath12k 三颗 QCN9274 经 dma_alloc_coherent 各需 ~28MB 连续内存（合计 ~241MB），
+#目标默认内核 config 无 CMA 时 probe 报 qmi dma allocation failed → 无线全灭。
+#重要：CMA 是内核层配置，必须注入 target/linux/qualcommbe/config-6.* 分片；
+#写在 OpenWrt 种子 .config 里的 raw CONFIG_CMA 键会被 defconfig 静默丢弃（#11 实测）。
+QCCF=$(ls -1 target/linux/qualcommbe/config-6.* 2>/dev/null | sort -V | tail -1)
+if [ -n "$QCCF" ] && ! grep -q "^CONFIG_CMA=y" "$QCCF"; then
+cat >> "$QCCF" <<'CMAEO'
+CONFIG_CMA=y
+CONFIG_DMA_CMA=y
+CONFIG_CMA_SIZE_MBYTES=256
+CONFIG_CMA_SIZE_SEL_MBYTES=y
+CMAEO
+echo "qualcommbe: 已注入 CMA 256MB → $QCCF（ath12k dma_alloc_coherent 后备池）"
+fi
