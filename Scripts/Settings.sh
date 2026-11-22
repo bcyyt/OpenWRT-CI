@@ -259,6 +259,13 @@ case "$WRT_SOURCE" in
   coolsnowwolf/lede)
         rm -f package/kernel/mac80211/patches-qualcommbe/build/160-backports-sockaddr_unsized-is-in-6.18.57.patch
         echo "lede: 已移除 160 补丁（6.18.61+ 内核回退了 sockaddr_unsized，该补丁反而致命）"
+        # samba4 全家禁用（run#8 WIFI-NO 腿：lede 默认包集带入 samba4-server 4.24.6，
+        # pidl 在新 perl 下解析 smbXsrv.idl 报 Unable to determine origin of type，
+        # package/install Error 255。SBE1V1K 作 IPTV 路由器无需 samba。）
+        echo "CONFIG_PACKAGE_samba4-server=n" >> ./.config
+        echo "CONFIG_PACKAGE_samba4-client=n" >> ./.config
+        echo "CONFIG_PACKAGE_luci-app-samba4=n" >> ./.config
+        echo "lede: samba4 全家已禁用（默认带入且 pidl 编译失败）"
         # 金丝雀 v2：defconfig 后 V=s 单包预编 prepare（解包+补丁+kconfig），
         # 失败即熔断（exit 1），15 分钟暴露问题，省 3 小时陪葬编译。
         make defconfig -j1 >/dev/null 2>&1
@@ -324,18 +331,18 @@ CONFIG_DEBUG_INFO_BTF=y
 BPFEO
 fi
 
-#===qualcommbe CMA 256MB（2026-11-22，恩山 gubin_nt 实测移植）===
+#===qualcommbe CMA 提至 256MB（2026-11-22，恩山 gubin_nt 实测）===
 #ath12k 三颗 QCN9274 经 dma_alloc_coherent 各需 ~28MB 连续内存（合计 ~241MB），
-#目标默认内核 config 无 CMA 时 probe 报 qmi dma allocation failed → 无线全灭。
-#重要：CMA 是内核层配置，必须注入 target/linux/qualcommbe/config-6.* 分片；
-#写在 OpenWrt 种子 .config 里的 raw CONFIG_CMA 键会被 defconfig 静默丢弃（#11 实测）。
+#尺寸不足时 probe 报 qmi dma allocation failed → 无线全灭。实测两树现状：
+#V大树 config-6.18 自带 CMA 栈但 SIZE=128MB、lede 只有 64MB（#12 守卫只查
+#CONFIG_CMA=y 存在性而误跳过，实为尺寸问题）。此为内核层配置，须改
+#target/linux/qualcommbe/config-6.* 分片（种子 .config 里 raw 键会被丢弃）。
 QCCF=$(ls -1 target/linux/qualcommbe/config-6.* 2>/dev/null | sort -V | tail -1)
-if [ -n "$QCCF" ] && ! grep -q "^CONFIG_CMA=y" "$QCCF"; then
-cat >> "$QCCF" <<'CMAEO'
-CONFIG_CMA=y
-CONFIG_DMA_CMA=y
-CONFIG_CMA_SIZE_MBYTES=256
-CONFIG_CMA_SIZE_SEL_MBYTES=y
-CMAEO
-echo "qualcommbe: 已注入 CMA 256MB → $QCCF（ath12k dma_alloc_coherent 后备池）"
+if [ -n "$QCCF" ] && ! grep -q "^CONFIG_CMA_SIZE_MBYTES=256" "$QCCF"; then
+        if grep -q "^CONFIG_CMA_SIZE_MBYTES=" "$QCCF"; then
+                sed -i 's/^CONFIG_CMA_SIZE_MBYTES=.*/CONFIG_CMA_SIZE_MBYTES=256/' "$QCCF"
+        else
+                sed -i '/^CONFIG_CMA=y/a CONFIG_DMA_CMA=y\nCONFIG_CMA_SIZE_MBYTES=256\nCONFIG_CMA_SIZE_SEL_MBYTES=y' "$QCCF"
+        fi
+        echo "qualcommbe: CMA 提至 256MB → $QCCF（gubin 实测三颗 QCN9274 需 ~241MB）"
 fi
