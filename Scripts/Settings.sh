@@ -247,51 +247,30 @@ case "$WRT_CONFIG" in
         ;;
 esac
 
-#===LEDE mac80211 sockaddr_unsized 修复（2026-11-22，run#3 根因）===
-#内核 6.18.57+ 自带 struct sockaddr_unsized（socket.h），backports-7.2 垫片仍在
-#<6.19 guard 下重定义 → net.h 原型作用域类型与 qmi.c cast 不匹配，-Werror 致命
-#（ath12k/qmi.c:4382，run#3 双腿 2h53m 均挂于此）。移植 V大树 patches/build/160。
+#===LEDE mac80211 sockaddr_unsized 修复 v2（2026-11-22，run#3-#6 根因终判）===
+#内核 stable 在 6.18.61+ 把 sockaddr_unsized 从 include/linux/socket.h 回退
+#（实测 v6.18.60 有 / v6.18.64 无，文件小 674B）。lede 的 160 补丁 guard
+#<6.18.57 是为 .57-.60 时代写的（内核自带类型），在 6.18.64 上它把 backports
+#自己的定义也编译掉→类型凭空消失→net.h 垫片原型作用域→qmi.c 类型不匹配
+#-Werror 致命。V大树 6.18.60 构建成功正因为未踩回退。修法：移除 lede 的
+#160，让 backports 原生 <6.19 guard 提供定义（6.18.64 内核侧无此类型，
+#零重定义风险）。
 case "$WRT_SOURCE" in
   coolsnowwolf/lede)
-        mkdir -p package/kernel/mac80211/patches/build
-        cat > package/kernel/mac80211/patches/build/160-backports-sockaddr_unsized-is-in-6.18.57.patch <<'SAP'
-Linux 6.18.57 backported struct sockaddr_unsized to include/linux/socket.h,
-so only define it for older kernels.
-
---- a/backport-include/linux/socket.h
-+++ b/backport-include/linux/socket.h
-@@ -11,7 +11,7 @@
- #define SOL_NFC		280
- #endif
- 
--#if LINUX_VERSION_IS_LESS(6,19,0)
-+#if LINUX_VERSION_IS_LESS(6,18,57)
- /**
-  * struct sockaddr_unsized - Unspecified size sockaddr for callbacks
-  * @sa_family: Address family (AF_UNIX, AF_INET, AF_INET6, etc.)
-@@ -28,7 +28,7 @@ struct sockaddr_unsized {
- 	__kernel_sa_family_t	sa_family;	/* address family, AF_xxx */
- 	char			sa_data[];	/* flexible address data */
- };
--#endif /* < 6.19 */
-+#endif /* < 6.18.57 */
- 
- #ifndef __sockaddr_check_size
- #define __sockaddr_check_size(size)	\
-SAP
-        echo "lede mac80211 sockaddr_unsized patch injected"
-        # canary 诊断（2026-11-22）：run#4 mac80211 47秒静默失败无任何子输出，
-        # V=s 单包预编 prepare 阶段（解包+补丁+kconfig）暴露真实错误；主流程随后
-        # make clean 会清掉 canary 现场，纯诊断零副作用。
+        rm -f package/kernel/mac80211/patches-qualcommbe/build/160-backports-sockaddr_unsized-is-in-6.18.57.patch
+        echo "lede: 已移除 160 补丁（6.18.61+ 内核回退了 sockaddr_unsized，该补丁反而致命）"
+        # 金丝雀 v2：defconfig 后 V=s 单包预编 prepare（解包+补丁+kconfig），
+        # 失败即熔断（exit 1），15 分钟暴露问题，省 3 小时陪葬编译。
+        make defconfig -j1 >/dev/null 2>&1
         if ! make package/kernel/mac80211/prepare V=s -j1 > /tmp/m82.log 2>&1; then
                 echo "⚠️ mac80211 canary prepare 失败 —— 诊断输出（尾部120行）："
                 tail -n 120 /tmp/m82.log
-                echo "⚠️ canary 诊断结束（不中断，主构建照常）"
+                echo "⚠️ canary 熔断：补丁链存在未修复问题，中止构建"
+                exit 1
         else
                 echo "✓ mac80211 canary prepare 通过（补丁链健康）"
         fi
         ;;
-esac
 
 #===irq-tune（MT7988 以太网中断分核 + TX XPS，2026-11-18）：WIFI/CS 两线通用，包内自带 rc.d 自启===
 case "$WRT_CONFIG" in
