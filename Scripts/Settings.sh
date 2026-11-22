@@ -553,5 +553,11 @@ cat > target/linux/generic/hack-6.18/743-net-phy-realtek-add-rtl826x-led-support
  };
  
 RTL826XLED
-echo "RTL8261 10G PHY LED 补丁已注入（hack-6.18/743，10G 灯激活）"
+KDIR=$(ls -d build_dir/target-*/linux-qualcommbe_ipq95xx/linux-6.18* 2>/dev/null | head -1)
+if [ -n "$KDIR" ]; then
+  rm -rf "$KDIR"
+  echo "RTL8261 10G PHY LED 补丁已注入（hack-6.18/743）+ 内核目录已重置（强制重打补丁链，防缓存跳过）"
+else
+  echo "RTL8261 10G PHY LED 补丁已注入（hack-6.18/743，10G 灯激活）"
+fi
 fi
