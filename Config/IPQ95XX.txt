@@ -24,3 +24,10 @@ CONFIG_TARGET_DEVICE_qualcommbe_ipq95xx_DEVICE_xiaomi_be10000-es=y
 CONFIG_PACKAGE_tc-full=y
 CONFIG_PACKAGE_ip-bridge=y
 CONFIG_PACKAGE_kmod-sched-core=y
+
+# CMA（2026-11-22，移植自恩山 gubin_nt 实测修复）：ath12k 三颗 QCN9274
+# 经 dma_alloc_coherent 各需 ~28MB 连续内存（合计 ~241MB），qualcommbe 默认
+# config 无 CMA 时 probe 报 qmi dma allocation failed → 无线全灭。V大树缺此配置。
+CONFIG_CMA=y
+CONFIG_DMA_CMA=y
+CONFIG_CMA_SIZE_MBYTES=256
