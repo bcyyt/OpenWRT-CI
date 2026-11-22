@@ -271,6 +271,7 @@ case "$WRT_SOURCE" in
                 echo "✓ mac80211 canary prepare 通过（补丁链健康）"
         fi
         ;;
+esac
 
 #===irq-tune（MT7988 以太网中断分核 + TX XPS，2026-11-18）：WIFI/CS 两线通用，包内自带 rc.d 自启===
 case "$WRT_CONFIG" in
