@@ -280,6 +280,16 @@ so only define it for older kernels.
  #define __sockaddr_check_size(size)	\
 SAP
         echo "lede mac80211 sockaddr_unsized patch injected"
+        # canary 诊断（2026-11-22）：run#4 mac80211 47秒静默失败无任何子输出，
+        # V=s 单包预编 prepare 阶段（解包+补丁+kconfig）暴露真实错误；主流程随后
+        # make clean 会清掉 canary 现场，纯诊断零副作用。
+        if ! make package/kernel/mac80211/prepare V=s -j1 > /tmp/m82.log 2>&1; then
+                echo "⚠️ mac80211 canary prepare 失败 —— 诊断输出（尾部120行）："
+                tail -n 120 /tmp/m82.log
+                echo "⚠️ canary 诊断结束（不中断，主构建照常）"
+        else
+                echo "✓ mac80211 canary prepare 通过（补丁链健康）"
+        fi
         ;;
 esac
 
