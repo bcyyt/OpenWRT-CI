@@ -1,0 +1,32 @@
+#LEDE(coolsnowwolf/lede) IPQ95XX 编译配置：SBE1V1K 单设备聚焦线(2026-11-21)
+#与 owrt 线差异：lede 无 daed/daede 源码包 → 代理启用 OpenClash(ipk 注入)；
+#仪表盘系（statusmon 后端/Vantage 注入）不编入：bootstrap 非 v 主题（2026-11-21 决策）；
+#后续如需状态监控，可启用 luci-app-statusmon-dash（S20P 同款主题无关独立页）
+#lede LuCI 为旧版冻结线 → 主题 bootstrap 零风险；文件管理用 quickfile 替代 filemanager
+#设备平台
+CONFIG_TARGET_qualcommbe=y
+CONFIG_TARGET_qualcommbe_ipq95xx=y
+#设备列表(仅本机，其余 IPQ95XX 设备默认不编译，聚焦提速)
+CONFIG_TARGET_DEVICE_qualcommbe_ipq95xx_DEVICE_askey_sbe1v1k=y
+CONFIG_PACKAGE_zte-wifi=y
+#iptv-auth 预编译注入包(aarch64 ipk, gitee OTA 源, PKGARCH:=all)
+CONFIG_PACKAGE_iptv-auth=y
+#代理：lede 无 daed → OpenClash(vernesong 官方 release ipk 注入, luci-compat 兼容旧 LuCI)
+CONFIG_PACKAGE_luci-app-openclash=y
+#文件管理：lede 旧 LuCI 无 filemanager，用 sbwml quickfile(Packages.sh 已克隆)
+CONFIG_PACKAGE_luci-app-quickfile=y
+#SBE1V1K 设备包(ath12k-firmware-qcn9274-ddwrt/ipq-wifi-askey_sbe1v1k/kmod-phy-realtek/
+#rtl826x-firmware/kmod-hwmon-pwmfan/kmod-leds-pwm) lede 已在 ipq95xx.mk 内置定义，无需覆盖
+
+#──iptv-auth 抓号依赖（LEDE 侧补齐，2026-11-21 评估）─────────────
+#veth 内建加固：kmod-veth 包在 lede/V大树 netsupport.mk 均有、GENERAL.txt 亦已选 kmod-veth，
+#此处内建仅为免模块加载的冗余加固；镜像策略与 T1 学习聚合均依赖 veth
+CONFIG_KERNEL_VETH=y
+#tc 完整版（mirred 动作）+ bridge 命令（T1 关学习）+ clsact/mirred 内核模块
+CONFIG_PACKAGE_tc-full=y
+CONFIG_PACKAGE_ip-bridge=y
+CONFIG_PACKAGE_kmod-sched-core=y
+
+# CMA 256MB（ath12k 三颗 QCN9274 各需 ~28MB 连续内存，无 CMA 则 probe 报
+# qmi dma allocation failed → 无线全灭）。此为内核层配置，由 Settings.sh 注入
+# target/linux/qualcommbe/config-6.* 分片实现（raw 键写这里会被 defconfig 丢弃）。

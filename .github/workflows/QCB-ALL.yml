@@ -6,7 +6,10 @@ name: QCB-ALL
 
 #CI计划
 on:
-  #手动编译（已停用每日自动编译）
+  #定时编译：每天北京时间 05:00（UTC 21:00，错开 MTK-ALL 一小时防排队）
+  schedule:
+    - cron: '0 21 * * *'
+  #手动编译
   workflow_dispatch:
     inputs:
       PACKAGE:
@@ -30,7 +33,8 @@ jobs:
       fail-fast: false
       #max-parallel: 3
       matrix:
-        CONFIG: [IPQ53XX, IPQ95XX]
+        #IPQ95XX 全量线 + IPQ95XX-WIFI-NO 纯有线线（SBE1V1K 专用，无线栈全剥离）
+        CONFIG: [IPQ95XX, IPQ95XX-WIFI-NO]
         SOURCE: [VIKINGYFY/immortalwrt]
         BRANCH: [owrt]
 
