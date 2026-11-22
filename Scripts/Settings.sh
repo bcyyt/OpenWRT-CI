@@ -238,6 +238,37 @@ case "$WRT_CONFIG" in
         ;;
 esac
 
+#===SBE1V1K 升级脚本布局自适应（2026-11-22）：LuCI sysupgrade 双布局安全===
+#背景: 原生/mainline 布局内核窗仅 7MiB, V大源系内核 7.59MiB 超窗 → LuCI 直刷必截断软砖;
+#     固化大分区(large, v4.0 工具)后有 32MiB kernel 分区
+#补丁: CI_KERNPART 优先取 GPT 标签 kernel(large 布局 P28, 32MiB 窗);
+#     无 kernel 标签(find_mmc_part 精确匹配, 原生/mainline 布局)回退 0:HLOS = 原行为不变
+#生效: 刷了本补丁版固件后, large 布局上 LuCI 网页/sysupgrade 命令均安全可用
+python3 - <<'PYEOF' || echo "[警告] platform.sh 补丁未命中(上游结构变了?), 请人工检查升级路径!"
+import sys
+p = 'target/linux/qualcommbe/ipq95xx/base-files/lib/upgrade/platform.sh'
+try:
+    s = open(p).read()
+except FileNotFoundError:
+    sys.exit(0)  # 非 qualcommbe/ipq95xx 构建, 静默跳过
+old = '''\tarista,c-460|\\
+\taskey,sbe1v1k)
+\t\tCI_KERNPART="0:HLOS"
+\t\tCI_ROOTPART="rootfs"'''
+new = '''\tarista,c-460|\\
+\taskey,sbe1v1k)
+\t\tCI_KERNPART="kernel"
+\t\t[ -z "$(find_mmc_part kernel)" ] && CI_KERNPART="0:HLOS"
+\t\tCI_ROOTPART="rootfs"'''
+if old in s:
+    open(p, 'w').write(s.replace(old, new, 1))
+    print('SBE1V1K platform.sh 布局自适应补丁 OK: kernel标签优先 / 0:HLOS回退')
+elif 'find_mmc_part kernel' in s:
+    print('platform.sh 已含布局自适应补丁, 幂等跳过')
+else:
+    sys.exit(1)
+PYEOF
+
 #===daede 前端切换（2026-11-19）：S20P-612 + WIFI-618 两线 daed 包源已在 Packages.sh 替换为 kenzok8/openwrt-daede===
 #官方 luci-app-daed 关闭防双管理，改用 luci-app-daede（UCI 统一管 dae/daed，可热切换）
 case "$WRT_CONFIG" in
