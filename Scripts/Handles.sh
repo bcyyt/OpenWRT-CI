@@ -53,17 +53,24 @@ FIX "natmapt" "$PACKAGE_PATH/luci-app-natmapt" sed -i "s/network/services/g" \
 #statusflow 每客户端实时双向速率/今日累计流量 + 客户端列表分页注入 Vantage 仪表盘
 #（数据源 conntrack orig/reply + PPE bind 融合；运行时三件套由 statusfw-patch.sh 装入 statusfw 包）
 FIX "vantage-statusflow" "$PACKAGE_PATH/luci-theme-vantage" python3 \
-	"$GITHUB_WORKSPACE/Scripts/vantage-statusflow-patch.py" \
-	"$PACKAGE_PATH/luci-theme-vantage/luci-app-vantage/htdocs/luci-static/resources/view/vantage/overview.js" \
-	"$PACKAGE_PATH/luci-theme-vantage/luci-app-vantage/htdocs/luci-static/resources/vantage/app.css"
+        "$GITHUB_WORKSPACE/Scripts/vantage-statusflow-patch.py" \
+        "$PACKAGE_PATH/luci-theme-vantage/luci-app-vantage/htdocs/luci-static/resources/view/vantage/overview.js" \
+        "$PACKAGE_PATH/luci-theme-vantage/luci-app-vantage/htdocs/luci-static/resources/vantage/app.css"
 
 #IPQ95XX 线专属：上游 qcom_ppe 为单引擎（6.18 debugfs 单目录 /sys/kernel/debug/ppe/，
 #无 ppe0/ppe1 分目录），仪表盘 CPU 卡片 PPE 行去掉常驻的 PPE1 槽位——
 #单引擎只显示 "PPE"；双引擎设备(ppe1.t>0)保持 PPE0+PPE1 原样；其他线不注入
 if [[ "${WRT_CONFIG,,}" == ipq95xx* ]]; then
 FIX "vantage-ppe-single" "$PACKAGE_PATH/luci-theme-vantage" python3 \
-	"$GITHUB_WORKSPACE/Scripts/vantage-ppe-patch.py" \
-	"$PACKAGE_PATH/luci-theme-vantage/luci-app-vantage/htdocs/luci-static/resources/view/vantage/overview.js"
+        "$GITHUB_WORKSPACE/Scripts/vantage-ppe-patch.py" \
+        "$PACKAGE_PATH/luci-theme-vantage/luci-app-vantage/htdocs/luci-static/resources/view/vantage/overview.js"
+fi
+
+#IPQ95XX-WIFI-NO 线专属：无线栈已剥离，但 LuCI 菜单/仪表盘均以 /etc/config/wireless 的
+#@wifi-device uci 依赖决定无线页显示 —— sysupgrade 保留设置会把旧固件的 wireless 配置
+#恢复进来造成残显（2026-11-23 实机复现）。镜像内置 uci-defaults 首启清理，仅 WIFI-NO 线生效。
+if [[ "$WRT_CONFIG" == *WIFI-NO* ]]; then
+FIX "base-files-wifino-cleanup" "$PACKAGE_PATH/base-files" sh -c "mkdir -p $PACKAGE_PATH/base-files/files/etc/uci-defaults && printf '#!/bin/sh\n# WIFI-NO 线: 清理 sysupgrade 保留设置恢复进来的 wireless 配置(无线栈已剥离, 残留配置致菜单/仪表盘无线残显)\nrm -f /etc/config/wireless\nexit 0\n' > $PACKAGE_PATH/base-files/files/etc/uci-defaults/99-wifino-cleanup"
 fi
 
 #uHTTPd HTTP(S) 访问页补全：固件精简版只剩 redirect_https，补回 HTTP/HTTPS 监听编辑字段
