@@ -146,10 +146,12 @@ ov = patch(ov, r"(\t\tswitch \(key\) \{\n)(\t\tcase 'name':)",
 # 4) 默认排序 ip 升序 + 分页状态
 #    v1.0.21：上游将 sorts 硬编码默认值改为 readSorts() 动态读取（列排序可持久化），
 #    故默认 ip 改注入 readSorts() 函数体，page:1 仍注入 ui 对象；旧字面量格式保留为兜底
-_ov4, _n4 = re.subn(r"(sorts: readSorts\(\), kind: 'wifi', filter: '', chip: 'all', drawer: null, editing: null, hover: null)( \};)",
+#    2026-11-23：上游 ui 对象新增 wgOpen 等尾部字段 → hover:null 与 }; 之间放宽为非贪婪通配，
+#    兼容未来继续追加字段（锚点不再因尾部字段漂移而失效）
+_ov4, _n4 = re.subn(r"(sorts: readSorts\(\), kind: 'wifi', filter: '', chip: 'all', drawer: null, editing: null, hover: null)([^;]* \};)",
     r"\1, page: 1\2", ov, count=1)
 if _n4 == 0:  # minified 产物（运行时部署场景）
-    _ov4, _n4 = re.subn(r"(sorts:readSorts\(\),kind:'wifi',filter:'',chip:'all',drawer:null,editing:null,hover:null)(\};)",
+    _ov4, _n4 = re.subn(r"(sorts:readSorts\(\),kind:'wifi',filter:'',chip:'all',drawer:null,editing:null,hover:null)([^;]*\};)",
         r"\1,page: 1\2", ov, count=1)
 if _n4 == 1:
     ov = _ov4
@@ -163,11 +165,11 @@ else:
         'ui sorts',
         alt=r"sorts:\{wifi:\{key:'live',dir:-1\},wired:\{key:'seen',dir:1\}\}(,kind:'wifi',filter:'',chip:'all',drawer:null,editing:null,hover:null)\};")
 
-# 5) maxRate 统计同源
-ov = patch(ov, r"(all\.forEach\(function\(c\) \{ var r = wired \? )self\.portRate\(c\)( : st\.staRates\[c\.mac\];)",
-    r"\1(self.flowRate(c) || self.portRate(c))\2",
+# 5) maxRate 统计同源（2026-11-23：上游 portRate→listRate 重构，双名兼容）
+ov = patch(ov, r"(all\.forEach\(function\(c\) \{ var r = wired \? )self\.(portRate|listRate)\(c\)( : st\.staRates\[c\.mac\];)",
+    r"\1(self.flowRate(c) || self.\2(c))\3",
     'maxRate loop',
-    alt=r"(all\.forEach\(function\(c\)\{var r=wired\?)self\.portRate\(c\)(:st\.staRates\[c\.mac\];)")
+    alt=r"(all\.forEach\(function\(c\)\{var r=wired\?)self\.(portRate|listRate)\(c\)(:st\.staRates\[c\.mac\];)")
 
 # 6) 分页切片（每页 10 条，按 IP 升序的全量切页）
 ov = patch(ov, r"(\t\tvar keep = new Set\(\), at = 0;\n\t\tthis\.rowSig = this\.rowSig \|\| new Map\(\);\n\t\t)(list\.concat\(gone\)\.forEach)",
@@ -179,8 +181,8 @@ ov = patch(ov, r"(\t\tvar keep = new Set\(\), at = 0;\n\t\tthis\.rowSig = this\.
     'pagination slice',
     alt=r"(var keep=new Set\(\),at=0;this\.rowSig=this\.rowSig\|\|new Map\(\);)(list\.concat\(gone\)\.forEach)")
 
-# 7) 计数行后渲染翻页控件
-ov = patch(ov, r"(\t\tel\.count\.hidden = both && list\.length === total;\n)",
+# 7) 计数行后渲染翻页控件（2026-11-23：上游中段新增 !off 条件，可选兼容）
+ov = patch(ov, r"(\t\tel\.count\.hidden = both && (?:!off && )?list\.length === total;\n)",
     r"\1"
     r"\t\tif (PAGES > 1) {\n"
     r"\t\t\tdom.content(el.pager, [\n"
@@ -193,7 +195,7 @@ ov = patch(ov, r"(\t\tel\.count\.hidden = both && list\.length === total;\n)",
     r"\t\t\tdom.content(el.pager, []);\n"
     r"\t\t}\n",
     'pager render',
-    alt=r"(el\.count\.hidden=both&&list\.length===total;)")
+    alt=r"(el\.count\.hidden=both&&(?:!off&&)?list\.length===total;)")
 
 # 8) el.pager 构建 + 挂进列表标题
 ov = patch(ov, r"(\t\tel\.count = E\('span', \{ 'class': 'vt-count vt-tn' \}\);\n)",
@@ -211,10 +213,10 @@ ov = patch(ov, r"(\tpickClients: function\(\) \{\n\t\tif \(this\.held\) delete t
     'pickClients reset',
     alt=r"(pickClients:function\(\)\{if\(this\.held\)delete this\.held\.clients;)")
 
-ov = patch(ov, r"(\] : r \?'↓ ' \+ fmt\.bits\(r\.tx\) \+ ' · ↑ ' \+ fmt\.bits\(r\.rx\) : _\('measuring'\)\),\n)(\t+kv\(_\('Network'\),)",
+ov = patch(ov, r"(\]\)? : r \?'↓ ' \+ fmt\.bits\(r\.tx\) \+ ' · ↑ ' \+ fmt\.bits\(r\.rx\) : _\('measuring'\)\),\n)(\t+kv\(_\('Network'\),)",
     r"\1\t\t\t\tthis.flowStatKv(c),\n\2",
     'drawerWired stats kv',
-    alt=r"(\]:r\?\'↓ \'\+fmt\.bits\(r\.tx\)\+\' · ↑ \'\+fmt\.bits\(r\.rx\):_\(\'measuring\'\)\),)(kv\(_\(\'Network\'\),)")
+    alt=r"(\]\)?:r\?\'↓ \'\+fmt\.bits\(r\.tx\)\+\' · ↑ \'\+fmt\.bits\(r\.rx\):_\(\'measuring\'\)\),)(kv\(_\(\'Network\'\),)")
 
 # 15) drawerClient：Last activity 行后加统计
 ov = patch(ov, r"(kv\(_\('Last activity', 'vantage'\), c\.inactive == null \|\| c\.gone \? fmt\.DASH : fmt\.ago\(c\.inactive\)\),\n)(\t+kv\(_\('Seen since'\),)",
@@ -232,7 +234,9 @@ ZOOM_HELPERS = "/* ── v-zoom: 仪表盘 24h 曲线放大层（CPU / WAN，�
 
 def zrep(find, to, what, alt=None):
     global ov
-    for f in ([find] + ([alt] if alt else [])):
+    # 2026-11-23：alt 支持字符串或列表（上游多版本排版漂移时给多个备选）
+    alts = [alt] if isinstance(alt, str) else (alt or [])
+    for f in ([find] + alts):
         if ov.count(f) == 1:
             ov = ov.replace(f, to, 1)
             return
@@ -246,11 +250,15 @@ if 'zoomHost' not in ov:
         'helpers+drawerPerf',
         alt='return view.extend({handleSave:null,handleSaveApply:null,handleReset:null,')
 
-    # z2) uplink 抽屉 5 分钟 sparkline → 档位切换曲线
-    zrep("E('div', { 'class': 'vt-dspark' }, [ sparkline(hist || [], [ 1, 2 ], 0, 'vt-spark-up', { min: 1000, scale: bitsLabel }) ])",
+    # z2) uplink 抽屉 5 分钟 sparkline → 档位切换曲线（2026-11-23：上游新增 ceil:rateCeil 选项，双版本兼容）
+    zrep("E('div', { 'class': 'vt-dspark' }, [ sparkline(hist || [], [ 1, 2 ], 0, 'vt-spark-up', { min: 1000, scale: bitsLabel, ceil: rateCeil }) ])",
         "zoomHost(this, 'wan')",
         'drawerUplink zoom',
-        alt="E('div',{'class':'vt-dspark'},[sparkline(hist||[],[1,2],0,'vt-spark-up',{min:1000,scale:bitsLabel})])")
+        alt=[
+            "E('div', { 'class': 'vt-dspark' }, [ sparkline(hist || [], [ 1, 2 ], 0, 'vt-spark-up', { min: 1000, scale: bitsLabel }) ])",
+            "E('div',{'class':'vt-dspark'},[sparkline(hist||[],[1,2],0,'vt-spark-up',{min:1000,scale:bitsLabel,ceil:rateCeil})])",
+            "E('div',{'class':'vt-dspark'},[sparkline(hist||[],[1,2],0,'vt-spark-up',{min:1000,scale:bitsLabel})])",
+        ])
 
     # z3) paintDrawer 增加 perf 分支
     zrep('else content = this.drawerDevice();',
@@ -380,7 +388,29 @@ else:
                 'if(!(d>=0&&d<CPU_SAVE_MS)){this.cpuSavedAt=now;'
                 'writeCpu({pct:ema,cores:ec,t:now});}}')
     ov = patch(ov, re.escape(anchor), ema_repl, 'keepCpu cpu-ema', fatal=False)
-    print('statusflow: cpu-ema smoothing injected (keepCpu)')
+    # 2026-11-23：编译期源码为 pretty 排版，补 pretty 锚点（原仅 minified 运行时形态）
+    if 'emaCores' not in ov:
+        pretty_anchor = ('keepCpu: function(cpu, now) {\n'
+            '\t\tvar d = now - (this.cpuSavedAt || 0);\n'
+            '\t\tthis.st.cpu = cpu;\n'
+            '\t\tthis.st.cpuMeasured = true;\n'
+            "\t\tif (!(d >= 0 && d < CPU_SAVE_MS)) { this.cpuSavedAt = now; writeCpu({ pct: cpu.pct, cores: cpu.cores, t: now }); }\n"
+            '\t},')
+        pretty_repl = ('keepCpu: function(cpu, now) {\n'
+            '\t\tvar d = now - (this.cpuSavedAt || 0);\n'
+            '\t\tvar st = this.st;\n'
+            '\t\tvar pv = (st.cpu && isFinite(st.cpu.ema)) ? st.cpu.ema : ((st.cpu && isFinite(st.cpu.pct)) ? st.cpu.pct : null);\n'
+            '\t\tvar ema = (pv == null) ? cpu.pct : pv + (cpu.pct - pv) * 0.25;\n'
+            '\t\tvar ec = (st.cpu && st.cpu.emaCores && st.cpu.emaCores.length === cpu.cores.length) ? st.cpu.emaCores : cpu.cores.slice();\n'
+            '\t\tfor (var i = 0; i < cpu.cores.length; i++) { var v = cpu.cores[i];\n'
+            '\t\t\tec[i] = isFinite(v) ? (isFinite(ec[i]) ? ec[i] + (v - ec[i]) * 0.25 : v) : v; }\n'
+            '\t\tst.cpu = { pct: ema, ema: ema, emaCores: ec, cores: ec }; st.cpuMeasured = true;\n'
+            "\t\tif (!(d >= 0 && d < CPU_SAVE_MS)) { this.cpuSavedAt = now; writeCpu({ pct: ema, cores: ec, t: now }); }\n"
+            '\t},')
+        ov, _n = re.subn(re.escape(pretty_anchor), pretty_repl, ov, count=1)
+        print(f'statusflow: cpu-ema pretty source {"patched" if _n else "anchor miss (non-fatal)"}')
+    else:
+        print('statusflow: cpu-ema smoothing injected (keepCpu, minified)')
 
 open(ov_path, 'w', encoding='utf-8').write(ov)
 print(f'vantage-statusflow: overview.js patched ({len(ov)} bytes)')
