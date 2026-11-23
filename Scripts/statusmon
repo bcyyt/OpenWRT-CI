@@ -1,6 +1,10 @@
 #!/bin/sh
-# statusmon v4.48 — OpenWrt 系统状态数据采集 CGI
+# statusmon v4.49 — OpenWrt 系统状态数据采集 CGI
 # 部署到 /www/cgi-bin/statusmon
+# v4.49 预聚合：无参轮询请求直读 /tmp/statusmon-preagg.json（15s 新鲜度，前端 ts 差分自洽），
+#             由 statusflow-worker v5.9 在仪表盘活跃时每 ~10s 后台构建；
+#             新增 ?preagg=1 构建端点（exec 重定向 + 原子落盘）；轮询开销 ~1.8s → ~5ms，
+#             构建仅在有人看时发生（poll-stamp 90s 门控），过期/缺失自动回退全量路径（自愈）
 # v4.48 修复：本月/今日流量总计严重偏低 —— flow offload 的转发流量绕过 pppoe-wan 逻辑口计数器，
 #             实测转发下载 678MB 时逻辑口仅增 2KB；流量记账改取 WAN 物理底层口（.device，如 eth3），
 #             设备切换时按开机时间判断能否用当前值校正周期总量，避免跨月虚高
@@ -1299,6 +1303,21 @@ _sm_cpu_temp_now=$(_sm_now_temp)
 _sm_disk_temp_now=$(_sm_now_disk)
 _qs_summary=$(echo "$QUERY_STRING" | sed -n 's/^summary=\([^&]*\).*/\1/p')
 _qs_proto_day=$(echo "$QUERY_STRING" | sed -n 's/^proto_day=\([^&]*\).*/\1/p')
+_qs_preagg=$(echo "$QUERY_STRING" | sed -n 's/^preagg=\([^&]*\).*/\1/p')
+
+# ===== v4.49 预聚合直读门（worker 后台构建，前端轮询零开销）=====
+# 仅无参轮询请求走此门；每次轮询刷新活跃标记供 worker 判断是否继续构建；
+# 预聚合文件过期(≥15s)/缺失则落入原全量路径（自愈），本次请求本身即重置活跃标记
+if [ -z "$QUERY_STRING" ]; then
+    echo "$NOW" > /tmp/statusmon-poll-stamp 2>/dev/null
+    _pa_ts=0
+    [ -s /tmp/statusmon-preagg.ts ] && read -r _pa_ts < /tmp/statusmon-preagg.ts
+    case "$_pa_ts" in ''|*[!0-9]*) _pa_ts=0 ;; esac
+    if [ "$_pa_ts" -gt 0 ] && [ $((NOW - _pa_ts)) -ge 0 ] && [ $((NOW - _pa_ts)) -lt 15 ] && [ -s /tmp/statusmon-preagg.json ]; then
+        cat /tmp/statusmon-preagg.json
+        exit 0
+    fi
+fi
 if [ -n "$_qs_proto_day" ]; then
     # 协议分类查询：先累计刷新（force 保证今日归档即时新鲜），再读归档
     proto_accumulate 1
@@ -1544,37 +1563,37 @@ cpu_cores=$(grep -c processor /proc/cpuinfo 2>/dev/null || echo 1)
 cpu_freq_min=0
 cpu_freq_max=0
 for _sf in /sys/devices/system/cpu/cpu[0-9]*/cpufreq/scaling_cur_freq; do
-	[ -f "$_sf" ] || continue
-	_khz=$(cat "$_sf" 2>/dev/null)
-	case "$_khz" in ''|*[!0-9]*) continue ;; esac
-	_mhz=$((_khz / 1000))
-	[ "$_mhz" -gt 0 ] || continue
-	if [ "$cpu_freq_min" -eq 0 ] || [ "$_mhz" -lt "$cpu_freq_min" ]; then
-		cpu_freq_min=$_mhz
-	fi
-	if [ "$_mhz" -gt "$cpu_freq_max" ]; then
-		cpu_freq_max=$_mhz
-	fi
+        [ -f "$_sf" ] || continue
+        _khz=$(cat "$_sf" 2>/dev/null)
+        case "$_khz" in ''|*[!0-9]*) continue ;; esac
+        _mhz=$((_khz / 1000))
+        [ "$_mhz" -gt 0 ] || continue
+        if [ "$cpu_freq_min" -eq 0 ] || [ "$_mhz" -lt "$cpu_freq_min" ]; then
+                cpu_freq_min=$_mhz
+        fi
+        if [ "$_mhz" -gt "$cpu_freq_max" ]; then
+                cpu_freq_max=$_mhz
+        fi
 done
 if [ "$cpu_freq_max" -eq 0 ]; then
-	# 无 cpufreq 驱动（MT7986 等 ARM SoC）：回退 debugfs 时钟树
-	for _cf in /sys/kernel/debug/clk/armpll/clk_rate /sys/kernel/debug/clk/cpu/clk_rate \
-		/sys/kernel/debug/clk/cpu0/clk_rate /sys/kernel/debug/clk/cpu_pll/clk_rate; do
-		[ -r "$_cf" ] || continue
-		_khz=$(cat "$_cf" 2>/dev/null)
-		case "$_khz" in ''|*[!0-9]*) continue ;; esac
-		_mhz=$((_khz / 1000000))
-		[ "$_mhz" -gt 0 ] || continue
-		cpu_freq_min=$_mhz
-		cpu_freq_max=$_mhz
-		break
-	done
+        # 无 cpufreq 驱动（MT7986 等 ARM SoC）：回退 debugfs 时钟树
+        for _cf in /sys/kernel/debug/clk/armpll/clk_rate /sys/kernel/debug/clk/cpu/clk_rate \
+                /sys/kernel/debug/clk/cpu0/clk_rate /sys/kernel/debug/clk/cpu_pll/clk_rate; do
+                [ -r "$_cf" ] || continue
+                _khz=$(cat "$_cf" 2>/dev/null)
+                case "$_khz" in ''|*[!0-9]*) continue ;; esac
+                _mhz=$((_khz / 1000000))
+                [ "$_mhz" -gt 0 ] || continue
+                cpu_freq_min=$_mhz
+                cpu_freq_max=$_mhz
+                break
+        done
 fi
 if [ "$cpu_freq_max" -eq 0 ]; then
-	_mhz=$(awk -F: '/^cpu MHz/{gsub(/ /,"",$2); printf "%.0f\n",$2; exit}' /proc/cpuinfo 2>/dev/null)
-	case "$_mhz" in ''|*[!0-9]*) _mhz=0 ;; esac
-	cpu_freq_min=$_mhz
-	cpu_freq_max=$_mhz
+        _mhz=$(awk -F: '/^cpu MHz/{gsub(/ /,"",$2); printf "%.0f\n",$2; exit}' /proc/cpuinfo 2>/dev/null)
+        case "$_mhz" in ''|*[!0-9]*) _mhz=0 ;; esac
+        cpu_freq_min=$_mhz
+        cpu_freq_max=$_mhz
 fi
 cpu_freq=$cpu_freq_max
 
@@ -2137,7 +2156,10 @@ month_cats=$(_sm_scale_cats "$month_cats" "$month_total_rx" "$month_total_tx")
 HW_OFFLOAD=$(_sm_hw_offload)
 traffic_json='{"month":"'"$TRA_MONTH"'","today":{"rx":'"$today_rx"',"tx":'"$today_tx"'}, "total":{"rx":'"$month_total_rx"',"tx":'"$month_total_tx"'}, "hw_offload":'"$HW_OFFLOAD"', "cats":'"$month_cats"'}'
 
-# ===== 输出 JSON =====
+# ===== 输出 JSON（v4.49：?preagg=1 重定向到预聚合文件，构建后原子落盘）=====
+if [ "$_qs_preagg" = "1" ]; then
+    exec > /tmp/statusmon-preagg.json.new
+fi
 cat <<JSONEOF
 {
   "system": {
@@ -2191,3 +2213,9 @@ cat <<JSONEOF
   "timestamp": $NOW
 }
 JSONEOF
+if [ "$_qs_preagg" = "1" ]; then
+    echo "$NOW" > /tmp/statusmon-preagg.ts.new
+    mv -f /tmp/statusmon-preagg.json.new /tmp/statusmon-preagg.json
+    mv -f /tmp/statusmon-preagg.ts.new /tmp/statusmon-preagg.ts
+    exit 0
+fi

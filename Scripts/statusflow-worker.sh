@@ -1,6 +1,10 @@
 #!/bin/sh
-# statusflow-worker v5.8 — 每客户端上下行实时速率 + 今日/累计流量 + 24h CPU/WAN 曲线采样
+# statusflow-worker v5.9 — 每客户端上下行实时速率 + 今日/累计流量 + 24h CPU/WAN 曲线采样
 #
+# v5.9（2026-11-24 statusmon 预聚合）：每 2 tick（~10s）在仪表盘活跃
+#   （/tmp/statusmon-poll-stamp 90s 内有轮询）时后台构建 statusmon 预聚合
+#   JSON（QUERY_STRING=preagg=1，nice 5 不抢跑）；.1 修复：timeout 25 兜底
+#   防 flock 交叉死锁挂死、去 wait 防阻塞 tick；无人看时零构建成本，
 # v5.8（2026-11-23 降耗重构，统计口径与 v5.7 完全一致）：
 #   tick 2s→5s；ROUNDS%300→%120（维持 10 分钟落盘节拍）；
 #   deghost 幽灵判定下限 200KB→500KB/轮（随窗口等比，速率下限语义不变）；
@@ -355,6 +359,19 @@ while :; do
         mv $D/dev.now $D/dev.prev
         echo "$now" > $D/ts.prev
         echo "$now" > $D/ts
+
+        # ===== v5.9.1 statusmon 预聚合构建（仪表盘活跃时，每 2 tick ≈10s）=====
+        # timeout 25 兜底：防 flock 交叉死锁等导致的挂死进程堆积；
+        # 不用 wait——避免阻塞 tick 节拍；ash 在后续外部命令处惰性收尸
+        if [ $((ROUNDS % 2)) -eq 0 ] && [ -f /tmp/statusmon-poll-stamp ]; then
+                _ps=0
+                read -r _ps < /tmp/statusmon-poll-stamp 2>/dev/null
+                case "$_ps" in ''|*[!0-9]*) _ps=0 ;; esac
+                _psa=$((now - _ps))
+                if [ "$_psa" -ge 0 ] && [ "$_psa" -lt 90 ]; then
+                        QUERY_STRING=preagg=1 timeout 25 nice -n 5 /www/cgi-bin/statusmon >/dev/null 2>&1 &
+                fi
+        fi
 
         TODAY=$(date +%F)
         if [ "$TODAY" != "$LASTDAY" ]; then
