@@ -381,7 +381,11 @@ if [ -n "$QCCF" ] && ! grep -q "^CONFIG_CMA_SIZE_MBYTES=256" "$QCCF"; then
 fi
 
 
-#===RTL8261BE 10G PHY LED（2026-11-22，移植自 OneNAS auto-gen 743 补丁）===
+#===RTL8261BE 10G PHY LED（2026-11-22 移植自 OneNAS；2026-11-24 rebase 对齐新基座）===
+# rebase 缘由：V大 4ed7b42「refresh patches」刷新补丁链后，旧 743 对 6.18.60 +
+# 新 backport/pending 链（721/742/743 等 realtek 系）的 realtek_main.c 表项上下文
+# 全部漂移（#24 6/7 hunk 失败）。v2 对当前基座重新生成：本地复刻全链后重制，
+# 零 fuzz 应用、与 V大 751 系叠加验证通过。=
 #SBE1V1K 的 10G 口 PHY = RTL8261BE，上游 realtek 驱动 ID 表无 LED ops → 10G 灯死。
 #V大 751 系只覆盖 RTL8221B/RTL8226B-CG；743 的目标表项（RTL8254B/8261BE/N/
 #8264/8264B）与其零重叠、hunk 区域零重叠，可安全叠加。phylib 硬件灯路线：
@@ -391,8 +395,8 @@ if [ -f target/linux/generic/hack-6.18/751-03-net-phy-realtek-enable-RTL8226B-CG
 cat > target/linux/generic/hack-6.18/743-net-phy-realtek-add-rtl826x-led-support.patch <<'RTL826XLED'
 --- a/drivers/net/phy/realtek/realtek_main.c
 +++ b/drivers/net/phy/realtek/realtek_main.c
-@@ -3811,6 +3811,133 @@ static int rtl826x_set_tunable(struct phy_device *phydev,
-        return 0;
+@@ -3831,6 +3831,133 @@
+ 	return 0;
  }
  
 +/* Per-LED mode register pair: link-speed qualifier (L) and flags (H) */
@@ -523,66 +527,66 @@ cat > target/linux/generic/hack-6.18/743-net-phy-realtek-add-rtl826x-led-support
 +}
 +
  static struct phy_driver realtek_drvs[] = {
-        {
-                PHY_ID_MATCH_EXACT(0x00008201),
-@@ -4178,6 +4305,9 @@ static struct phy_driver realtek_drvs[] = {
-                .get_wol        = rtl826x_get_wol,
-                .get_tunable    = rtl826x_get_tunable,
-                .set_tunable    = rtl826x_set_tunable,
-+               .led_hw_is_supported = rtl826x_led_hw_is_supported,
-+               .led_hw_control_get = rtl826x_led_hw_control_get,
-+               .led_hw_control_set = rtl826x_led_hw_control_set,
-        }, {
-                .name           = "RTL8254B 5Gbps PHY",
-                .config_init    = rtl826x_config_init,
-@@ -4195,6 +4325,9 @@ static struct phy_driver realtek_drvs[] = {
-                .get_wol        = rtl826x_get_wol,
-                .get_tunable    = rtl826x_get_tunable,
-                .set_tunable    = rtl826x_set_tunable,
-+               .led_hw_is_supported = rtl826x_led_hw_is_supported,
-+               .led_hw_control_get = rtl826x_led_hw_control_get,
-+               .led_hw_control_set = rtl826x_led_hw_control_set,
-        }, {
-                .name           = "RTL8261BE 10Gbps PHY",
-                .config_init    = rtl826x_config_init,
-@@ -4213,6 +4346,9 @@ static struct phy_driver realtek_drvs[] = {
-                .get_wol        = rtl826x_get_wol,
-                .get_tunable    = rtl826x_get_tunable,
-                .set_tunable    = rtl826x_set_tunable,
-+               .led_hw_is_supported = rtl826x_led_hw_is_supported,
-+               .led_hw_control_get = rtl826x_led_hw_control_get,
-+               .led_hw_control_set = rtl826x_led_hw_control_set,
-        }, {
-                .name           = "RTL8261N 10Gbps PHY",
-                .config_init    = rtl826x_config_init,
-@@ -4231,6 +4367,9 @@ static struct phy_driver realtek_drvs[] = {
-                .get_wol        = rtl826x_get_wol,
-                .get_tunable    = rtl826x_get_tunable,
-                .set_tunable    = rtl826x_set_tunable,
-+               .led_hw_is_supported = rtl826x_led_hw_is_supported,
-+               .led_hw_control_get = rtl826x_led_hw_control_get,
-+               .led_hw_control_set = rtl826x_led_hw_control_set,
-        }, {
-                PHY_ID_MATCH_EXACT(RTL_8264),
-                .name           = "RTL8264 10Gbps PHY",
-@@ -4248,6 +4387,9 @@ static struct phy_driver realtek_drvs[] = {
-                .get_wol        = rtl826x_get_wol,
-                .get_tunable    = rtl826x_get_tunable,
-                .set_tunable    = rtl826x_set_tunable,
-+               .led_hw_is_supported = rtl826x_led_hw_is_supported,
-+               .led_hw_control_get = rtl826x_led_hw_control_get,
-+               .led_hw_control_set = rtl826x_led_hw_control_set,
-        }, {
-                .name           = "RTL8264B 10Gbps PHY",
-                .config_init    = rtl826x_config_init,
-@@ -4265,6 +4407,9 @@ static struct phy_driver realtek_drvs[] = {
-                .get_wol        = rtl826x_get_wol,
-                .get_tunable    = rtl826x_get_tunable,
-                .set_tunable    = rtl826x_set_tunable,
-+               .led_hw_is_supported = rtl826x_led_hw_is_supported,
-+               .led_hw_control_get = rtl826x_led_hw_control_get,
-+               .led_hw_control_set = rtl826x_led_hw_control_set,
-        },
+ 	{
+ 		PHY_ID_MATCH_EXACT(0x00008201),
+@@ -4198,6 +4325,9 @@
+ 		.get_wol        = rtl826x_get_wol,
+ 		.get_tunable    = rtl826x_get_tunable,
+ 		.set_tunable    = rtl826x_set_tunable,
++		.led_hw_is_supported = rtl826x_led_hw_is_supported,
++		.led_hw_control_get = rtl826x_led_hw_control_get,
++		.led_hw_control_set = rtl826x_led_hw_control_set,
+ 	}, {
+ 		.name           = "RTL8254B 5Gbps PHY",
+ 		.config_init    = rtl826x_config_init,
+@@ -4215,6 +4345,9 @@
+ 		.get_wol        = rtl826x_get_wol,
+ 		.get_tunable    = rtl826x_get_tunable,
+ 		.set_tunable    = rtl826x_set_tunable,
++		.led_hw_is_supported = rtl826x_led_hw_is_supported,
++		.led_hw_control_get = rtl826x_led_hw_control_get,
++		.led_hw_control_set = rtl826x_led_hw_control_set,
+ 	}, {
+ 		.name           = "RTL8261BE 10Gbps PHY",
+ 		.config_init    = rtl826x_config_init,
+@@ -4233,6 +4366,9 @@
+ 		.get_wol        = rtl826x_get_wol,
+ 		.get_tunable    = rtl826x_get_tunable,
+ 		.set_tunable    = rtl826x_set_tunable,
++		.led_hw_is_supported = rtl826x_led_hw_is_supported,
++		.led_hw_control_get = rtl826x_led_hw_control_get,
++		.led_hw_control_set = rtl826x_led_hw_control_set,
+ 	}, {
+ 		.name           = "RTL8261N 10Gbps PHY",
+ 		.config_init    = rtl826x_config_init,
+@@ -4251,6 +4387,9 @@
+ 		.get_wol        = rtl826x_get_wol,
+ 		.get_tunable    = rtl826x_get_tunable,
+ 		.set_tunable    = rtl826x_set_tunable,
++		.led_hw_is_supported = rtl826x_led_hw_is_supported,
++		.led_hw_control_get = rtl826x_led_hw_control_get,
++		.led_hw_control_set = rtl826x_led_hw_control_set,
+ 	}, {
+ 		PHY_ID_MATCH_EXACT(RTL_8264),
+ 		.name           = "RTL8264 10Gbps PHY",
+@@ -4268,6 +4407,9 @@
+ 		.get_wol        = rtl826x_get_wol,
+ 		.get_tunable    = rtl826x_get_tunable,
+ 		.set_tunable    = rtl826x_set_tunable,
++		.led_hw_is_supported = rtl826x_led_hw_is_supported,
++		.led_hw_control_get = rtl826x_led_hw_control_get,
++		.led_hw_control_set = rtl826x_led_hw_control_set,
+ 	}, {
+ 		.name           = "RTL8264B 10Gbps PHY",
+ 		.config_init    = rtl826x_config_init,
+@@ -4285,6 +4427,9 @@
+ 		.get_wol        = rtl826x_get_wol,
+ 		.get_tunable    = rtl826x_get_tunable,
+ 		.set_tunable    = rtl826x_set_tunable,
++		.led_hw_is_supported = rtl826x_led_hw_is_supported,
++		.led_hw_control_get = rtl826x_led_hw_control_get,
++		.led_hw_control_set = rtl826x_led_hw_control_set,
+ 	},
  };
  
 RTL826XLED
