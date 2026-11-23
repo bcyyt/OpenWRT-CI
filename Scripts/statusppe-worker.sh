@@ -31,8 +31,9 @@ while :; do
 
         # PPE 表项占用（entries 全量表；cat 一次后用户态计数，6次debugfs dump→2次）
         # 2026-11-19: 双布局适配——6.18 主线为 ppe0/ppe1 分目录；chasey-dev 6.12 为 mtk_ppe/entries 单文件
+        # 2026-11-23: 增第三布局——上游qcom_ppe单目录(ppe/active_flows汇总, IPQ95XX 6.18 SNAPSHOT实机验证)
         t0=0; a0=0; b0=0; t1=0; a1=0; b1=0
-		ba0=0; bb0=0; ba1=0; bb1=0
+                ba0=0; bb0=0; ba1=0; bb1=0
         if [ -r /sys/kernel/debug/ppe0/entries ] || [ -r /sys/kernel/debug/ppe1/entries ]; then
                 for p in /sys/kernel/debug/ppe0/entries /sys/kernel/debug/ppe1/entries; do
                         [ -r "$p" ] || continue
@@ -44,15 +45,15 @@ while :; do
                         else
                                 t=0; a=0; b=0
                         fi
-				ba=0; bb=0
-				bf=$(printf '%s' "$p" | sed 's|/entries$|/bind|')
-				if [ -r "$bf" ]; then
-					bent=$(cat "$bf" 2>/dev/null)
-					if [ -n "$bent" ]; then
-						ba=$(printf '%s\n' "$bent" | grep -c 'IPv4')
-						bb=$(printf '%s\n' "$bent" | grep -c 'IPv6')
-					fi
-				fi
+                                ba=0; bb=0
+                                bf=$(printf '%s' "$p" | sed 's|/entries$|/bind|')
+                                if [ -r "$bf" ]; then
+                                        bent=$(cat "$bf" 2>/dev/null)
+                                        if [ -n "$bent" ]; then
+                                                ba=$(printf '%s\n' "$bent" | grep -c 'IPv4')
+                                                bb=$(printf '%s\n' "$bent" | grep -c 'IPv6')
+                                        fi
+                                fi
                         case "$p" in
                                 *ppe0*) t0=$t; a0=$a; b0=$b ; ba0=$ba; bb0=$bb ;;
                                 *ppe1*) t1=$t; a1=$a; b1=$b ; ba1=$ba; bb1=$bb ;;
@@ -65,6 +66,17 @@ while :; do
                         t0=$(printf '%s\n' "$ent" | wc -l)
                         a0=$(printf '%s\n' "$ent" | grep -ci 'ip4')
                         b0=$(printf '%s\n' "$ent" | grep -ci 'ip6')
+                fi
+        elif [ -r /sys/kernel/debug/ppe/active_flows ]; then
+                # 2026-11-23: 上游qcom_ppe单目录布局(IPQ95XX 6.18 SNAPSHOT): active_flows = "v4 v6 total/容量"
+                # 该驱动无独立 bind 表, 活跃流即硬件转发绑定流 → 绑定计数 bv4/bv6 = 活跃 v4/v6
+                # (仅该布局设备走到此分支; 其他线内核无此路径, 天然休眠零影响)
+                af=$(cat /sys/kernel/debug/ppe/active_flows 2>/dev/null)
+                if [ -n "$af" ]; then
+                        set -- $af
+                        a0=$1; b0=$2
+                        t0=${3%%/*}
+                        ba0=$1; bb0=$2
                 fi
         fi
 

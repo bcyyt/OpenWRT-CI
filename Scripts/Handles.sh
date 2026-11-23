@@ -57,6 +57,15 @@ FIX "vantage-statusflow" "$PACKAGE_PATH/luci-theme-vantage" python3 \
 	"$PACKAGE_PATH/luci-theme-vantage/luci-app-vantage/htdocs/luci-static/resources/view/vantage/overview.js" \
 	"$PACKAGE_PATH/luci-theme-vantage/luci-app-vantage/htdocs/luci-static/resources/vantage/app.css"
 
+#IPQ95XX 线专属：上游 qcom_ppe 为单引擎（6.18 debugfs 单目录 /sys/kernel/debug/ppe/，
+#无 ppe0/ppe1 分目录），仪表盘 CPU 卡片 PPE 行去掉常驻的 PPE1 槽位——
+#单引擎只显示 "PPE"；双引擎设备(ppe1.t>0)保持 PPE0+PPE1 原样；其他线不注入
+if [[ "${WRT_CONFIG,,}" == ipq95xx* ]]; then
+FIX "vantage-ppe-single" "$PACKAGE_PATH/luci-theme-vantage" python3 \
+	"$GITHUB_WORKSPACE/Scripts/vantage-ppe-patch.py" \
+	"$PACKAGE_PATH/luci-theme-vantage/luci-app-vantage/htdocs/luci-static/resources/view/vantage/overview.js"
+fi
+
 #uHTTPd HTTP(S) 访问页补全：固件精简版只剩 redirect_https，补回 HTTP/HTTPS 监听编辑字段
 #（main + luci 双实例 DynamicList；2026-11-20 S20P 实机验证通过）
 #（luci-mod-system 是 feeds 包：源码树在 ./feeds/luci/modules/，feeds install 后 package/feeds 下为符号链接；
