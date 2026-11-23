@@ -215,7 +215,9 @@ case "$WRT_CONFIG" in
 esac
 
 #===IPQ95XX-WIFI-NO（SBE1V1K 纯有线线，2026-11-21）：完整剥离无线栈===
-#仪表盘保留（有线侧监控全功能）；zte-wifi 在无线路由器上才有数据，显式关闭
+#仪表盘保留（有线侧监控全功能）；2026-11-23: zte-wifi 改为编入——本机虽无无线，
+#但 ZTE mesh AP 经有线上联，守护走网络（ZXSLC）拉取 mesh 节点的无线客户端/拓扑，
+#纯有线线同样有数据；未配置 zte-wifi 时守护自动休眠无副作用
 case "$WRT_CONFIG" in
   IPQ95XX-WIFI-NO|LEDE-IPQ95XX-WIFI-NO)
         #2026-11-21: LEDE 纯有线线并入（无线剥离逻辑同源，lede ipq95xx.mk 设备定义与 owrt 一字不差）
@@ -223,7 +225,7 @@ case "$WRT_CONFIG" in
         if [ "$WRT_THEME" = "vantage" ]; then
                 echo "CONFIG_PACKAGE_luci-app-statusmon=y" >> ./.config
         fi
-        echo "CONFIG_PACKAGE_zte-wifi=n" >> ./.config
+        echo "CONFIG_PACKAGE_zte-wifi=y" >> ./.config
         #设备定义剥无线包：ath12k 固件 blob + 校准数据。
         #DEVICE_PACKAGES 是镜像级依赖，config 负选项拦不住，必须改 .mk；
         #保留风扇/LED/RTL8261 万兆 PHY 四件套
@@ -390,197 +392,197 @@ cat > target/linux/generic/hack-6.18/743-net-phy-realtek-add-rtl826x-led-support
 --- a/drivers/net/phy/realtek/realtek_main.c
 +++ b/drivers/net/phy/realtek/realtek_main.c
 @@ -3811,6 +3811,133 @@ static int rtl826x_set_tunable(struct phy_device *phydev,
- 	return 0;
+        return 0;
  }
  
 +/* Per-LED mode register pair: link-speed qualifier (L) and flags (H) */
-+#define RTL826X_LED_L(n)		(21 + (n) * 2)
-+#define RTL826X_LED_L_100M		BIT(8)
-+#define RTL826X_LED_L_500M		BIT(7)
-+#define RTL826X_LED_L_1G		BIT(6)
-+#define RTL826X_LED_L_2P5G		BIT(4)
-+#define RTL826X_LED_L_5G		BIT(2)
-+#define RTL826X_LED_L_10G		BIT(0)
-+#define RTL826X_LED_L_LINK_MASK		(RTL826X_LED_L_100M | \
-+					 RTL826X_LED_L_500M | \
-+					 RTL826X_LED_L_1G | \
-+					 RTL826X_LED_L_2P5G | \
-+					 RTL826X_LED_L_5G | \
-+					 RTL826X_LED_L_10G)
++#define RTL826X_LED_L(n)               (21 + (n) * 2)
++#define RTL826X_LED_L_100M             BIT(8)
++#define RTL826X_LED_L_500M             BIT(7)
++#define RTL826X_LED_L_1G               BIT(6)
++#define RTL826X_LED_L_2P5G             BIT(4)
++#define RTL826X_LED_L_5G               BIT(2)
++#define RTL826X_LED_L_10G              BIT(0)
++#define RTL826X_LED_L_LINK_MASK                (RTL826X_LED_L_100M | \
++                                        RTL826X_LED_L_500M | \
++                                        RTL826X_LED_L_1G | \
++                                        RTL826X_LED_L_2P5G | \
++                                        RTL826X_LED_L_5G | \
++                                        RTL826X_LED_L_10G)
 +
-+#define RTL826X_LED_H(n)		(22 + (n) * 2)
-+#define RTL826X_LED_H_LINK_EN		BIT(9)
-+#define RTL826X_LED_H_TX_ACT		BIT(3)
-+#define RTL826X_LED_H_RX_ACT		BIT(2)
++#define RTL826X_LED_H(n)               (22 + (n) * 2)
++#define RTL826X_LED_H_LINK_EN          BIT(9)
++#define RTL826X_LED_H_TX_ACT           BIT(3)
++#define RTL826X_LED_H_RX_ACT           BIT(2)
 +
-+#define RTL826X_LED_NUM			6
++#define RTL826X_LED_NUM                        6
 +
 +static const unsigned long rtl826x_led_rules =
-+	BIT(TRIGGER_NETDEV_LINK) |
-+	BIT(TRIGGER_NETDEV_LINK_100) |
-+	BIT(TRIGGER_NETDEV_LINK_1000) |
-+	BIT(TRIGGER_NETDEV_LINK_2500) |
-+	BIT(TRIGGER_NETDEV_LINK_5000) |
-+	BIT(TRIGGER_NETDEV_LINK_10000) |
-+	BIT(TRIGGER_NETDEV_RX) |
-+	BIT(TRIGGER_NETDEV_TX);
++       BIT(TRIGGER_NETDEV_LINK) |
++       BIT(TRIGGER_NETDEV_LINK_100) |
++       BIT(TRIGGER_NETDEV_LINK_1000) |
++       BIT(TRIGGER_NETDEV_LINK_2500) |
++       BIT(TRIGGER_NETDEV_LINK_5000) |
++       BIT(TRIGGER_NETDEV_LINK_10000) |
++       BIT(TRIGGER_NETDEV_RX) |
++       BIT(TRIGGER_NETDEV_TX);
 +
 +static int rtl826x_led_hw_is_supported(struct phy_device *phydev, u8 index,
-+				       unsigned long rules)
++                                      unsigned long rules)
 +{
-+	if (index >= RTL826X_LED_NUM)
-+		return -EINVAL;
++       if (index >= RTL826X_LED_NUM)
++               return -EINVAL;
 +
-+	if (rules & ~rtl826x_led_rules)
-+		return -EOPNOTSUPP;
++       if (rules & ~rtl826x_led_rules)
++               return -EOPNOTSUPP;
 +
-+	return 0;
++       return 0;
 +}
 +
 +static int rtl826x_led_hw_control_get(struct phy_device *phydev, u8 index,
-+				      unsigned long *rules)
++                                     unsigned long *rules)
 +{
-+	int l, h;
++       int l, h;
 +
-+	if (index >= RTL826X_LED_NUM)
-+		return -EINVAL;
++       if (index >= RTL826X_LED_NUM)
++               return -EINVAL;
 +
-+	l = phy_read_mmd(phydev, MDIO_MMD_VEND1, RTL826X_LED_L(index));
-+	if (l < 0)
-+		return l;
++       l = phy_read_mmd(phydev, MDIO_MMD_VEND1, RTL826X_LED_L(index));
++       if (l < 0)
++               return l;
 +
-+	h = phy_read_mmd(phydev, MDIO_MMD_VEND1, RTL826X_LED_H(index));
-+	if (h < 0)
-+		return h;
++       h = phy_read_mmd(phydev, MDIO_MMD_VEND1, RTL826X_LED_H(index));
++       if (h < 0)
++               return h;
 +
-+	*rules = 0;
++       *rules = 0;
 +
-+	/* Speed qualifiers only drive the LED with the link enable set */
-+	if (!(h & RTL826X_LED_H_LINK_EN)) {
-+		l = 0;
-+	} else if ((l & RTL826X_LED_L_LINK_MASK) == RTL826X_LED_L_LINK_MASK) {
-+		*rules |= BIT(TRIGGER_NETDEV_LINK);
-+		l = 0;
-+	}
++       /* Speed qualifiers only drive the LED with the link enable set */
++       if (!(h & RTL826X_LED_H_LINK_EN)) {
++               l = 0;
++       } else if ((l & RTL826X_LED_L_LINK_MASK) == RTL826X_LED_L_LINK_MASK) {
++               *rules |= BIT(TRIGGER_NETDEV_LINK);
++               l = 0;
++       }
 +
-+	if (l & RTL826X_LED_L_100M)
-+		*rules |= BIT(TRIGGER_NETDEV_LINK_100);
-+	if (l & RTL826X_LED_L_1G)
-+		*rules |= BIT(TRIGGER_NETDEV_LINK_1000);
-+	if (l & RTL826X_LED_L_2P5G)
-+		*rules |= BIT(TRIGGER_NETDEV_LINK_2500);
-+	if (l & RTL826X_LED_L_5G)
-+		*rules |= BIT(TRIGGER_NETDEV_LINK_5000);
-+	if (l & RTL826X_LED_L_10G)
-+		*rules |= BIT(TRIGGER_NETDEV_LINK_10000);
++       if (l & RTL826X_LED_L_100M)
++               *rules |= BIT(TRIGGER_NETDEV_LINK_100);
++       if (l & RTL826X_LED_L_1G)
++               *rules |= BIT(TRIGGER_NETDEV_LINK_1000);
++       if (l & RTL826X_LED_L_2P5G)
++               *rules |= BIT(TRIGGER_NETDEV_LINK_2500);
++       if (l & RTL826X_LED_L_5G)
++               *rules |= BIT(TRIGGER_NETDEV_LINK_5000);
++       if (l & RTL826X_LED_L_10G)
++               *rules |= BIT(TRIGGER_NETDEV_LINK_10000);
 +
-+	if (h & RTL826X_LED_H_RX_ACT)
-+		*rules |= BIT(TRIGGER_NETDEV_RX);
-+	if (h & RTL826X_LED_H_TX_ACT)
-+		*rules |= BIT(TRIGGER_NETDEV_TX);
++       if (h & RTL826X_LED_H_RX_ACT)
++               *rules |= BIT(TRIGGER_NETDEV_RX);
++       if (h & RTL826X_LED_H_TX_ACT)
++               *rules |= BIT(TRIGGER_NETDEV_TX);
 +
-+	return 0;
++       return 0;
 +}
 +
 +static int rtl826x_led_hw_control_set(struct phy_device *phydev, u8 index,
-+				      unsigned long rules)
++                                     unsigned long rules)
 +{
-+	u16 l = 0, h = 0;
-+	int ret;
++       u16 l = 0, h = 0;
++       int ret;
 +
-+	if (index >= RTL826X_LED_NUM)
-+		return -EINVAL;
++       if (index >= RTL826X_LED_NUM)
++               return -EINVAL;
 +
-+	if (rules & BIT(TRIGGER_NETDEV_LINK))
-+		l |= RTL826X_LED_L_LINK_MASK;
-+	if (rules & BIT(TRIGGER_NETDEV_LINK_100))
-+		l |= RTL826X_LED_L_100M;
-+	if (rules & BIT(TRIGGER_NETDEV_LINK_1000))
-+		l |= RTL826X_LED_L_1G;
-+	if (rules & BIT(TRIGGER_NETDEV_LINK_2500))
-+		l |= RTL826X_LED_L_2P5G;
-+	if (rules & BIT(TRIGGER_NETDEV_LINK_5000))
-+		l |= RTL826X_LED_L_5G;
-+	if (rules & BIT(TRIGGER_NETDEV_LINK_10000))
-+		l |= RTL826X_LED_L_10G;
++       if (rules & BIT(TRIGGER_NETDEV_LINK))
++               l |= RTL826X_LED_L_LINK_MASK;
++       if (rules & BIT(TRIGGER_NETDEV_LINK_100))
++               l |= RTL826X_LED_L_100M;
++       if (rules & BIT(TRIGGER_NETDEV_LINK_1000))
++               l |= RTL826X_LED_L_1G;
++       if (rules & BIT(TRIGGER_NETDEV_LINK_2500))
++               l |= RTL826X_LED_L_2P5G;
++       if (rules & BIT(TRIGGER_NETDEV_LINK_5000))
++               l |= RTL826X_LED_L_5G;
++       if (rules & BIT(TRIGGER_NETDEV_LINK_10000))
++               l |= RTL826X_LED_L_10G;
 +
-+	/* Link rules only light the LED with the enable flag set */
-+	if (l)
-+		h |= RTL826X_LED_H_LINK_EN;
++       /* Link rules only light the LED with the enable flag set */
++       if (l)
++               h |= RTL826X_LED_H_LINK_EN;
 +
-+	if (rules & BIT(TRIGGER_NETDEV_RX))
-+		h |= RTL826X_LED_H_RX_ACT;
-+	if (rules & BIT(TRIGGER_NETDEV_TX))
-+		h |= RTL826X_LED_H_TX_ACT;
++       if (rules & BIT(TRIGGER_NETDEV_RX))
++               h |= RTL826X_LED_H_RX_ACT;
++       if (rules & BIT(TRIGGER_NETDEV_TX))
++               h |= RTL826X_LED_H_TX_ACT;
 +
-+	ret = phy_write_mmd(phydev, MDIO_MMD_VEND1, RTL826X_LED_L(index), l);
-+	if (ret < 0)
-+		return ret;
++       ret = phy_write_mmd(phydev, MDIO_MMD_VEND1, RTL826X_LED_L(index), l);
++       if (ret < 0)
++               return ret;
 +
-+	return phy_write_mmd(phydev, MDIO_MMD_VEND1, RTL826X_LED_H(index), h);
++       return phy_write_mmd(phydev, MDIO_MMD_VEND1, RTL826X_LED_H(index), h);
 +}
 +
  static struct phy_driver realtek_drvs[] = {
- 	{
- 		PHY_ID_MATCH_EXACT(0x00008201),
+        {
+                PHY_ID_MATCH_EXACT(0x00008201),
 @@ -4178,6 +4305,9 @@ static struct phy_driver realtek_drvs[] = {
- 		.get_wol        = rtl826x_get_wol,
- 		.get_tunable    = rtl826x_get_tunable,
- 		.set_tunable    = rtl826x_set_tunable,
-+		.led_hw_is_supported = rtl826x_led_hw_is_supported,
-+		.led_hw_control_get = rtl826x_led_hw_control_get,
-+		.led_hw_control_set = rtl826x_led_hw_control_set,
- 	}, {
- 		.name           = "RTL8254B 5Gbps PHY",
- 		.config_init    = rtl826x_config_init,
+                .get_wol        = rtl826x_get_wol,
+                .get_tunable    = rtl826x_get_tunable,
+                .set_tunable    = rtl826x_set_tunable,
++               .led_hw_is_supported = rtl826x_led_hw_is_supported,
++               .led_hw_control_get = rtl826x_led_hw_control_get,
++               .led_hw_control_set = rtl826x_led_hw_control_set,
+        }, {
+                .name           = "RTL8254B 5Gbps PHY",
+                .config_init    = rtl826x_config_init,
 @@ -4195,6 +4325,9 @@ static struct phy_driver realtek_drvs[] = {
- 		.get_wol        = rtl826x_get_wol,
- 		.get_tunable    = rtl826x_get_tunable,
- 		.set_tunable    = rtl826x_set_tunable,
-+		.led_hw_is_supported = rtl826x_led_hw_is_supported,
-+		.led_hw_control_get = rtl826x_led_hw_control_get,
-+		.led_hw_control_set = rtl826x_led_hw_control_set,
- 	}, {
- 		.name           = "RTL8261BE 10Gbps PHY",
- 		.config_init    = rtl826x_config_init,
+                .get_wol        = rtl826x_get_wol,
+                .get_tunable    = rtl826x_get_tunable,
+                .set_tunable    = rtl826x_set_tunable,
++               .led_hw_is_supported = rtl826x_led_hw_is_supported,
++               .led_hw_control_get = rtl826x_led_hw_control_get,
++               .led_hw_control_set = rtl826x_led_hw_control_set,
+        }, {
+                .name           = "RTL8261BE 10Gbps PHY",
+                .config_init    = rtl826x_config_init,
 @@ -4213,6 +4346,9 @@ static struct phy_driver realtek_drvs[] = {
- 		.get_wol        = rtl826x_get_wol,
- 		.get_tunable    = rtl826x_get_tunable,
- 		.set_tunable    = rtl826x_set_tunable,
-+		.led_hw_is_supported = rtl826x_led_hw_is_supported,
-+		.led_hw_control_get = rtl826x_led_hw_control_get,
-+		.led_hw_control_set = rtl826x_led_hw_control_set,
- 	}, {
- 		.name           = "RTL8261N 10Gbps PHY",
- 		.config_init    = rtl826x_config_init,
+                .get_wol        = rtl826x_get_wol,
+                .get_tunable    = rtl826x_get_tunable,
+                .set_tunable    = rtl826x_set_tunable,
++               .led_hw_is_supported = rtl826x_led_hw_is_supported,
++               .led_hw_control_get = rtl826x_led_hw_control_get,
++               .led_hw_control_set = rtl826x_led_hw_control_set,
+        }, {
+                .name           = "RTL8261N 10Gbps PHY",
+                .config_init    = rtl826x_config_init,
 @@ -4231,6 +4367,9 @@ static struct phy_driver realtek_drvs[] = {
- 		.get_wol        = rtl826x_get_wol,
- 		.get_tunable    = rtl826x_get_tunable,
- 		.set_tunable    = rtl826x_set_tunable,
-+		.led_hw_is_supported = rtl826x_led_hw_is_supported,
-+		.led_hw_control_get = rtl826x_led_hw_control_get,
-+		.led_hw_control_set = rtl826x_led_hw_control_set,
- 	}, {
- 		PHY_ID_MATCH_EXACT(RTL_8264),
- 		.name           = "RTL8264 10Gbps PHY",
+                .get_wol        = rtl826x_get_wol,
+                .get_tunable    = rtl826x_get_tunable,
+                .set_tunable    = rtl826x_set_tunable,
++               .led_hw_is_supported = rtl826x_led_hw_is_supported,
++               .led_hw_control_get = rtl826x_led_hw_control_get,
++               .led_hw_control_set = rtl826x_led_hw_control_set,
+        }, {
+                PHY_ID_MATCH_EXACT(RTL_8264),
+                .name           = "RTL8264 10Gbps PHY",
 @@ -4248,6 +4387,9 @@ static struct phy_driver realtek_drvs[] = {
- 		.get_wol        = rtl826x_get_wol,
- 		.get_tunable    = rtl826x_get_tunable,
- 		.set_tunable    = rtl826x_set_tunable,
-+		.led_hw_is_supported = rtl826x_led_hw_is_supported,
-+		.led_hw_control_get = rtl826x_led_hw_control_get,
-+		.led_hw_control_set = rtl826x_led_hw_control_set,
- 	}, {
- 		.name           = "RTL8264B 10Gbps PHY",
- 		.config_init    = rtl826x_config_init,
+                .get_wol        = rtl826x_get_wol,
+                .get_tunable    = rtl826x_get_tunable,
+                .set_tunable    = rtl826x_set_tunable,
++               .led_hw_is_supported = rtl826x_led_hw_is_supported,
++               .led_hw_control_get = rtl826x_led_hw_control_get,
++               .led_hw_control_set = rtl826x_led_hw_control_set,
+        }, {
+                .name           = "RTL8264B 10Gbps PHY",
+                .config_init    = rtl826x_config_init,
 @@ -4265,6 +4407,9 @@ static struct phy_driver realtek_drvs[] = {
- 		.get_wol        = rtl826x_get_wol,
- 		.get_tunable    = rtl826x_get_tunable,
- 		.set_tunable    = rtl826x_set_tunable,
-+		.led_hw_is_supported = rtl826x_led_hw_is_supported,
-+		.led_hw_control_get = rtl826x_led_hw_control_get,
-+		.led_hw_control_set = rtl826x_led_hw_control_set,
- 	},
+                .get_wol        = rtl826x_get_wol,
+                .get_tunable    = rtl826x_get_tunable,
+                .set_tunable    = rtl826x_set_tunable,
++               .led_hw_is_supported = rtl826x_led_hw_is_supported,
++               .led_hw_control_get = rtl826x_led_hw_control_get,
++               .led_hw_control_set = rtl826x_led_hw_control_set,
+        },
  };
  
 RTL826XLED
