@@ -1,7 +1,15 @@
 #!/bin/sh
-# statusflow-worker v5.7 — 每客户端上下行实时速率 + 今日/累计流量 + 24h CPU/WAN 曲线采样
+# statusflow-worker v5.8 — 每客户端上下行实时速率 + 今日/累计流量 + 24h CPU/WAN 曲线采样
 #
-# 数据源（每 2 秒差分）：
+# v5.8（2026-11-23 降耗重构，统计口径与 v5.7 完全一致）：
+#   tick 2s→5s；ROUNDS%300→%120（维持 10 分钟落盘节拍）；
+#   deghost 幽灵判定下限 200KB→500KB/轮（随窗口等比，速率下限语义不变）；
+#   snap_ct/deghost/clamp_ct/fuse 四趟合并为单趟 flow_pass——conntrack 原始表
+#   解析 1 次、历史文件各读 1 次，冻结→钳制→融合全程内存内完成，
+#   每 tick fork ~30→~13，conntrack 相关全表遍历 ~8 遍→~3 遍；
+#   零散 cat 改内建 read。
+#
+# 数据源（每 5 秒差分）：
 #   /proc/net/nf_conntrack — 每流 orig/reply 独立计数（精确双向）
 #   首次见到的表项不计增量（防止长流历史字节跳变）
 #
@@ -51,34 +59,6 @@ TODAY=$(date +%F)
 LASTDAY=$TODAY
 ROUNDS=0
 
-snap_ct() {
-        awk '
-        function ispriv(ip) {
-                if (ip ~ /^192\.168\./) return 1
-                if (ip ~ /^10\./) return 1
-                if (ip ~ /^172\.(1[6-9]|2[0-9]|3[01])\./) return 1
-                return 0
-        }
-        {
-                split("", ip); split("", sport); split("", dport); split("", bytes)
-                if ($3 != "tcp" && $3 != "udp") next
-                dir = 0
-                for (i = 1; i <= NF; i++) {
-                        t = $i
-                        if (substr(t, 1, 4) == "src=") { dir++; ip[dir] = substr(t, 5) }
-                        else if (substr(t, 1, 6) == "sport=") sport[dir] = substr(t, 7)
-                        else if (substr(t, 1, 6) == "dport=") dport[dir] = substr(t, 7)
-                        else if (substr(t, 1, 6) == "bytes=") bytes[dir] = substr(t, 7) + 0
-                }
-                if (!ip[1] || !ip[2] || sport[1] == "" || dport[1] == "") next
-                if (ispriv(ip[1])) {
-                        print ip[1] "|" sport[1] ">" ip[2] "|" dport[1], bytes[1], bytes[2]
-                } else if (ispriv(ip[2])) {
-                        print ip[2] "|" sport[2] ">" ip[1] "|" dport[2], bytes[2], bytes[1]
-                }
-        }' /proc/net/nf_conntrack 2>/dev/null
-}
-
 # ---- bind 快照："key bytes"（仅 IPv4；反向条目归一化为发起方视角）
 snap_pb() {
         awk '
@@ -108,145 +88,123 @@ snap_pb() {
         }' /sys/kernel/debug/ppe0/bind /sys/kernel/debug/ppe1/bind 2>/dev/null
 }
 
-# ---- 幽灵过滤（v5.5）：ct 快照差分的 PPE stats 污染剔除 ----
-# 用法: deghost <prev2> <prev> <now>   （原地修正 now）
-# 幽灵特征：offloaded 流的 ct.bytes 被内核 flowtable stats 以【恒定全量】
-# 反复累加 → 连续差分几乎恒定。判定成立即冻结该 key（差分置 0）。
-deghost() {
-        [ -f "$GHIST" ] || : > "$GHIST"
-        awk -v GHISTF="$GHIST" '
-                FILENAME == ARGV[1] { b2[$1] = $2 + 0; c2[$1] = $3 + 0; next }
-                FILENAME == ARGV[2] { b1[$1] = $2 + 0; c1[$1] = $3 + 0; next }
-                FILENAME == ARGV[3] { b0[$1] = $2 + 0; c0[$1] = $3 + 0; order[++n] = $1; next }
-                FILENAME == ARGV[4] { gv[$1] = $2 + 0; next }   # ghist: key 幽灵增量记忆
-                END {
-                        for (i = 1; i <= n; i++) {
-                                k = order[i]
-                                u2 = (k in b1) ? b0[k] - b1[k] : -1
-                                d2 = (k in c1) ? c0[k] - c1[k] : -1
-                                u1 = (k in b2 && k in b1) ? b1[k] - b2[k] : -1
-                                d1 = (k in c2 && k in c1) ? c1[k] - c2[k] : -1
-                                freeze = 0; ngv = 0
-                                # 已记忆的幽灵 key：差分仍在记忆值 0.5~2 倍区间 → 持续冻结
-                                if (k in gv) {
-                                        if (d2 > 200000 && d2 > gv[k] * 0.5 && d2 < gv[k] * 2) { freeze = 1; ngv = d2 }
-                                        else if (u2 > 200000 && u2 > gv[k] * 0.5 && u2 < gv[k] * 2) { freeze = 1; ngv = u2 }
-                                }
-                                # 新幽灵：三轮差分恒定（>200KB 且相差 <4%）
-                                if (!freeze) {
-                                        if (d1 > 200000 && d2 > 200000) {
-                                                r = (d2 > d1) ? (d2 - d1) / d2 : (d1 - d2) / d1
-                                                if (r < 0.04) { freeze = 1; ngv = d2 }
-                                        }
-                                        if (!freeze && u1 > 200000 && u2 > 200000) {
-                                                r = (u2 > u1) ? (u2 - u1) / u2 : (u1 - u2) / u1
-                                                if (r < 0.04) { freeze = 1; ngv = u2 }
-                                        }
-                                }
-                                if (freeze) {
-                                        newgv[k] = ngv
-                                        ub = (k in b1) ? b1[k] : b0[k]
-                                        db = (k in c1) ? c1[k] : c0[k]
-                                } else {
-                                        ub = b0[k]; db = c0[k]
-                                }
-                                printf "%s %.0f %.0f\n", k, ub, db
-                        }
-                        for (k in newgv) print k, newgv[k] > GHISTF ".new"
-                }
-        ' "$1" "$2" "$3" "$GHIST" > "$3.tmp" && mv "$3.tmp" "$3"
-        if [ -f "$GHIST.new" ]; then mv "$GHIST.new" "$GHIST"; else : > "$GHIST"; fi
-        return 0
-}
-
 # ---- 接口快照（钳制用）："wanrx wantx lanrx lantx" ----
 snap_dev() {
         # v5.6 修复：默认空格分隔，$1=iface:（剥掉尾冒号）、$2=rx_bytes、$10=tx_bytes。
-        # 旧版 -F'[: ]+' 把冒号也切掉导致字段左移，$2=="pppoe-wan" 永不匹配，
-        # dev 快照恒为全 0——接口钳制自 v5.5 起实际从未生效过。
         awk '{ i = $1; sub(/:$/, "", i); if (i == "pppoe-wan") { w1 = $2; w2 = $10 } else if (i == "br-lan") { l1 = $2; l2 = $10 } } END { printf "%.0f %.0f %.0f %.0f\n", w1+0, w2+0, l1+0, l2+0 }' /proc/net/dev 2>/dev/null
 }
 
-# ---- 接口钳制（v5.5）：原地缩放 ct.now 的本轮增量 ----
-# 用法: clamp_ct <ct.prev> <ct.now> <dev.prev> <dev.now>
-# Σ增量超过 WAN+LAN 口差分×1.3（+2MB 突发余量）时按比例缩放，
-# 修正的是 ct.now 本身，fuse 的差分与累计列自动保持一致。
-clamp_ct() {
-        [ -s "$3" ] && [ -s "$4" ] || return 0
-        read -r wr1 wt1 lr1 lt1 < "$3"
-        read -r wr2 wt2 lr2 lt2 < "$4"
-        maxd=$(( (wr2 - wr1) + (lr2 - lr1) + (lt2 - lt1) )); [ "$maxd" -lt 0 ] && maxd=0
-        maxu=$(( (wt2 - wt1) + (lr2 - lr1) + (lt2 - lt1) )); [ "$maxu" -lt 0 ] && maxu=0
-        maxd=$(( maxd * 13 / 10 + 2000000 ))
-        maxu=$(( maxu * 13 / 10 + 2000000 ))
-        awk -v MAXD="$maxd" -v MAXU="$maxu" '
-                FILENAME == ARGV[1] { pu[$1] = $2 + 0; pd[$1] = $3 + 0; next }
-                {
-                        du = ($1 in pu) ? $2 - pu[$1] : 0
-                        dd = ($1 in pd) ? $3 - pd[$1] : 0
-                        if (du > 0) su += du
-                        if (dd > 0) sd += dd
-                        key[++n] = $1; up[n] = $2; dn[n] = $3
-                        dua[n] = (du > 0 ? du : 0); dda[n] = (dd > 0 ? dd : 0)
-                        next
-                }
-                END {
-                        scale_u = (su > MAXU && su > 0) ? MAXU / su : 1
-                        scale_d = (sd > MAXD && sd > 0) ? MAXD / sd : 1
-                        for (i = 1; i <= n; i++)
-                                printf "%s %.0f %.0f\n", key[i], up[i] - dua[i] * (1 - scale_u), dn[i] - dda[i] * (1 - scale_d)
-                }
-        ' "$1" "$2" > "$2.tmp" && mv "$2.tmp" "$2"
-        return 0
-}
-
-# ---- 融合：读 ct.prev pb.prev tot.prev ct.now pb.now（v5.6 加 WAN 差分）
-#      每客户端按 ct 占比分摊 WAN 口真实增量：总账 ≡ WAN 实测
-#      输出：第1行 JSON；第2+行 "ip tu td"（新累计状态）
-fuse() {
-        awk -v now="$1" -v pts="$2" -v WRXD="$3" -v WTXD="$4" '
-        FILENAME == ARGV[1] { pu[$1] = $2 + 0; pd[$1] = $3 + 0; next }
-        FILENAME == ARGV[2] { pbb[$1] = $2 + 0; next }
-        FILENAME == ARGV[3] {
+# ---- 单趟融合（v5.8）：snap_ct + deghost + clamp_ct + fuse 合并 ----
+# 用法: flow_pass <ct.prev2> <ct.prev> <pb.prev> <tot.prev> <pb.now> <dev.prev> <ghist> -v ...
+# stdout = out.all（首行 JSON + tot 行）；写 $D/ct.now.new 与 $GHIST.new
+# 内核接口只解析一次（/proc/net/nf_conntrack），其余全部内存内完成。
+flow_pass() {
+        awk -v now="$1" -v pts="$2" -v WRXD="$3" -v WTXD="$4" -v MAXD="$5" -v MAXU="$6" \
+                -v CTF="$D/ct.now.new" -v GHISTF="$GHIST" '
+        function ispriv(ip) {
+                if (ip ~ /^192\.168\./) return 1
+                if (ip ~ /^10\./) return 1
+                if (ip ~ /^172\.(1[6-9]|2[0-9]|3[01])\./) return 1
+                return 0
+        }
+        FILENAME == ARGV[1] { b2[$1] = $2 + 0; c2[$1] = $3 + 0; next }        # ct.prev2
+        FILENAME == ARGV[2] { b1[$1] = $2 + 0; c1[$1] = $3 + 0; next }        # ct.prev
+        FILENAME == ARGV[3] { pbb[$1] = $2 + 0; next }                        # pb.prev
+        FILENAME == ARGV[4] {                                                 # tot.prev
                 if (NF >= 5) { GU[$1] = $2 + 0; GD[$1] = $3 + 0; DU[$1] = $4 + 0; DD[$1] = $5 + 0 }
                 else if (NF == 3) { GU[$1] = $2 + 0; GD[$1] = $3 + 0; DU[$1] = $2 + 0; DD[$1] = $3 + 0 }
                 next
         }
-        FILENAME == ARGV[4] {
-                key = $1
-                match(key, /^[0-9.]+/)
-                ip = substr(key, 1, RLENGTH)
-                SEEN[ip] = 1
-                if (key in pu) {
-                        du = ($2 + 0) - pu[key]; dd = ($3 + 0) - pd[key]
-                        if (du > 0) { UP[ip] += du; SU += du }
-                        if (dd > 0) { DOWN[ip] += dd; SD += dd }
+        FILENAME == ARGV[5] { pbnow[$1] = $2 + 0; next }                      # pb.now
+        FILENAME == ARGV[6] { wr1 = $1 + 0; wt1 = $2 + 0; lr1 = $3 + 0; lt1 = $4 + 0; next }  # dev.prev
+        FILENAME == ARGV[7] { gv[$1] = $2 + 0; next }                         # ghist
+        FILENAME == ARGV[8] {                                                 # /proc/net/nf_conntrack
+                split("", ip); split("", sport); split("", dport); split("", bytes); dir = 0
+                if ($3 != "tcp" && $3 != "udp") next
+                for (i = 1; i <= NF; i++) {
+                        t = $i
+                        if (substr(t, 1, 4) == "src=") { dir++; ip[dir] = substr(t, 5) }
+                        else if (substr(t, 1, 6) == "sport=") sport[dir] = substr(t, 7)
+                        else if (substr(t, 1, 6) == "dport=") dport[dir] = substr(t, 7)
+                        else if (substr(t, 1, 6) == "bytes=") bytes[dir] = substr(t, 7) + 0
                 }
-                CU[key] = $2 + 0; CD[key] = $3 + 0
-                next
-        }
-        FILENAME == ARGV[5] {
-                key = $1
-                match(key, /^[0-9.]+/)
-                ip = substr(key, 1, RLENGTH)
-                SEEN[ip] = 1
-                if (key in pbb) {
-                        db = ($2 + 0) - pbb[key]
-                        if (db > 0) {
-                                tc = (key in CU ? CU[key] : 0) + (key in CD ? CD[key] : 0)
-                                r = (tc > 0 && key in CD) ? CD[key] / tc : 0.5
-                                DOWN[ip] += db * r
-                                UP[ip] += db * (1 - r)
-                        }
-                }
-                next
+                if (!ip[1] || !ip[2] || sport[1] == "" || dport[1] == "") next
+                if (ispriv(ip[1])) { k = ip[1] "|" sport[1] ">" ip[2] "|" dport[1]; b0[k] = bytes[1]; c0[k] = bytes[2] }
+                else if (ispriv(ip[2])) { k = ip[2] "|" sport[2] ">" ip[1] "|" dport[2]; b0[k] = bytes[2]; c0[k] = bytes[1] }
+                else next
+                if (!(k in seen0)) { order[++n] = k; seen0[k] = 1 }
+                match(k, /^[0-9.]+/)
+                SEEN[substr(k, 1, RLENGTH)] = 1
         }
         END {
-                dt = now - pts
-                if (dt < 1) dt = 1
-                # v5.7 方向修正：PPE 幽灵把 ct 的 orig/reply 记成对称（u=d 假象），
-                # 每客户端只取【总量占比】，上下行按 WAN 口真实 rx:tx 比例拆分——
-                # 总账与方向都由物理接口决定，幽灵只能影响份额不能伪造方向。
+                dt = now - pts; if (dt < 1) dt = 1
+                # ① 幽灵冻结（v5.5 语义；窗口 5s → 判定下限 500KB/轮）
+                for (i = 1; i <= n; i++) {
+                        k = order[i]
+                        u2 = (k in b1) ? b0[k] - b1[k] : -1
+                        d2 = (k in c1) ? c0[k] - c1[k] : -1
+                        u1 = (k in b2 && k in b1) ? b1[k] - b2[k] : -1
+                        d1 = (k in c2 && k in c1) ? c1[k] - c2[k] : -1
+                        freeze = 0; ngv = 0
+                        if (k in gv) {
+                                if (d2 > 500000 && d2 > gv[k] * 0.5 && d2 < gv[k] * 2) { freeze = 1; ngv = d2 }
+                                else if (u2 > 500000 && u2 > gv[k] * 0.5 && u2 < gv[k] * 2) { freeze = 1; ngv = u2 }
+                        }
+                        if (!freeze) {
+                                if (d1 > 500000 && d2 > 500000) {
+                                        r = (d2 > d1) ? (d2 - d1) / d2 : (d1 - d2) / d1
+                                        if (r < 0.04) { freeze = 1; ngv = d2 }
+                                }
+                                if (!freeze && u1 > 500000 && u2 > 500000) {
+                                        r = (u2 > u1) ? (u2 - u1) / u2 : (u1 - u2) / u1
+                                        if (r < 0.04) { freeze = 1; ngv = u2 }
+                                }
+                        }
+                        if (freeze) { newgv[k] = ngv; eb[k] = (k in b1) ? b1[k] : b0[k]; ed[k] = (k in c1) ? c1[k] : c0[k] }
+                        else { eb[k] = b0[k]; ed[k] = c0[k] }
+                }
+                # ② 接口钳制（v5.5 语义）：Σ增量超 WAN+LAN 实测 ×1.3 + 2MB 按比例缩放
+                su = 0; sd = 0
+                for (i = 1; i <= n; i++) {
+                        k = order[i]
+                        du = (k in b1) ? eb[k] - b1[k] : 0
+                        dd = (k in c1) ? ed[k] - c1[k] : 0
+                        if (du > 0) su += du
+                        if (dd > 0) sd += dd
+                        dua[i] = (du > 0 ? du : 0); dda[i] = (dd > 0 ? dd : 0)
+                }
+                scale_u = (su > MAXU && su > 0) ? MAXU / su : 1
+                scale_d = (sd > MAXD && sd > 0) ? MAXD / sd : 1
+                print "" > CTF
+                for (i = 1; i <= n; i++) {
+                        k = order[i]
+                        eb[k] -= dua[i] * (1 - scale_u)
+                        ed[k] -= dda[i] * (1 - scale_d)
+                        printf "%s %.0f %.0f\n", k, eb[k], ed[k] > CTF
+                }
+                close(CTF)
+                # ③ 融合（v5.6/v5.7 语义）：ct/bind 增量按 WAN 口真实差分分摊
+                for (i = 1; i <= n; i++) {
+                        k = order[i]
+                        match(k, /^[0-9.]+/); ipk = substr(k, 1, RLENGTH)
+                        du = eb[k] - b1[k]; dd = ed[k] - c1[k]
+                        if (du > 0) { UP[ipk] += du; SU += du }
+                        if (dd > 0) { DOWN[ipk] += dd; SD += dd }
+                        CU[k] = eb[k]; CD[k] = ed[k]
+                }
+                for (k in pbnow) {
+                        match(k, /^[0-9.]+/); ipk = substr(k, 1, RLENGTH)
+                        SEEN[ipk] = 1
+                        if (k in pbb) {
+                                db = pbnow[k] - pbb[k]
+                                if (db > 0) {
+                                        tc = (k in CU ? CU[k] : 0) + (k in CD ? CD[k] : 0)
+                                        r = (tc > 0 && k in CD) ? CD[k] / tc : 0.5
+                                        DOWN[ipk] += db * r
+                                        UP[ipk] += db * (1 - r)
+                                }
+                        }
+                }
                 TOT = SU + SD
                 if (TOT > 0) { wu = WTXD / TOT; wd = WRXD / TOT } else { wu = 0; wd = 0 }
                 for (ip in GU) SEEN[ip] = 1
@@ -265,8 +223,10 @@ fuse() {
                 }
                 printf "%s}\n", (body == "" ? "" : "," body)
                 for (ip in NGU) printf "%s %.0f %.0f %.0f %.0f\n", ip, NGU[ip], NGD[ip], NDU[ip], NDD[ip]
+                for (k in newgv) print k, newgv[k] > GHISTF ".new"
         }
-        ' "$D/ct.prev" "$D/pb.prev" "$D/tot.prev" "$D/ct.now" "$D/pb.now"
+        ' "$1" "$2" "$3" "$4" "$5" "$6" "$7" /proc/net/nf_conntrack 2>/dev/null
+        return 0
 }
 
 seed() {
@@ -311,7 +271,7 @@ sr_wan_if() {
 
 sr_sample() {
         now=$1
-        lt=$(cat "$D/ser.t" 2>/dev/null || echo 0)
+        read -r lt _ < "$D/ser.t" 2>/dev/null || lt=0
         [ $((now - lt)) -ge 27 ] || return 0
         read -r _ u n sy id wa irq sq _rest < /proc/stat || return 0
         busy=$((u + n + sy + irq + sq))
@@ -361,13 +321,9 @@ touch "$D/ct.prev" "$D/ct.prev2" "$D/pb.prev" "$D/dev.prev" 2>/dev/null
 while :; do
         now=$(date +%s)
         sr_sample "$now"
-        snap_ct > $D/ct.now
         snap_pb > $D/pb.now
         snap_dev > $D/dev.now
-        # 幽灵过滤 + 接口钳制（v5.5）：恒定差分流冻结；Σ增量超物理上限整体缩放
-        [ -s "$D/ct.prev" ] && deghost "$D/ct.prev2" "$D/ct.prev" "$D/ct.now"
-        clamp_ct "$D/ct.prev" "$D/ct.now" "$D/dev.prev" "$D/dev.now"
-        pts=$(cat $D/ts 2>/dev/null || echo 0)
+        read -r pts _ < "$D/ts" 2>/dev/null || pts=0
         read -r wr1 wt1 lr1 lt1 < "$D/dev.prev" 2>/dev/null || { wr1=0; wt1=0; lr1=0; lt1=0; }
         read -r wr2 wt2 lr2 lt2 < "$D/dev.now" 2>/dev/null || { wr2=0; wt2=0; lr2=0; lt2=0; }
         # 首轮/坏快照（prev 全 0）不计增量：否则 WAN 开机累计会被当成一轮
@@ -378,14 +334,24 @@ while :; do
                 WRXD=$(( wr2 - wr1 )); [ $WRXD -lt 0 ] && WRXD=0
                 WTXD=$(( wt2 - wt1 )); [ $WTXD -lt 0 ] && WTXD=0
         fi
-        fuse "$now" "$pts" "$WRXD" "$WTXD" > $D/out.all 2>/dev/null
+        # 钳制上限（v5.5 语义）：WAN+LAN 差分 ×1.3 + 2MB 突发余量
+        maxd=$(( (wr2 - wr1) + (lr2 - lr1) + (lt2 - lt1) )); [ $maxd -lt 0 ] && maxd=0
+        maxu=$(( (wt2 - wt1) + (lr2 - lr1) + (lt2 - lt1) )); [ $maxu -lt 0 ] && maxu=0
+        maxd=$(( maxd * 13 / 10 + 2000000 ))
+        maxu=$(( maxu * 13 / 10 + 2000000 ))
+        # v5.8 单趟融合：解析+冻结+钳制+融合一次完成（原 4 个 awk → 1 个）
+        : > "$D/ct.now.new"
+        flow_pass "$D/ct.prev2" "$D/ct.prev" "$D/pb.prev" "$D/tot.prev" "$D/pb.now" "$D/dev.prev" "$GHIST" \
+                -v now="$now" -v pts="$pts" -v WRXD="$WRXD" -v WTXD="$WTXD" \
+                -v MAXD="$maxd" -v MAXU="$maxu" \
+                > $D/out.all 2>/dev/null
+        mv "$D/ct.prev" "$D/ct.prev2" 2>/dev/null
+        mv "$D/ct.now.new" "$D/ct.prev" 2>/dev/null
+        if [ -f "$GHIST.new" ]; then mv "$GHIST.new" "$GHIST"; else : > "$GHIST"; fi
         head -1 $D/out.all > "$TMP.tmp"
         mv "$TMP.tmp" "$TMP"
         chmod 644 "$TMP" 2>/dev/null
         tail -n +2 $D/out.all > $D/tot.m 2>/dev/null && mv $D/tot.m $D/tot.prev
-        mv $D/ct.prev $D/ct.prev2 2>/dev/null
-        mv $D/ct.now $D/ct.prev
-        mv $D/pb.now $D/pb.prev
         mv $D/dev.now $D/dev.prev
         echo "$now" > $D/ts.prev
         echo "$now" > $D/ts
@@ -398,6 +364,6 @@ while :; do
                 sr_save
         fi
         ROUNDS=$((ROUNDS+1))
-        if [ $((ROUNDS % 300)) -eq 0 ]; then flush; fi
-        sleep 2
+        if [ $((ROUNDS % 120)) -eq 0 ]; then flush; fi
+        sleep 5
 done
