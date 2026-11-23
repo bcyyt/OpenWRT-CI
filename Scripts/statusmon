@@ -1,6 +1,9 @@
 #!/bin/sh
-# statusmon v4.49 — OpenWrt 系统状态数据采集 CGI
+# statusmon v4.50 — OpenWrt 系统状态数据采集 CGI
 # 部署到 /www/cgi-bin/statusmon
+# v4.50 降毛刺：预聚合新鲜度 15s→30s（配合 worker v5.9.2 的 20s 构建节奏）；
+#             client_accumulate 采样节流 25s（隔次预聚合跳过 tc/nft/neigh 重采样，
+#             构建 CPU 减半；cron 每分钟与强制刷新路径不受影响）
 # v4.49 预聚合：无参轮询请求直读 /tmp/statusmon-preagg.json（15s 新鲜度，前端 ts 差分自洽），
 #             由 statusflow-worker v5.9 在仪表盘活跃时每 ~10s 后台构建；
 #             新增 ?preagg=1 构建端点（exec 重定向 + 原子落盘）；轮询开销 ~1.8s → ~5ms，
@@ -1083,6 +1086,15 @@ client_accumulate() {
         exec 8>/tmp/statusmon-client.lock
         flock -n -x 8 2>/dev/null || return 1
     fi
+    # v4.50 采样节流：距上次成功采样 <25s 且速率账本在位则直接复用（零 fork 读取）。
+    # worker 预聚合 20s 一建：隔次构建跳过 tc/nft/neigh 重采样，构建 CPU 减半；
+    # cron 每分钟 accumulate（60s 间隔）与 ?proto_day 强制路径不受影响。
+    _ca_first=""
+    read -r _ca_first < "$CLIENT_STATE" 2>/dev/null
+    _ca_ts=${_ca_first#ts=}
+    case "$_ca_ts" in ''|*[!0-9]*) _ca_ts=0 ;; esac
+    _ca_now=$(date +%s)
+    [ "$_ca_ts" -gt 0 ] && [ $((_ca_now - _ca_ts)) -lt 25 ] && [ -s "$CLIENT_RATEF" ] && return 0
     nft list chain netdev $SM_TABLE dl >/dev/null 2>&1 || _sm_nft_ensure
     _sm_nft_cli_sets_ensure
     _sm_nft_cli_rules_ensure
@@ -1307,13 +1319,13 @@ _qs_preagg=$(echo "$QUERY_STRING" | sed -n 's/^preagg=\([^&]*\).*/\1/p')
 
 # ===== v4.49 预聚合直读门（worker 后台构建，前端轮询零开销）=====
 # 仅无参轮询请求走此门；每次轮询刷新活跃标记供 worker 判断是否继续构建；
-# 预聚合文件过期(≥15s)/缺失则落入原全量路径（自愈），本次请求本身即重置活跃标记
+# 预聚合文件过期(≥30s)/缺失则落入原全量路径（自愈），本次请求本身即重置活跃标记
 if [ -z "$QUERY_STRING" ]; then
     echo "$NOW" > /tmp/statusmon-poll-stamp 2>/dev/null
     _pa_ts=0
     [ -s /tmp/statusmon-preagg.ts ] && read -r _pa_ts < /tmp/statusmon-preagg.ts
     case "$_pa_ts" in ''|*[!0-9]*) _pa_ts=0 ;; esac
-    if [ "$_pa_ts" -gt 0 ] && [ $((NOW - _pa_ts)) -ge 0 ] && [ $((NOW - _pa_ts)) -lt 15 ] && [ -s /tmp/statusmon-preagg.json ]; then
+    if [ "$_pa_ts" -gt 0 ] && [ $((NOW - _pa_ts)) -ge 0 ] && [ $((NOW - _pa_ts)) -lt 30 ] && [ -s /tmp/statusmon-preagg.json ]; then
         cat /tmp/statusmon-preagg.json
         exit 0
     fi

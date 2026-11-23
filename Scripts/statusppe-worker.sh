@@ -1,6 +1,7 @@
 #!/bin/sh
 # statusppe-worker — root 常驻采样：PPE 硬件表项占用 + CPU USR/SYS 占用
-# 由 /etc/init.d/statusppe 以 procd 启动，每 5 秒采样一次
+# 由 /etc/init.d/statusppe 以 procd 启动，每 10 秒采样一次（v5 降毛刺：原 5s，
+# debugfs 大表 dump 是 usr 周期毛刺主源之一；启动 sleep 5 与 statusflow-worker 错相）
 # 输出 /tmp/statusppe.json（0644，uhttpd CGI 以 nobody 身份可读）
 # 口径与 Luci 原生概览一致：
 #   - 表项数 = /sys/kernel/debug/ppeN/entries 行数（硬件转发表全量，含未绑定表项）
@@ -10,6 +11,8 @@ ST=/tmp/statusppe.state
 TMP=/tmp/statusppe.json
 
 cpu_snap() { awk '/^cpu /{print $2+$3, $4+$7+$8, $2+$3+$4+$5+$6+$7+$8}' /proc/stat; }
+
+sleep 5  # 错相：与 statusflow-worker 的 tick 错开 5s
 
 while :; do
         hw=$(uci -q get firewall.@defaults[0].flow_offloading_hw 2>/dev/null)
@@ -88,5 +91,5 @@ while :; do
         mv "$TMP.tmp" "$TMP"
         chmod 644 "$TMP" 2>/dev/null
 
-        sleep 5
+        sleep 10
 done

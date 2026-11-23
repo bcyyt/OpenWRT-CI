@@ -1,6 +1,10 @@
 #!/bin/sh
-# statusflow-worker v5.9 — 每客户端上下行实时速率 + 今日/累计流量 + 24h CPU/WAN 曲线采样
+# statusflow-worker v5.9.2 — 每客户端上下行实时速率 + 今日/累计流量 + 24h CPU/WAN 曲线采样
 #
+# v5.9.2（2026-11-24 降毛刺）：tick 5s→10s（usr 牙齿 20%→10% 量级、频率减半；
+#   速率/幽灵判定均按 ts 差分窗口自适应，口径不变）；ROUNDS%120→%60（维持
+#   10 分钟落盘节拍）；预聚合每 2 tick（20s）+ 延迟 5s 错相，配合 statusmon
+#   v4.50 的 30s 新鲜度门与 client_accumulate 25s 采样节流
 # v5.9（2026-11-24 statusmon 预聚合）：每 2 tick（~10s）在仪表盘活跃
 #   （/tmp/statusmon-poll-stamp 90s 内有轮询）时后台构建 statusmon 预聚合
 #   JSON（QUERY_STRING=preagg=1，nice 5 不抢跑）；.1 修复：timeout 25 兜底
@@ -360,16 +364,16 @@ while :; do
         echo "$now" > $D/ts.prev
         echo "$now" > $D/ts
 
-        # ===== v5.9.1 statusmon 预聚合构建（仪表盘活跃时，每 2 tick ≈10s）=====
-        # timeout 25 兜底：防 flock 交叉死锁等导致的挂死进程堆积；
-        # 不用 wait——避免阻塞 tick 节拍；ash 在后续外部命令处惰性收尸
+        # ===== v5.9.2 statusmon 预聚合构建（仪表盘活跃时，每 2 tick ≈20s）=====
+        # 构建延迟 5s 错相（避开本 tick 的 flow_pass 毛刺叠加）；
+        # timeout 35 兜底（5s 延迟 + 30s 构建）：防 flock 交叉死锁挂死堆积
         if [ $((ROUNDS % 2)) -eq 0 ] && [ -f /tmp/statusmon-poll-stamp ]; then
                 _ps=0
                 read -r _ps < /tmp/statusmon-poll-stamp 2>/dev/null
                 case "$_ps" in ''|*[!0-9]*) _ps=0 ;; esac
                 _psa=$((now - _ps))
                 if [ "$_psa" -ge 0 ] && [ "$_psa" -lt 90 ]; then
-                        QUERY_STRING=preagg=1 timeout 25 nice -n 5 /www/cgi-bin/statusmon >/dev/null 2>&1 &
+                        QUERY_STRING=preagg=1 timeout 35 nice -n 5 sh -c 'sleep 5; exec /www/cgi-bin/statusmon' >/dev/null 2>&1 &
                 fi
         fi
 
@@ -381,6 +385,6 @@ while :; do
                 sr_save
         fi
         ROUNDS=$((ROUNDS+1))
-        if [ $((ROUNDS % 120)) -eq 0 ]; then flush; fi
-        sleep 5
+        if [ $((ROUNDS % 60)) -eq 0 ]; then flush; fi
+        sleep 10
 done
