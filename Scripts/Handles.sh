@@ -71,6 +71,16 @@ fi
 #恢复进来造成残显（2026-11-23 实机复现）。镜像内置 uci-defaults 首启清理，仅 WIFI-NO 线生效。
 if [[ "$WRT_CONFIG" == *WIFI-NO* ]]; then
 FIX "base-files-wifino-cleanup" "$PACKAGE_PATH/base-files" sh -c "mkdir -p $PACKAGE_PATH/base-files/files/etc/uci-defaults && printf '#!/bin/sh\n# WIFI-NO 线: 清理 sysupgrade 保留设置恢复进来的 wireless 配置(无线栈已剥离, 残留配置致菜单/仪表盘无线残显)\nrm -f /etc/config/wireless\nexit 0\n' > $PACKAGE_PATH/base-files/files/etc/uci-defaults/99-wifino-cleanup"
+
+#LuCI 无线菜单物理摘除（网络→无线 / 信道分析 / 实时统计→无线）：菜单条目虽有
+#uci depends 应在无无线配置时自动隐藏，但 2026-11-23 实机复现空壳菜单（点击报错），
+#直接删 menu.d 条目一劳永逸；仅 WIFI-NO 线生效，双保险
+FIX "luci-wifino-menu-network" "$FEEDS_PATH/luci/modules/luci-mod-network" python3 \
+        "$GITHUB_WORKSPACE/Scripts/wifino-menu-strip.py" \
+        "$FEEDS_PATH/luci/modules/luci-mod-network/root/usr/share/luci/menu.d/luci-mod-network.json"
+FIX "luci-wifino-menu-status" "$FEEDS_PATH/luci/modules/luci-mod-status" python3 \
+        "$GITHUB_WORKSPACE/Scripts/wifino-menu-strip.py" \
+        "$FEEDS_PATH/luci/modules/luci-mod-status/root/usr/share/luci/menu.d/luci-mod-status.json"
 fi
 
 #uHTTPd HTTP(S) 访问页补全：固件精简版只剩 redirect_https，补回 HTTP/HTTPS 监听编辑字段
