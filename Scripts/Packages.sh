@@ -64,15 +64,18 @@ UPDATE_PACKAGE "openclash" "vernesong/OpenClash" "dev" "pkg"
 UPDATE_PACKAGE "passwall" "Openwrt-Passwall/openwrt-passwall" "main" "pkg"
 UPDATE_PACKAGE "passwall2" "Openwrt-Passwall/openwrt-passwall2" "main" "pkg"
 
-#===daede（kenzok8 增强版 daed，恩山 1.28 线）：S20P-612 + WIFI-618 两线替换官方 daed 包源（2026-11-19）===
-# main HEAD（2026.11.17）go.mod 要求 Go>=1.27：构建依赖显式切换到 feed 自带 golang1.27
-#（两源均含 golang1.27：chasey-dev 25.12 / immortalwrt-packages master 已验证）
-if [[ "$WRT_CONFIG" == MEDIATEK-S20P-* || "$WRT_CONFIG" == MEDIATEK-WIFI-* ]]; then
+#===daede（kenzok8 增强版 daed，pin 上游 dae/daed master 候选滚动线）：MTK 两线 + IPQ95XX(owrt) 两线替换官方 daed 包源===
+# main HEAD 滚动 pin 上游候选（v2026.11.21-75323da 基准，晚于官方 daed v2.1.1 tag，
+# 与 dae 核心 v2.1.3 同代；每个候选过 16 SDK 目标门禁）。go.mod 要求 Go>=1.27：
+# 构建依赖显式切换到 feed 自带 golang1.27（chasey-dev 25.12 / immortalwrt-packages master 已验证）
+# 2026-11-24: IPQ95XX(owrt) 两线并入——官方 immortalwrt-packages feed 的 daed 停在 1.27.0；
+# LEDE-IPQ95XX 线无源码包，继续走 OpenClash ipk 注入不动
+if [[ "$WRT_CONFIG" == MEDIATEK-S20P-* || "$WRT_CONFIG" == MEDIATEK-WIFI-* || "$WRT_CONFIG" == IPQ95XX* ]]; then
         find ./feeds/luci/ ./feeds/packages/ -maxdepth 3 -type d -iname '*daed*' -exec rm -rf {} + 2>/dev/null
         git clone -q https://github.com/kenzok8/openwrt-daede.git ./package/openwrt-daede
         rm -rf ./package/openwrt-daede/.git
         sed -i 's|golang/host|golang1.27/host|' ./package/openwrt-daede/daed/Makefile
-        echo "daede main(2026.11.17) + golang1.27 applied"
+        echo "daede main(2026.11.21+滚动, IPQ95XX 扩展) + golang1.27 applied"
 fi
 
 UPDATE_PACKAGE "diskmanager" "4IceG/luci-app-mini-diskmanager" "main"
