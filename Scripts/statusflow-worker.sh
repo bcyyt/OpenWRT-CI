@@ -99,8 +99,8 @@ snap_dev() {
 # stdout = out.all（首行 JSON + tot 行）；写 $D/ct.now.new 与 $GHIST.new
 # 内核接口只解析一次（/proc/net/nf_conntrack），其余全部内存内完成。
 flow_pass() {
-        awk -v now="$1" -v pts="$2" -v WRXD="$3" -v WTXD="$4" -v MAXD="$5" -v MAXU="$6" \
-                -v CTF="$D/ct.now.new" -v GHISTF="$GHIST" '
+        awk -v now="$now" -v pts="$pts" -v WRXD="$WRXD" -v WTXD="$WTXD" \
+                -v MAXD="$maxd" -v MAXU="$maxu" -v CTF="$D/ct.now.new" -v GHISTF="$GHIST" '
         function ispriv(ip) {
                 if (ip ~ /^192\.168\./) return 1
                 if (ip ~ /^10\./) return 1
@@ -119,18 +119,18 @@ flow_pass() {
         FILENAME == ARGV[6] { wr1 = $1 + 0; wt1 = $2 + 0; lr1 = $3 + 0; lt1 = $4 + 0; next }  # dev.prev
         FILENAME == ARGV[7] { gv[$1] = $2 + 0; next }                         # ghist
         FILENAME == ARGV[8] {                                                 # /proc/net/nf_conntrack
-                split("", ip); split("", sport); split("", dport); split("", bytes); dir = 0
+                split("", cip); split("", sport); split("", dport); split("", bytes); dir = 0
                 if ($3 != "tcp" && $3 != "udp") next
                 for (i = 1; i <= NF; i++) {
                         t = $i
-                        if (substr(t, 1, 4) == "src=") { dir++; ip[dir] = substr(t, 5) }
+                        if (substr(t, 1, 4) == "src=") { dir++; cip[dir] = substr(t, 5) }
                         else if (substr(t, 1, 6) == "sport=") sport[dir] = substr(t, 7)
                         else if (substr(t, 1, 6) == "dport=") dport[dir] = substr(t, 7)
                         else if (substr(t, 1, 6) == "bytes=") bytes[dir] = substr(t, 7) + 0
                 }
-                if (!ip[1] || !ip[2] || sport[1] == "" || dport[1] == "") next
-                if (ispriv(ip[1])) { k = ip[1] "|" sport[1] ">" ip[2] "|" dport[1]; b0[k] = bytes[1]; c0[k] = bytes[2] }
-                else if (ispriv(ip[2])) { k = ip[2] "|" sport[2] ">" ip[1] "|" dport[2]; b0[k] = bytes[2]; c0[k] = bytes[1] }
+                if (!cip[1] || !cip[2] || sport[1] == "" || dport[1] == "") next
+                if (ispriv(cip[1])) { k = cip[1] "|" sport[1] ">" cip[2] "|" dport[1]; b0[k] = bytes[1]; c0[k] = bytes[2] }
+                else if (ispriv(cip[2])) { k = cip[2] "|" sport[2] ">" cip[1] "|" dport[2]; b0[k] = bytes[2]; c0[k] = bytes[1] }
                 else next
                 if (!(k in seen0)) { order[++n] = k; seen0[k] = 1 }
                 match(k, /^[0-9.]+/)
@@ -211,8 +211,10 @@ flow_pass() {
                 printf "{\"ts\":%d", now
                 body = ""
                 for (ip in SEEN) {
-                        sh = ((ip in UP ? UP[ip] : 0) + (ip in DOWN ? DOWN[ip] : 0)) / TOT
-                        u = wu * sh * TOT; d = wd * sh * TOT
+                        if (TOT > 0) {
+                                sh = ((ip in UP ? UP[ip] : 0) + (ip in DOWN ? DOWN[ip] : 0)) / TOT
+                                u = wu * sh * TOT; d = wd * sh * TOT
+                        } else { u = 0; d = 0 }
                         ngu = (ip in GU ? GU[ip] : 0) + u
                         ngd = (ip in GD ? GD[ip] : 0) + d
                         ndu = (ip in DU ? DU[ip] : 0) + u
@@ -342,8 +344,6 @@ while :; do
         # v5.8 单趟融合：解析+冻结+钳制+融合一次完成（原 4 个 awk → 1 个）
         : > "$D/ct.now.new"
         flow_pass "$D/ct.prev2" "$D/ct.prev" "$D/pb.prev" "$D/tot.prev" "$D/pb.now" "$D/dev.prev" "$GHIST" \
-                -v now="$now" -v pts="$pts" -v WRXD="$WRXD" -v WTXD="$WTXD" \
-                -v MAXD="$maxd" -v MAXU="$maxu" \
                 > $D/out.all 2>/dev/null
         mv "$D/ct.prev" "$D/ct.prev2" 2>/dev/null
         mv "$D/ct.now.new" "$D/ct.prev" 2>/dev/null
