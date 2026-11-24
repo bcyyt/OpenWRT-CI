@@ -293,18 +293,17 @@
 #sm-t-right .sm-t-mono{flex:0 0 auto}
 #sm-t-right .sm-t-main{flex:1;min-width:0}
 @media(max-width:760px){
-  .sm-topo{padding:12px}
-  .sm-t-grid{grid-template-columns:30px 1fr;gap:16px 8px;position:relative}
-  .sm-topo-svg{display:none}
-  .sm-t-grid::before{content:"";position:absolute;left:14px;top:40px;bottom:40px;width:2.5px;background:linear-gradient(180deg,#93c5fd,#2563eb 30%,#2563eb 70%,#93c5fd);border-radius:2px;opacity:.6}
+  .sm-topo{padding:14px 10px}
+  .sm-t-grid{grid-template-columns:1fr;gap:30px 0;position:relative;min-height:120px}
+  #sm-t-inet{grid-column:1}
+  .sm-t-grid{padding-left:0;margin-left:52px}
+  .sm-topo-svg{display:block}
   #sm-t-right{display:contents}
-  .sm-tnode{grid-column:2;max-width:100%;box-sizing:border-box;position:relative}
-  .sm-tnode::before{content:"";position:absolute;left:-22px;top:50%;width:22px;height:2.5px;background:rgba(37,99,235,.55);transform:translateY(-50%)}
-  .sm-tnode::after{content:"";position:absolute;left:-23px;top:50%;transform:translate(-50%,-50%);width:10px;height:10px;border-radius:50%;background:#fff;border:2.5px solid var(--sm-p);box-shadow:0 0 0 2.5px rgba(37,99,235,.15);z-index:2}
+  .sm-tnode{grid-column:1;max-width:100%;box-sizing:border-box;position:relative}
+  .sm-tnode::before,.sm-tnode::after{content:none}
   .sm-t-name,.sm-t-mono{white-space:normal;word-break:break-all;overflow-wrap:anywhere}
   .sm-t-name{font-size:14.5px;flex:0 0 auto}
   .sm-t-sm>div:nth-of-type(2)>span:last-child{min-width:0;flex:1;text-align:right;font-size:11px}
-  #sm-t-dev::after{border-color:var(--sm-s);box-shadow:0 0 0 2.5px rgba(22,163,74,.16)}
 }
 
 /* ===== v8 全面美化 ===== */
@@ -325,8 +324,7 @@
 .sm-ic{border-radius:9px}
 .sm-table th{font-size:11.5px;letter-spacing:.3px;text-transform:none}
 @media(max-width:720px){
-  .fwm-wrap{padding-top:14px}
-  .sm-hero{margin:4px 0 12px;padding-bottom:10px}
+  .fwm-wrap{padding-top:14px!important}
   .sm-hero-badge{width:36px;height:36px;border-radius:10px}
   .sm-hero-badge svg{width:19px;height:19px}
   .sm-hero h1{font-size:19px}
@@ -899,10 +897,30 @@ function sm_topoConnect(){
   if(!inet||!dev||!rights.length){svg.innerHTML='';return}
   var wb=wrap.getBoundingClientRect();
   function R(el){var r=el.getBoundingClientRect();return{l:r.left-wb.left,r:r.right-wb.left,cy:r.top-wb.top+r.height/2}}
+  var mob=window.innerWidth<=760;
+  var lc=mob?'#7FA8E8':'#D9DBD2',lw=mob?'2.5':'1.5';
   var i=R(inet),dv=R(dev),s='';
-  s+='<path id="sm-tp-wan" d="M'+i.r+' '+i.cy+' L'+dv.l+' '+dv.cy+'" stroke="#D9DBD2" stroke-width="1.5" stroke-dasharray="5 4" fill="none"/>';
+  if(mob){
+    /* 手机总线型：左干线 + 每卡 S 弧接入（根=互联网，其余都挂干线） */
+    var busX=Math.max(10,Math.min(26,dv.l-40));
+    var tops=[inet].concat(Array.prototype.slice.call(rights));
+    var y0=i.cy,y1=1e4;tops.forEach(function(el){var rr=R(el);y0=Math.min(y0,rr.cy);y1=Math.min(y1,rr.cy);y1=(y1===1e4?rr.cy:y1);});
+    y1=0;var ymax=0;tops.forEach(function(el){var rr=R(el);y1=Math.min(y1===0?rr.cy:y1,rr.cy);ymax=Math.max(ymax,rr.cy)});
+    s+='<path id="sm-tp-bus" d="M'+busX+' '+(y0-6)+' L'+busX+' '+(ymax+6)+'" stroke="'+lc+'" stroke-width="'+(parseFloat(lw)+1)+'" fill="none" stroke-linecap="round" opacity=".9"/>';
+    function arc(el,first){var rr=R(el);var cy=rr.cy;var ex=busX;
+      var mid=(ex+rr.l)/2, sag=first?16:9;
+      return 'M'+ex+' '+cy+' C'+mid+' '+(cy-sag)+' '+mid+' '+(cy+sag)+' '+rr.l+' '+cy}
+    s+='<path id="sm-tp-wan" d="'+arc(inet,true)+'" stroke="'+lc+'" stroke-width="'+lw+'" fill="none"/>';
+    Array.prototype.forEach.call(rights,function(el,ix){s+='<path id="sm-tp-'+ix+'" d="'+arc(el)+'" stroke="'+lc+'" stroke-width="'+lw+'" fill="none"/>'});
+    var np=[{r:3.5,f:'#2563eb'}].concat(Array.prototype.slice.call(rights).map(function(_,k){return {r:3,f:'#A9C522'}}));
+    s+='<circle r="'+np[0].r+'" fill="'+np[0].f+'" opacity=".9"><animateMotion dur="2.6s" repeatCount="indefinite"><mpath href="#sm-tp-wan"/></animateMotion></circle>';
+    Array.prototype.forEach.call(rights,function(_,ix){s+='<circle r="'+np[ix+1].r+'" fill="'+np[ix+1].f+'" opacity=".85"><animateMotion dur="'+(2+ix*0.4).toFixed(1)+'s" begin="'+(ix*0.6).toFixed(1)+'s" repeatCount="indefinite"><mpath href="#sm-tp-'+ix+'"/></animateMotion></circle>'});
+    svg.innerHTML=s;
+    return;
+  }
+  s+='<path id="sm-tp-wan" d="'+sm_topoPath(i.r,i.cy,dv.l,dv.cy)+'" stroke="'+lc+'" stroke-width="'+lw+'" fill="none"/>';
   Array.prototype.forEach.call(rights,function(el,ix){var rr=R(el);
-    s+='<path id="sm-tp-'+ix+'" d="'+sm_topoPath(dv.r,dv.cy,rr.l,rr.cy)+'" stroke="#D9DBD2" stroke-width="1.5" fill="none"/>'});
+    s+='<path id="sm-tp-'+ix+'" d="'+sm_topoPath(dv.r,dv.cy,rr.l,rr.cy)+'" stroke="'+lc+'" stroke-width="'+lw+'" fill="none"/>'});
   s+='<circle r="2.5" fill="#A9C522"><animateMotion dur="2.4s" repeatCount="indefinite"><mpath href="#sm-tp-wan"/></animateMotion></circle>';
   Array.prototype.forEach.call(rights,function(el,ix){
     s+='<circle r="2" fill="#A9C522" opacity=".85"><animateMotion dur="'+(2+ix*0.4).toFixed(1)+'s" begin="'+(ix*0.6).toFixed(1)+'s" repeatCount="indefinite"><mpath href="#sm-tp-'+ix+'"/></animateMotion></circle>'});
