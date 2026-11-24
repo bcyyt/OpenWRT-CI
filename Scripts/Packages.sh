@@ -400,7 +400,7 @@ done
 WRT_ROOT=$PWD
 (cd "$SMD_DIR" && make --no-print-directory -f Makefile TOPDIR="$WRT_ROOT" INCLUDE_DIR="$WRT_ROOT/include" -n >/dev/null 2>/tmp/smd_syntax.err) \
         && echo "statusmon-dash Makefile syntax: OK" \
-        || { echo "statusmon-dash Makefile syntax FAILED:"; head -5 /tmp/smd_syntax.err; }
+        || { echo "statusmon-dash Makefile syntax FAILED:"; head -5 /tmp/smd_syntax.err; exit 1; }
 
 #===luci-app-adash（QCB-ARGON 线专用：低 CPU 仪表盘，Argon 主题）===
 # fork statusmon-dash：无常驻 worker；conntrack/PPE 视图驱动缓存；cron(1/min) 仅
@@ -415,7 +415,7 @@ done
 WRT_ROOT=$PWD
 (cd "$AD_DIR" && make --no-print-directory -f Makefile TOPDIR="$WRT_ROOT" INCLUDE_DIR="$WRT_ROOT/include" -n >/dev/null 2>/tmp/ad_syntax.err) \
         && echo "adash Makefile syntax: OK" \
-        || { echo "adash Makefile syntax FAILED:"; head -5 /tmp/ad_syntax.err; }
+        || { echo "adash Makefile syntax FAILED:"; head -5 /tmp/ad_syntax.err; exit 1; }
 fi
 
 #===luci-theme-slate（2026-11-24：暗色科技主题）===
@@ -429,7 +429,7 @@ done
 WRT_ROOT2=$PWD
 (cd "$SL_DIR" && make --no-print-directory -f Makefile TOPDIR="$WRT_ROOT2" INCLUDE_DIR="$WRT_ROOT2/include" -n >/dev/null 2>/tmp/sl_syntax.err) \
         && echo "slate Makefile syntax: OK" \
-        || { echo "slate Makefile syntax FAILED:"; head -5 /tmp/sl_syntax.err; }
+        || { echo "slate Makefile syntax FAILED:"; head -5 /tmp/sl_syntax.err; exit 1; }
 #===irq-tune（MT7988 以太网中断分核 + TX 队列 XPS）：自编组件独立成包（2026-11-18）===
 # boot 期一次性调优：eth 中断向量按核摊开 + TX 队列 XPS；rc.d 符号链接随包内置自启
 # 仅 MediaTek 目标启用（Settings.sh），其它平台脚本自动跳过无副作用
