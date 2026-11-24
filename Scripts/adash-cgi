@@ -1816,7 +1816,7 @@ ct_max=0
 # UDP 活跃 = [ASSURED] 或 [OFFLOAD]（UDP 无 ESTABLISHED）
 # ICMP 无状态概念，统计全部条目
 # 外部连接 = 活跃连接中原始 src 或 dst 任一为公网（含 LAN 出站与公网入站）
-ct_tcp_estab=0; ct_tcp_total=0; ct_udp=0; ct_udp_total=0; ct_icmp=0; ct_external=0
+ct_tcp_estab=0; ct_tcp_total=0; ct_udp=0; ct_udp_total=0; ct_icmp=0; ct_external=0; ct_tcp_act=0; ct_tcp_idle=0
 if [ -s /tmp/adash-ct-stats ] && [ $(( $(date +%s) - $(stat -c %Y /tmp/adash-ct-stats 2>/dev/null || echo 0) )) -lt 30 ]; then
     _proto_stats=$(cat /tmp/adash-ct-stats 2>/dev/null)
 elif [ -f /proc/net/nf_conntrack ]; then
@@ -1867,7 +1867,10 @@ elif [ -f /proc/net/nf_conntrack ]; then
       active=0
       if(p=="tcp"){
         tcp++
-        if(tcp_st=="ESTABLISHED"||off){tcp_e++; active=1}
+        if(tcp_st=="ESTABLISHED"||off){tcp_e++; active=1
+          # 剩余超时≥1200s(2/3满值)=近期有流量刷新=活跃；否则=幽灵闲置
+          if($5+0>=1200) tcp_act++; else tcp_idle++
+        }
       } else if(p=="udp"){
         udp++
         if(assured||off){udp_e++; active=1}
@@ -1875,17 +1878,20 @@ elif [ -f /proc/net/nf_conntrack ]; then
         icmp++; active=1
       }
       if(active && (!is_int(s1) || !is_int(d1))) ext++
-    } END{print tcp_e+0, tcp+0, udp_e+0, udp+0, icmp+0, ext+0}' /proc/net/nf_conntrack 2>/dev/null)
-    printf '%s\n' "${_proto_stats:-0 0 0 0 0 0}" > /tmp/adash-ct-stats.tmp.$$ 2>/dev/null \
+    } END{print tcp_e+0, tcp+0, udp_e+0, udp+0, icmp+0, ext+0, tcp_act+0, tcp_idle+0}' /proc/net/nf_conntrack 2>/dev/null)
+    printf '%s\n' "${_proto_stats:-0 0 0 0 0 0 0 0}" > /tmp/adash-ct-stats.tmp.$$ 2>/dev/null \
         && mv -f /tmp/adash-ct-stats.tmp.$$ /tmp/adash-ct-stats 2>/dev/null
 fi
-_proto_stats=${_proto_stats:-"0 0 0 0 0 0"}
+_proto_stats=${_proto_stats:-"0 0 0 0 0 0 0 0"}
 
     ct_tcp_estab=$(echo "$_proto_stats" | awk '{print $1}')
     ct_tcp_total=$(echo "$_proto_stats" | awk '{print $2}')
     ct_udp=$(echo "$_proto_stats" | awk '{print $3}')
     ct_udp_total=$(echo "$_proto_stats" | awk '{print $4}')
     ct_icmp=$(echo "$_proto_stats" | awk '{print $5}')
+    ct_external=$(echo "$_proto_stats" | awk '{print $6}')
+    ct_tcp_act=$(echo "$_proto_stats" | awk '{print $7}')
+    ct_tcp_idle=$(echo "$_proto_stats" | awk '{print $8}')
 
 # ===== 网络接口（物理 + LAN + WAN + WiFi + pppoe*）=====
 # v4.10 性能优化：所有 sysfs/ip/uci 读取批量预取为 shell 变量，循环内零进程 spawn
@@ -2406,7 +2412,9 @@ cat <<JSONEOF
     "ct_udp": $ct_udp,
     "ct_udp_total": $ct_udp_total,
     "ct_icmp": $ct_icmp,
-    "ct_external": $ct_external
+    "ct_external": $ct_external,
+    "ct_tcp_act": ${ct_tcp_act:-0},
+    "ct_tcp_idle": ${ct_tcp_idle:-0}
   },
   "network": $net_ifs,
   "traffic": $traffic_json,
