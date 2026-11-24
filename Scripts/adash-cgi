@@ -1256,14 +1256,18 @@ client_accumulate() {
 # ===== live 实时端点（v4.50）=====
 # 仅零 spawn 读 /proc，绕过 25s 整包缓存——2s 轮询接口字节永远新鲜，速率差分不失真。
 # 整包缓存只保护重活(nft×13/conntrack)；本端点 <10ms，专修"流量不准/不及时"。
+# map：逻辑接口名=物理口（如 wan2=lan3），前端用它把物理口字节归到逻辑名。
 _qs_live=$(echo "$QUERY_STRING" | sed -n 's/^live=\([^&]*\).*/\1/p')
 if [ -n "$_qs_live" ]; then
     exec 2>/dev/null
     _la=$(cut -d' ' -f1-3 /proc/loadavg | sed 's/ /,/g')
     _cpu=$(awk 'NR==1{print $2","$3","$4","$5","$6","$7","$8","$10}' /proc/stat)
-    printf '{"ts":%s,"up":%s,"la":[%s],"cpu":[%s],"net":{' "$(date +%s)" "$(cut -d. -f1 /proc/uptime)" "$_la" "$_cpu"
+    printf '{"ts":%s,"up":%s,"la":[%s],"cpu":[%s],"map":"' "$(date +%s)" "$(cut -d. -f1 /proc/uptime)" "$_la" "$_cpu"
+    ubus call network.interface dump 2>/dev/null | awk 'BEGIN{ORS=""}/"interface": "/{gsub(/[",]/,"",$2); i=$2}/"l3_device": "/{gsub(/[",]/,"",$2); d=$2;printf "%s%s=%s",(_m?",":""),i,d; _m=1; i=""}'
+    printf '","net":{'
     awk 'NR>2 {iface=$1; sub(/:$/,"",iface); gsub(/[ 	]/,"",iface); if(iface!="" && iface!="lo" && $2 ~ /^[0-9]+$/ && $10 ~ /^[0-9]+$/) {printf "%s\"%s\":{\"rx\":%s,\"tx\":%s}", (_f?",":""), iface, $2, $10; _f=1}}' /proc/net/dev 2>/dev/null
-    printf '}}\n'
+    printf '}}
+'
     exit 0
 fi
 
