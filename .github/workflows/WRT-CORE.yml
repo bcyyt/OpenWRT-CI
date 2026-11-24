@@ -337,7 +337,9 @@ jobs:
             for FILE in $(find ./bin/targets/ -type f -iname "*$WRT_TARGET*") ; do
               EXT=$(basename $FILE | cut -d '.' -f 2-)
               NAME=$(basename $FILE | cut -d '.' -f 1 | grep -io "\($WRT_TARGET\).*")
-              NEW_FILE="$NAME"-"$WRT_INFO"-"$WRT_BRANCH"-"$WRT_WIFI"-"$WRT_DATE"."$EXT"
+              #2026-11-24: 文件名加主题段——QCB-ALL(vantage) 与 QCB-ARGON(argon) 同源码
+              #同配置出同名固件的问题根治（此前只能靠时间戳盲猜）
+              NEW_FILE="$NAME"-"$WRT_INFO"-"$WRT_BRANCH"-"$WRT_THEME"-"$WRT_WIFI"-"$WRT_DATE"."$EXT"
               mv -f $FILE ./upload/$NEW_FILE
             done
 
@@ -349,7 +351,7 @@ jobs:
       - name: Release Firmware
         uses: softprops/action-gh-release@master
         with:
-          tag_name: ${{env.WRT_CONFIG}}-${{env.WRT_INFO}}-${{env.WRT_BRANCH}}-${{env.WRT_DATE}}
+          tag_name: ${{env.WRT_CONFIG}}-${{env.WRT_INFO}}-${{env.WRT_BRANCH}}-${{env.WRT_THEME}}-${{env.WRT_DATE}}
           files: ./wrt/upload/*.*
           body: |
             这是个平台固件包，内含多个设备！
