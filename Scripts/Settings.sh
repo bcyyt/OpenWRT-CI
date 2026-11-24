@@ -28,22 +28,16 @@ sed -i "s/192\.168\.[0-9]*\.[0-9]*/$WRT_IP/g" $CFG_FILE
 #修改默认主机名
 sed -i "s/hostname='.*'/hostname='$WRT_NAME'/g" $CFG_FILE
 
-#===内核rmem_max按内存自适应：≤512MB→16M；≤1GB→32M；>1GB→64M===
-#开机首次启动动态生成 /etc/sysctl.d/99-rmem.conf（字母序99最后生效，覆盖包内置的15-iptav-auth.conf下限值）
+#===内核 rmem_max/wmem_max 统一默认 64M（2026-11-24 按需定案，取消内存分档）===
+#两值均为"上限"而非预分配，低内存机器设置无实际代价；覆盖包内置的 15-iptav-auth.conf 下限值
 mkdir -p ./package/base-files/files/etc/uci-defaults
 cat > ./package/base-files/files/etc/uci-defaults/99-rmemmax <<'RMEMMAX'
 #!/bin/sh
-MEM_KB=$(awk '/MemTotal/ {print $2}' /proc/meminfo 2>/dev/null)
-[ -n "$MEM_KB" ] || exit 0
 mkdir -p /etc/sysctl.d
-if [ "$MEM_KB" -le 524288 ]; then
-        RMEM=16777216
-elif [ "$MEM_KB" -le 1048576 ]; then
-        RMEM=33554432
-else
-        RMEM=67108864
-fi
-echo "net.core.rmem_max=$RMEM" > /etc/sysctl.d/99-rmem.conf
+{
+        echo "net.core.rmem_max=67108864"
+        echo "net.core.wmem_max=67108864"
+} > /etc/sysctl.d/99-rmem.conf
 exit 0
 RMEMMAX
 

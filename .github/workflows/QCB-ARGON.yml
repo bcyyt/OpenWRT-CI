@@ -1,0 +1,69 @@
+# SPDX-License-Identifier: MIT
+# Copyright (C) 2026 VIKINGYFY
+
+#CI项目
+name: QCB-ARGON
+
+#CI计划
+on:
+  #定时编译：每天北京时间 11:30（UTC 03:30，填 LEDE 下线后的空档，与 QCB-ALL 错开半小时）
+  schedule:
+    - cron: '30 3 * * *'
+  #手动编译
+  workflow_dispatch:
+    inputs:
+      PACKAGE:
+        description: '手动调整插件包，多个请用\n符号隔开。'
+        required: false
+        type: string
+      TEST:
+        description: '仅输出配置文件，不编译固件。'
+        default: false
+        required: false
+        type: boolean
+
+#CI权限
+permissions: write-all
+
+#CI任务
+jobs:
+  config:
+    name: ${{matrix.CONFIG}}
+    strategy:
+      fail-fast: false
+      #max-parallel: 3
+      matrix:
+        #IPQ95XX 全量线 + IPQ95XX-WIFI-NO 纯有线线（SBE1V1K 专用，无线栈全剥离）
+        #Argon 主题版：vantage 主题件（statusmon 仪表/zte-wifi 展示层注入/vantage
+        #三补丁）按 WRT_THEME 守卫自动缺席，本线只出 Argon 原生界面固件
+        CONFIG: [IPQ95XX, IPQ95XX-WIFI-NO]
+        SOURCE: [VIKINGYFY/immortalwrt]
+        BRANCH: [owrt]
+
+    #调用公用编译核心WRT-CORE.yml
+    uses: ./.github/workflows/WRT-CORE.yml
+    with:
+      #编译配置
+      WRT_CONFIG: ${{matrix.CONFIG}}
+      #默认主题
+      WRT_THEME: argon
+      #默认主机名
+      WRT_NAME: OWRT
+      #默认WIFI名称
+      WRT_SSID: OWRT
+      #默认WIFI密码
+      WRT_WORD: 12345678
+      #默认地址
+      WRT_IP: 192.168.10.1
+      #默认密码，仅作提示，修改无用
+      WRT_PW: 无
+      #源码链接
+      WRT_REPO: https://github.com/${{matrix.SOURCE}}.git
+      #源码分支
+      WRT_BRANCH: ${{matrix.BRANCH}}
+      #源码名称
+      WRT_SOURCE: ${{matrix.SOURCE}}
+      #插件调整
+      WRT_PACKAGE: ${{inputs.PACKAGE}}
+      #仅输出配置文件
+      WRT_TEST: ${{inputs.TEST || false}}
