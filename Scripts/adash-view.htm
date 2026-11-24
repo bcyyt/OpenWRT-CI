@@ -268,9 +268,10 @@
 /* ===== 网络路径（拓扑；fork vantage 视觉）===== */
 .sm-topo{position:relative;background-color:#F4F5F1;background-image:radial-gradient(#DDDFD8 1px,transparent 1px);background-size:20px 20px;border-radius:10px;padding:18px;overflow:hidden}
 .sm-topo-svg{position:absolute;left:0;top:0;width:100%;height:100%;z-index:1;pointer-events:none}
-.sm-t-grid{position:relative;z-index:2;display:grid;grid-template-columns:200px 1fr 230px;gap:30px;align-items:center;min-height:150px}
-.sm-zteb{display:inline-flex;align-items:center;gap:4px;margin-left:6px;padding:1px 7px;border-radius:8px;font-size:10px;font-weight:600;line-height:1.6;color:#0891b2;background:rgba(6,182,212,.12);border:1px solid rgba(6,182,212,.25);vertical-align:middle;white-space:nowrap;max-width:180px;overflow:hidden;text-overflow:ellipsis}
+.sm-t-grid{position:relative;z-index:2;display:grid;grid-template-columns:190px max-content 215px;gap:16px;align-items:center;min-height:150px}
+.sm-zteb{display:inline-block;margin-left:5px;padding:0 5px;border-radius:6px;font-size:9px;font-weight:500;line-height:1.5;color:#0891b2;background:rgba(6,182,212,.12);border:1px solid rgba(6,182,212,.25);vertical-align:middle;white-space:nowrap;max-width:150px;overflow:hidden;text-overflow:ellipsis}
 .sm-zteb.node{color:#7c3aed;background:rgba(139,92,246,.10);border-color:rgba(139,92,246,.25)}
+.sm-cnm{max-width:230px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .sm-tnode{background:#fff;border:1px solid #E3E5DD;border-radius:12px;box-shadow:0 2px 8px rgba(40,50,30,.06);padding:12px 14px;position:relative;z-index:2}
 #sm-t-inet,#sm-t-dev{display:flex;align-items:center;gap:12px}
 #sm-t-dev{padding:16px 18px;box-shadow:0 3px 14px rgba(40,50,30,.10);justify-self:center;max-width:280px}
@@ -785,7 +786,7 @@ function sm_zteLoad(){
 function sm_zteBadge(ip){
   var n=sm_zte.n&&sm_zte.n[ip],c=sm_zte.c&&sm_zte.c[ip];
   if(n)return '<span class="sm-zteb node" title="中兴 mesh 节点">ZTE mesh · '+sm_esc(n.m||'')+'</span>';
-  if(c)return '<span class="sm-zteb" title="中兴 mesh 无线">中兴mesh · '+sm_esc(c.b||'')+(c.n?' · '+sm_esc(c.n):'')+'</span>';
+  if(c)return '<span class="sm-zteb" title="中兴 mesh 无线 · '+sm_esc(c.n||'')+'">'+sm_esc(c.b||'mesh')+'</span>';
   return '';
 }
 
@@ -914,7 +915,7 @@ function sm_render(d){
   window.sm_cpuAvg=window.sm_cpuAvg||[];var smNowS=Math.floor(Date.now()/1000);var sm_cv=(d.ppe&&typeof d.ppe.cpu_avg==='number'&&d.ppe.cpu_avg>=0)?d.ppe.cpu_avg:((d.ppe&&typeof d.ppe.cpu==='number'&&d.ppe.cpu>=0)?d.ppe.cpu:d.system.cpu_usage);window.sm_liveCpu=sm_ca;window.sm_cpuAvg.push({t:smNowS,v:sm_cv});while(window.sm_cpuAvg.length&&smNowS-window.sm_cpuAvg[0].t>30)window.sm_cpuAvg.shift();var sm_ca=0;for(var smi=0;smi<window.sm_cpuAvg.length;smi++)sm_ca+=window.sm_cpuAvg[smi].v;sm_ca=window.sm_cpuAvg.length?Math.round(sm_ca/window.sm_cpuAvg.length):d.system.cpu_usage;sm_sr('sm-cpu-ring',sm_ca,sm_lc(sm_ca));var crt=document.getElementById('sm-cpu-rt');if(crt)crt.textContent=sm_ca+'%';
   document.getElementById('sm-cpu-model').textContent=d.system.cpu_model;document.getElementById('sm-cpu-cores').textContent=d.system.cpu_cores+' 核';
   document.getElementById('sm-cpu-freq').textContent=sm_freq(d.system);document.getElementById('sm-cpu-load').textContent=d.system.load.join(' / ');
-  if(d.ppe){var pa=d.ppe.ppe0||{},pb=d.ppe.ppe1||{};var pb0=pa.b||0,pb1=pb.b||0;var p1r=document.getElementById('sm-ppe1-row'),p1vr=document.getElementById('sm-ppe1vg-row');if(p1r)p1r.style.display=(pb.t>0?'':'none');if(p1vr)p1vr.style.display=(pb.t>0?'':'none');var pu=(pa.v4||0)+(pa.v6||0)+(pb.v4||0)+(pb.v6||0);var pt=(pa.t||0)+(pb.t||0);var pp=pt>0?Math.round((pb0+pb1)/pt*10000)/100:0;sm_sr('sm-ppe-ring',pp,sm_lc(pp));var prt=document.getElementById('sm-ppe-rt');if(prt)prt.textContent=pp<1?pp.toFixed(2)+'%':Math.round(pp)+'%';var phw=document.getElementById('sm-ppe-hw');if(phw)phw.textContent=d.ppe.hw?'开启':'关闭';var p0=document.getElementById('sm-ppe0');if(p0)p0.textContent=pb0+' / '+((pa.v4||0)+(pa.v6||0));var p1=document.getElementById('sm-ppe1');if(p1)p1.textContent=pb1+' / '+((pb.v4||0)+(pb.v6||0));var pv0=document.getElementById('sm-ppe0-vg');if(pv0)pv0.textContent=((pa.bv4!=null?pa.bv4:pa.v4)||0)+' / '+((pa.bv6!=null?pa.bv6:pa.v6)||0);var pv1=document.getElementById('sm-ppe1-vg');if(pv1)pv1.textContent=((pb.bv4!=null?pb.bv4:pb.v4)||0)+' / '+((pb.bv6!=null?pb.bv6:pb.v6)||0);var ptot=document.getElementById('sm-ppe-tot');if(ptot)ptot.textContent=pu+' / '+pt;}
+  if(d.ppe){var pa=d.ppe.ppe0||{},pb=d.ppe.ppe1||{};var pb0=pa.b||0,pb1=pb.b||0;var p1r=document.getElementById('sm-ppe1-row'),p1vr=document.getElementById('sm-ppe1vg-row');if(p1r)p1r.style.display=(pb.t>0?'':'none');if(p1vr)p1vr.style.display=(pb.t>0?'':'none');var pu=(pa.v4||0)+(pa.v6||0)+(pb.v4||0)+(pb.v6||0);var pt=(pa.t||0)+(pb.t||0);var ppc=d.ppe.cap||0;var pp=ppc>0?Math.round(pt/ppc*10000)/100:(pt>0?Math.round((pb0+pb1)/pt*10000)/100:0);sm_sr('sm-ppe-ring',pp,sm_lc(pp));var prt=document.getElementById('sm-ppe-rt');if(prt)prt.textContent=pp<1?pp.toFixed(2)+'%':Math.round(pp)+'%';var phw=document.getElementById('sm-ppe-hw');if(phw)phw.textContent=d.ppe.hw?'开启':'关闭';var p0=document.getElementById('sm-ppe0');if(p0)p0.textContent=pb0+' / '+((pa.v4||0)+(pa.v6||0));var p1=document.getElementById('sm-ppe1');if(p1)p1.textContent=pb1+' / '+((pb.v4||0)+(pb.v6||0));var pv0=document.getElementById('sm-ppe0-vg');if(pv0)pv0.textContent=((pa.bv4!=null?pa.bv4:pa.v4)||0)+' / '+((pa.bv6!=null?pa.bv6:pa.v6)||0);var pv1=document.getElementById('sm-ppe1-vg');if(pv1)pv1.textContent=((pb.bv4!=null?pb.bv4:pb.v4)||0)+' / '+((pb.bv6!=null?pb.bv6:pb.v6)||0);var ptot=document.getElementById('sm-ppe-tot');if(ptot)ptot.textContent=pu+' / '+pt;}
   sm_sr('sm-mem-ring',mp,sm_lc(mp));var mrt=document.getElementById('sm-mem-rt');if(mrt)mrt.textContent=mp+'%';
   document.getElementById('sm-mem-total').textContent=sm_f(d.memory.total*1024);document.getElementById('sm-mem-used').textContent=sm_f(d.memory.used*1024);
   document.getElementById('sm-mem-avail').textContent=sm_f(d.memory.available*1024);document.getElementById('sm-mem-cache').textContent=sm_f((d.memory.cached+d.memory.buffers)*1024);
