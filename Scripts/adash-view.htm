@@ -264,6 +264,27 @@
   .sm-pg{grid-template-columns:1fr}
   .sm-svc{grid-template-columns:1fr}
 }
+
+/* ===== 网络路径（拓扑；fork vantage 视觉）===== */
+.sm-topo{position:relative;background-color:#F4F5F1;background-image:radial-gradient(#DDDFD8 1px,transparent 1px);background-size:20px 20px;border-radius:10px;padding:18px;overflow:hidden}
+.sm-topo-svg{position:absolute;left:0;top:0;width:100%;height:100%;z-index:1;pointer-events:none}
+.sm-t-grid{position:relative;z-index:2;display:grid;grid-template-columns:200px 1fr 230px;gap:30px;align-items:center;min-height:150px}
+.sm-tnode{background:#fff;border:1px solid #E3E5DD;border-radius:12px;box-shadow:0 2px 8px rgba(40,50,30,.06);padding:12px 14px;position:relative;z-index:2}
+#sm-t-inet,#sm-t-dev{display:flex;align-items:center;gap:12px}
+#sm-t-dev{padding:16px 18px;box-shadow:0 3px 14px rgba(40,50,30,.10)}
+.sm-t-icon{width:48px;height:48px;border-radius:14px;background:#EEF0EA;display:flex;align-items:center;justify-content:center;flex:0 0 48px;color:#4A4F44}
+.sm-t-icon svg{width:24px;height:24px}
+.sm-t-badge{width:56px;height:56px;border-radius:14px;background:#A9C522;display:flex;align-items:center;justify-content:center;flex:0 0 56px;color:#fff;box-shadow:0 2px 10px rgba(169,197,34,.35)}
+.sm-t-badge svg{width:28px;height:28px}
+.sm-t-label{font-size:11px;color:#9AA096;letter-spacing:1px;text-transform:uppercase;margin-bottom:2px}
+.sm-t-name{font-size:16px;font-weight:700;color:#1F2418;line-height:1.3;word-break:break-all}
+.sm-t-mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12.5px;color:#6B7066;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sm-t-right{display:flex;flex-direction:column;gap:10px;justify-content:center}
+.sm-t-sm{padding:9px 13px;display:flex;align-items:center;gap:10px}
+.sm-t-sm .sm-t-main{flex:1;min-width:0}
+.sm-t-sm .sm-t-name{font-size:14px}
+.sm-t-sm .sm-t-mono{margin-top:1px}
+@media(max-width:760px){.sm-t-grid{grid-template-columns:1fr;gap:14px}.sm-topo-svg{display:none}}
 </style>
 <%+fwmanager/common_head%>
 <div class="fwm-wrap">
@@ -298,6 +319,27 @@
         </div>
         <div class="sm-flow-plot"><div class="sm-flow-yaxis"><span id="sm-perf-cm-y1">100%</span><span id="sm-perf-cm-y2">50%</span><span>0%</span></div><div class="sm-flow-svg" id="sm-perf-cm-svg"><div class="sm-spk-e">采集中...</div></div></div>
         <div class="sm-flow-xaxis"><span class="sm-perf-x1">24 小时前</span><span class="sm-perf-x2">12 小时前</span><span>现在</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 网络路径（拓扑视图，fork vantage；纯前端渲染 + 数据复用主轮询 JSON，路由器零额外采样）-->
+<div class="sm-card" style="margin-bottom:14px">
+  <div class="sm-ch"><h2><span class="sm-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></span>网络路径</h2><span class="meta" id="sm-topo-meta">--</span></div>
+  <div class="sm-cb">
+    <div class="sm-topo" id="sm-topo">
+      <svg id="sm-topo-svg" class="sm-topo-svg"></svg>
+      <div class="sm-t-grid">
+        <div class="sm-tnode" id="sm-t-inet">
+          <div class="sm-t-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></div>
+          <div style="min-width:0"><div class="sm-t-label">互联网</div><div class="sm-t-name" id="sm-tt-pub">--</div><div class="sm-t-mono" id="sm-tt-dns"></div></div>
+        </div>
+        <div class="sm-tnode" id="sm-t-dev">
+          <div class="sm-t-badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="14" width="20" height="7" rx="2"/><line x1="6" y1="17.5" x2="6.01" y2="17.5"/><line x1="10" y1="17.5" x2="10.01" y2="17.5"/><path d="M5 14V9a7 7 0 0 1 14 0v5"/><path d="M12 2v2"/></svg></div>
+          <div style="min-width:0"><div class="sm-t-label">此设备</div><div class="sm-t-name" id="sm-tt-host">--</div><div class="sm-t-mono" id="sm-tt-ip">--</div><div class="sm-t-mono" id="sm-tt-up"></div></div>
+        </div>
+        <div class="sm-t-right" id="sm-t-right"></div>
       </div>
     </div>
   </div>
@@ -774,7 +816,68 @@ function sm_clients(d){
 }
 
 async function sm_fetch(){try{var r=await fetch('/cgi-bin/adash',{cache:'no-store'});var d=await r.json();d=sm_calcRates(d);sm_last=d;sm_render(d);var t=document.getElementById('fwm-upd');if(t)t.textContent=new Date().toLocaleTimeString('zh-CN')}catch(e){var t=document.getElementById('fwm-upd');if(t)t.textContent='连接失败'}}
+// ===== 网络路径（拓扑）=====
+var sm_topo_sig='';
+function sm_topoSetText(id,t){var el=document.getElementById(id);if(el&&el.textContent!==t)el.textContent=t}
+function sm_topoSig(d){
+  var ifs=(d.network||[]).map(function(n){return n.name+':'+(n.ip||'')}).join(',');
+  var cl=(d.clients||[]).filter(function(c){return c.state!=='offline'}).length;
+  var w=d.wan||{};
+  return (w.pub||'')+'|'+(w.dns||'')+'|'+((d.system&&d.system.board)||'')+'|'+((d.system&&d.system.hostname)||'')+'|'+ifs+'|'+cl;
+}
+function sm_topoPath(x1,y1,x2,y2){var dx=Math.max(26,(x2-x1)*0.5);return 'M'+x1+' '+y1+' C'+(x1+dx)+' '+y1+' '+(x2-dx)+' '+y2+' '+x2+' '+y2}
+function sm_topoConnect(){
+  var svg=document.getElementById('sm-topo-svg');if(!svg)return;
+  var wrap=document.getElementById('sm-topo');if(!wrap)return;
+  var inet=document.getElementById('sm-t-inet'),dev=document.getElementById('sm-t-dev');
+  var rights=document.querySelectorAll('#sm-t-right .sm-tnode');
+  if(!inet||!dev||!rights.length){svg.innerHTML='';return}
+  var wb=wrap.getBoundingClientRect();
+  function R(el){var r=el.getBoundingClientRect();return{l:r.left-wb.left,r:r.right-wb.left,cy:r.top-wb.top+r.height/2}}
+  var i=R(inet),dv=R(dev),s='';
+  s+='<path id="sm-tp-wan" d="M'+i.r+' '+i.cy+' L'+dv.l+' '+dv.cy+'" stroke="#D9DBD2" stroke-width="1.5" stroke-dasharray="5 4" fill="none"/>';
+  Array.prototype.forEach.call(rights,function(el,ix){var rr=R(el);
+    s+='<path id="sm-tp-'+ix+'" d="'+sm_topoPath(dv.r,dv.cy,rr.l,rr.cy)+'" stroke="#D9DBD2" stroke-width="1.5" fill="none"/>'});
+  s+='<circle r="2.5" fill="#A9C522"><animateMotion dur="2.4s" repeatCount="indefinite"><mpath href="#sm-tp-wan"/></animateMotion></circle>';
+  Array.prototype.forEach.call(rights,function(el,ix){
+    s+='<circle r="2" fill="#A9C522" opacity=".85"><animateMotion dur="'+(2+ix*0.4).toFixed(1)+'s" begin="'+(ix*0.6).toFixed(1)+'s" repeatCount="indefinite"><mpath href="#sm-tp-'+ix+'"/></animateMotion></circle>'});
+  svg.innerHTML=s;
+}
+function sm_renderTopo(d){
+  var box=document.getElementById('sm-topo');if(!box)return;
+  var wan=d.wan||{};
+  var sys=d.system||{};
+  sm_topoSetText('sm-tt-pub',wan.pub||'未知');
+  sm_topoSetText('sm-tt-dns',wan.dns&&wan.dns!=='127.0.0.1'?'DNS '+wan.dns:'');
+  sm_topoSetText('sm-tt-host',sys.board||sys.hostname||'--');
+  sm_topoSetText('sm-tt-up','已运行 '+sm_u(sys.uptime));
+  var lanip='--';
+  (d.network||[]).forEach(function(n){if(lanip==='--'&&n.type==='LAN'&&n.ip)lanip=n.ip});
+  sm_topoSetText('sm-tt-ip',lanip);
+  (d.network||[]).forEach(function(n){
+    sm_topoSetText('sm-tr-'+n.name+'-r','↓ '+sm_fr(n.rx_rate||0)+' · ↑ '+sm_fr(n.tx_rate||0));
+  });
+  var cl=0,cr=0;
+  (d.clients||[]).forEach(function(c){if(c.state!=='offline'){cl++;cr+=(c.rx_rate||0)+(c.tx_rate||0)}});
+  sm_topoSetText('sm-tr-cl-r','↓ '+sm_fr(cr));
+  var sig=sm_topoSig(d);
+  if(sig===sm_topo_sig)return;
+  sm_topo_sig=sig;
+  var rh='',ifc=0;
+  (d.network||[]).forEach(function(n){
+    if(!n.ip)return;ifc++;
+    var lb=(n.type||'IF').toUpperCase();
+    rh+='<div class="sm-tnode sm-t-sm"><div class="sm-t-main"><div class="sm-t-label">'+lb+'</div><div class="sm-t-name">'+n.name+'</div><div class="sm-t-mono">'+n.ip+'</div></div><div class="sm-t-mono" id="sm-tr-'+n.name+'-r" style="flex:0 0 auto">↓ 0 B/s · ↑ 0 B/s</div></div>';
+  });
+  rh+='<div class="sm-tnode sm-t-sm"><div class="sm-t-main"><div class="sm-t-label">有线</div><div class="sm-t-name">'+cl+' 台设备</div></div><div class="sm-t-mono" id="sm-tr-cl-r" style="flex:0 0 auto">↓ 0 B/s</div></div>';
+  var rc=document.getElementById('sm-t-right');if(rc)rc.innerHTML=rh;
+  var meta=document.getElementById('sm-topo-meta');if(meta)meta.textContent=ifc+' 个接口 · '+cl+' 台客户端';
+  if(window.requestAnimationFrame){window.requestAnimationFrame(sm_topoConnect)}else{setTimeout(sm_topoConnect,0)}
+}
+window.addEventListener('resize',function(){if(sm_topo_sig)sm_topoConnect()});
+
 function sm_render(d){
+  try{sm_renderTopo(d)}catch(e){}
   document.getElementById('sm-uptime').textContent=sm_u(d.system.uptime);
   document.getElementById('sm-sys-fw').textContent=d.system.firmware||'--';
   document.getElementById('sm-sys-kernel').textContent=d.system.kernel||'--';

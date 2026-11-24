@@ -2281,11 +2281,33 @@ if command -v ubus >/dev/null 2>&1; then
     case "$_ub_t" in ''|*[!0-9.]*) ;; *) temp_c=$_ub_t ;; esac
 fi
 
+# ===== adash: WAN 公网 IP + DNS（网络路径模块数据源）=====
+_ad_wan_pub=""; _ad_wan_dns=""
+_ub_net=$(ubus call network.interface dump 2>/dev/null)
+if [ -n "$_ub_net" ]; then
+    # 全接口 IPv4 中挑全局地址（非 RFC1918/CGNAT/链路本地/环回），覆盖 pppoe 公网
+    _ad_wan_pub=$(printf '%s' "$_ub_net" | jsonfilter -e '@.interface[*].ipv4-address[*].address' 2>/dev/null | awk -F. '{
+        a=$1+0;b=$2+0
+        if(a==10||a==127||(a==172&&b>=16&&b<=31)||(a==192&&b==168)||(a==169&&b==254)||(a==100&&b>=64&&b<=127))next
+        print;exit
+    }')
+    # 纯 CGNAT/内网环境回退：wan 口自身地址
+    if [ -z "$_ad_wan_pub" ]; then
+        _ad_wan_pub=$(printf '%s' "$_ub_net" | jsonfilter -e '@.interface[@.up=true].ipv4-address[0].address' 2>/dev/null | head -1)
+    fi
+fi
+for _f in /tmp/resolv.conf.d/resolv.conf.auto /tmp/resolv.conf.auto; do
+    [ -r "$_f" ] && { _ad_wan_dns=$(awk '/^nameserver/&&$2!="127.0.0.1"{print $2;exit}' "$_f" 2>/dev/null); [ -n "$_ad_wan_dns" ] && break; }
+done
+_ad_wan_pub=${_ad_wan_pub:-"--"}
+_ad_wan_dns=${_ad_wan_dns:-127.0.0.1}
+
 # ===== 输出 JSON =====
 _ad_ppe=$(_ad_ppe_json)
 cat <<JSONEOF
 {
   "ppe": $_ad_ppe,
+  "wan": {"pub": "$_ad_wan_pub", "dns": "$_ad_wan_dns"},
   "system": {
     "hostname": "$hostname",
     "kernel": "$kernel",
