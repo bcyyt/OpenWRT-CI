@@ -6,7 +6,7 @@ name: LEDE-IPQ95XX
 on:
   #定时编译：每天北京时间 05:30（UTC 21:30，QCB-ALL 后半小时错峰防排队）
   schedule:
-    - cron: '30 21 * * *'
+    - cron: '30 3 * * *'
   #手动编译
   workflow_dispatch:
     inputs:
