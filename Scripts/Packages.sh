@@ -418,18 +418,13 @@ WRT_ROOT=$PWD
         || { echo "adash Makefile syntax FAILED:"; head -5 /tmp/ad_syntax.err; }
 fi
 
-#===luci-theme-slate + luci-app-slatebox（2026-11-24：暗色科技主题+工具仪表盘）===
+#===luci-theme-slate（2026-11-24：暗色科技主题）===
+# luci-app-slatebox 已下线（2026-11-25 用户实机反馈有 bug，撤出固件）
 SL_DIR="./package/bcyyt/luci-theme-slate"
 mkdir -p "$SL_DIR/files"
 cp "$GITHUB_WORKSPACE/Scripts/inject/slate.Makefile" "$SL_DIR/Makefile"
 for sf in slate-header.ut slate-footer.ut slate-sysauth.ut slate-cascade.css slate-mobile.css; do
         cp "$GITHUB_WORKSPACE/Scripts/$sf" "$SL_DIR/files/$sf" || echo "slate: $sf missing"
-done
-SB_DIR="./package/bcyyt/luci-app-slatebox"
-mkdir -p "$SB_DIR/files"
-cp "$GITHUB_WORKSPACE/Scripts/inject/slatebox.Makefile" "$SB_DIR/Makefile"
-for sf in slatebox-cgi slatebox-dash.htm slatebox-controller.lua; do
-        cp "$GITHUB_WORKSPACE/Scripts/$sf" "$SB_DIR/files/$sf" || echo "slatebox: $sf missing"
 done
 WRT_ROOT2=$PWD
 (cd "$SL_DIR" && make --no-print-directory -f Makefile TOPDIR="$WRT_ROOT2" INCLUDE_DIR="$WRT_ROOT2/include" -n >/dev/null 2>/tmp/sl_syntax.err) \
