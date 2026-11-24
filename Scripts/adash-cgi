@@ -1907,8 +1907,16 @@ _sm_pppoe_acct_load
 for iface_dir in /sys/class/net/*; do
     iface=$(basename "$iface_dir")
     case "$iface" in
-        eth*|wlan*|ra*|br-lan|wan*|br-wan|pppoe-*|ppp-*) ;;
+        eth*|wlan*|ra*|br-lan|wan*|br-wan|pppoe-*|ppp-*|lan*) ;;
         *) continue ;;
+    esac
+    _ad_show=$iface
+    case "$iface" in
+        lan*)
+            _ad_lsec=$(printf '%s\n' "$_uci_all" | sed -n "s/^network\.\([^.]*\)\.device='$iface'\$/\1/p" | head -1)
+            [ -n "$_ad_lsec" ] || continue
+            [ "$_ad_lsec" != "lan" ] && _ad_show=$_ad_lsec
+            ;;
     esac
     _m=${iface//-/_}; _m=${_m//./_}
     # 状态（operstate 为 unknown/down 时参考 carrier，同旧逻辑；carrier 逐口读，
@@ -1943,6 +1951,16 @@ for iface_dir in /sys/class/net/*; do
     # v4.10：纯 shell 判断（旧实现每个 ethX 跑两次 uci show + grep 管道）
     if [ "$iface_type" = "physical" ]; then
         case "$iface" in
+            lan*)
+                _ad_lp=0
+                for _pd in $_pppoe_base_devs; do [ "$_pd" = "$iface" ] && _ad_lp=1; done
+                if [ "$_ad_lp" = "0" ]; then
+                    case "$_uci_all" in
+                        *"network.lan.device='$iface'"*) ;;
+                        *"device='$iface'"*) iface_type="WAN" ;;
+                    esac
+                fi
+                ;;
             eth*)
                 _rest=${iface#eth}
                 case "$_rest" in
@@ -1966,7 +1984,7 @@ for iface_dir in /sys/class/net/*; do
     case "$iface" in
         pppoe-*|ppp-*) _sm_pppoe_fold ;;
     esac
-    net_lines="$net_lines{\"name\":\"$iface\",\"type\":\"$iface_type\",\"state\":\"$operstate\",\"rx\":$rx_bytes,\"tx\":$tx_bytes,\"rx_pkts\":$rx_pkts,\"tx_pkts\":$tx_pkts,\"ip\":\"$ip_addr\",\"ip4\":\"$ip4\",\"ip6\":\"$ip6\"},"
+    net_lines="$net_lines{\"name\":\"$_ad_show\",\"type\":\"$iface_type\",\"state\":\"$operstate\",\"rx\":$rx_bytes,\"tx\":$tx_bytes,\"rx_pkts\":$rx_pkts,\"tx_pkts\":$tx_pkts,\"ip\":\"$ip_addr\",\"ip4\":\"$ip4\",\"ip6\":\"$ip6\"},"
     net_state="${net_state}${iface}:rx=${rx_bytes},tx=${tx_bytes};"
 done
 [ -n "$PPPACC_NAMES" ] && _sm_pppoe_acct_save
