@@ -409,7 +409,7 @@ if [ "$WRT_THEME" = "argon" ] && [[ "$WRT_CONFIG" == IPQ95XX* ]]; then
 AD_DIR="./package/bcyyt/luci-app-adash"
 mkdir -p "$AD_DIR/files"
 cp "$GITHUB_WORKSPACE/Scripts/inject/adash.Makefile" "$AD_DIR/Makefile"
-for sf in adash-cgi adash-view.htm adash-controller.lua adash-ucid fwmanager-common-head.htm; do
+for sf in adash-cgi adash-view.htm adash-controller.lua adash-ucid fwmanager-common-head.htm adash-sysctl.conf; do
         cp "$GITHUB_WORKSPACE/Scripts/$sf" "$AD_DIR/files/$sf" || echo "adash: $sf missing"
 done
 WRT_ROOT=$PWD

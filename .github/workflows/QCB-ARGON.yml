@@ -9,6 +9,14 @@ on:
   #定时编译：每天北京时间 11:30（UTC 03:30，填 LEDE 下线后的空档，与 QCB-ALL 错开半小时）
   schedule:
     - cron: '30 3 * * *'
+  #push 触发（2026-11-24）：adash 高频迭代期， Scripts 注入件（adash 仪表盘/
+  #conntrack 固化/注入包）变更即编译，无需等每日定时；主 workflow 文件变更也触发
+  push:
+    branches: [main]
+    paths:
+      - 'Scripts/**'
+      - '.github/workflows/QCB-ARGON.yml'
+      - '.github/workflows/WRT-CORE.yml'
   #手动编译
   workflow_dispatch:
     inputs:
