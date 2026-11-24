@@ -268,7 +268,7 @@
 /* ===== 网络路径（拓扑；fork vantage 视觉）===== */
 .sm-topo{position:relative;background-color:#F4F5F1;background-image:radial-gradient(#DDDFD8 1px,transparent 1px);background-size:20px 20px;border-radius:10px;padding:18px;overflow:hidden}
 .sm-topo-svg{position:absolute;left:0;top:0;width:100%;height:100%;z-index:1;pointer-events:none}
-.sm-t-grid{position:relative;z-index:2;display:grid;grid-template-columns:195px minmax(210px,1fr) 250px;gap:26px;align-items:center;min-height:150px}
+.sm-t-grid{position:relative;z-index:2;display:grid;grid-template-columns:200px minmax(200px,1fr) 275px;gap:26px;align-items:center;min-height:150px}
 .sm-zteb{display:inline-block;margin-left:5px;padding:0 5px;border-radius:6px;font-size:9px;font-weight:500;line-height:1.5;color:#0891b2;background:rgba(6,182,212,.12);border:1px solid rgba(6,182,212,.25);vertical-align:middle;white-space:nowrap;max-width:150px;overflow:hidden;text-overflow:ellipsis}
 .sm-zteb.node{color:#7c3aed;background:rgba(139,92,246,.10);border-color:rgba(139,92,246,.25)}
 .sm-cnm{max-width:230px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -282,9 +282,9 @@
 .sm-t-label{font-size:11px;color:#9AA096;letter-spacing:1px;text-transform:uppercase;margin-bottom:2px}
 .sm-t-name{font-size:16px;font-weight:700;color:#1F2418;line-height:1.3;word-break:break-all}
 .sm-t-mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;color:#6B7066;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.sm-t-name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sm-t-name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:0 1 auto;min-width:0}
 .sm-t-right{display:flex;flex-direction:column;gap:10px;justify-content:center}
-.sm-t-sm{padding:9px 13px;display:flex;align-items:center;gap:10px}
+.sm-t-sm{padding:9px 13px;display:block}
 .sm-t-sm .sm-t-main{flex:1;min-width:0}
 .sm-t-sm .sm-t-name{font-size:14px}
 .sm-t-sm .sm-t-mono{margin-top:1px}
@@ -895,9 +895,9 @@ function sm_renderTopo(d){
   (d.network||[]).forEach(function(n){
     if(!n.ip)return;ifc++;
     var lb=(n.type||'IF').toUpperCase();
-    rh+='<div class="sm-tnode sm-t-sm"><div class="sm-t-main"><div class="sm-t-label">'+lb+'</div><div class="sm-t-name">'+n.name+'</div><div class="sm-t-mono">'+n.ip+'</div></div><div class="sm-t-mono" id="sm-tr-'+n.name+'-r" style="flex:0 0 auto">↓ 0 B/s · ↑ 0 B/s</div></div>';
+    rh+='<div class="sm-tnode sm-t-sm"><div class="sm-t-label">'+lb+'</div><div style="display:flex;align-items:baseline;gap:8px"><span class="sm-t-name">'+n.name+'</span><span class="sm-t-mono" id="sm-tr-'+n.name+'-r" style="margin-left:auto;flex:0 0 auto">↓ 0 B/s · ↑ 0 B/s</span></div><div class="sm-t-mono">'+n.ip+'</div></div>';
   });
-  rh+='<div class="sm-tnode sm-t-sm"><div class="sm-t-main"><div class="sm-t-label">有线</div><div class="sm-t-name">'+cl+' 台设备</div></div><div class="sm-t-mono" id="sm-tr-cl-r" style="flex:0 0 auto">↓ 0 B/s</div></div>';
+  rh+='<div class="sm-tnode sm-t-sm"><div class="sm-t-label">有线</div><div style="display:flex;align-items:baseline;gap:8px"><span class="sm-t-name">'+cl+' 台设备</span><span class="sm-t-mono" id="sm-tr-cl-r" style="margin-left:auto;flex:0 0 auto">↓ 0 B/s</span></div></div>';
   var rc=document.getElementById('sm-t-right');if(rc)rc.innerHTML=rh;
   var meta=document.getElementById('sm-topo-meta');if(meta)meta.textContent=ifc+' 个接口 · '+cl+' 台客户端';
   if(window.requestAnimationFrame){window.requestAnimationFrame(sm_topoConnect)}else{setTimeout(sm_topoConnect,0)}
