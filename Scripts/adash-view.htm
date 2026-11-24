@@ -292,17 +292,18 @@
 .sm-t-sm .sm-t-mono{margin-top:1px}
 #sm-t-right .sm-t-mono{flex:0 0 auto}
 #sm-t-right .sm-t-main{flex:1;min-width:0}
-@media(max-width:760px){.sm-t-grid{grid-template-columns:1fr;gap:18px;padding:6px 4px 6px 0;position:relative}
+@media(max-width:760px){
+  .sm-topo{padding:12px}
+  .sm-t-grid{grid-template-columns:26px 1fr;gap:18px 10px;padding:4px 0}
   .sm-topo-svg{display:none}
-  .sm-t-grid::before{content:"";position:absolute;left:15px;top:34px;bottom:34px;width:2px;background:linear-gradient(180deg,#93c5fd,#2563eb 30%,#2563eb 70%,#93c5fd);border-radius:1px;opacity:.55}
-  .sm-tnode{max-width:100%;box-sizing:border-box;overflow:hidden;margin-left:34px;position:relative}
-  .sm-tnode::before{content:"";position:absolute;left:-34px;top:50%;right:100%;width:20px;height:0;border-top:2px solid rgba(37,99,235,.5);transform:translateY(-50%)}
-  .sm-tnode::after{content:"";position:absolute;left:-23px;top:50%;transform:translateY(-50%);width:10px;height:10px;border-radius:50%;background:#fff;border:2.5px solid var(--sm-p);box-shadow:0 0 0 3px rgba(37,99,235,.14);z-index:1}
+  .sm-t-grid::before{content:"";grid-area:1/1/-1/2;justify-self:center;width:2.5px;height:calc(100% - 60px);margin-top:30px;background:linear-gradient(180deg,#93c5fd,#2563eb 30%,#2563eb 70%,#93c5fd);border-radius:2px;opacity:.6}
+  .sm-tnode{grid-column:2;max-width:100%;box-sizing:border-box;overflow:hidden;position:relative}
+  .sm-tnode::before{content:"";position:absolute;left:-13px;top:50%;width:11px;height:2.5px;background:rgba(37,99,235,.55);transform:translateY(-50%)}
+  .sm-tnode::after{content:"";position:absolute;left:-16px;top:50%;transform:translate(-50%,-50%);width:9px;height:9px;border-radius:50%;background:#fff;border:2.5px solid var(--sm-p);box-shadow:0 0 0 2.5px rgba(37,99,235,.15);z-index:2}
   .sm-t-name,.sm-t-mono{white-space:normal;word-break:break-all;overflow-wrap:anywhere}
-  #sm-t-dev{max-width:none}
-  #sm-t-dev::after{border-color:var(--sm-s);box-shadow:0 0 0 3px rgba(22,163,74,.16)}
-  #sm-t-right .sm-tnode{margin-left:52px}
-  #sm-t-right .sm-tnode::before{left:-52px;width:38px;border-top-style:dashed}
+  .sm-t-name{font-size:14.5px}
+  #sm-t-dev::after{border-color:var(--sm-s);box-shadow:0 0 0 2.5px rgba(22,163,74,.16)}
+  #sm-t-inet{grid-column:2}
 }
 
 /* ===== v8 全面美化 ===== */
@@ -322,7 +323,17 @@
 .sm-sc a:hover{transform:translateY(-1px);box-shadow:0 6px 14px -6px rgba(16,24,40,.2);border-color:#bfdbfe;background:#f8fbff;color:var(--sm-p)}
 .sm-ic{border-radius:9px}
 .sm-table th{font-size:11.5px;letter-spacing:.3px;text-transform:none}
-@media(max-width:720px){.sm-grid{gap:12px;margin-bottom:12px}.sm-cb{padding:12px 14px}.sm-card:hover{transform:none}}
+@media(max-width:720px){
+  .fwm-wrap{padding-top:14px}
+  .sm-hero{margin:4px 0 12px;padding-bottom:10px}
+  .sm-hero-badge{width:36px;height:36px;border-radius:10px}
+  .sm-hero-badge svg{width:19px;height:19px}
+  .sm-hero h1{font-size:19px}
+  .sm-hero-sub{font-size:11px}
+  .sm-grid{gap:12px;margin-bottom:12px}
+  .sm-cb{padding:12px 14px}
+  .sm-card:hover{transform:none}
+}
 </style>
 <%+fwmanager/common_head%>
 <div class="fwm-wrap">
