@@ -1,0 +1,636 @@
+<style>
+:root{
+        --sb-bg:#0b1220;--sb-card:rgba(15,23,42,.72);--sb-line:rgba(45,212,232,.14);
+        --sb-cyan:#2dd4e8;--sb-cyan2:#17b8d0;--sb-green:#34d399;--sb-red:#f87171;
+        --sb-amber:#fbbf24;--sb-txt:#dbe4f0;--sb-dim:#64748b;--sb-mono:ui-monospace,"SF Mono","Cascadia Code",Consolas,Menlo,monospace;
+}
+#maincontent{padding:14px 16px 28px!important;max-width:1280px;margin:0 auto;width:100%;box-sizing:border-box;border-radius:18px;
+  background:linear-gradient(180deg,#0d1526 0%,#0b1220 100%);
+  background-attachment:fixed;
+  background-image:radial-gradient(rgba(45,212,232,.05) 1px,transparent 1px),radial-gradient(820px 260px at 18% -60px,rgba(45,212,232,.09),transparent 70%),radial-gradient(700px 240px at 85% -50px,rgba(14,116,144,.10),transparent 70%),linear-gradient(180deg,#0d1526 0%,#0b1220 100%);
+  background-size:24px 24px,100% 100%,100% 100%,100% 100%;}
+.sb-wrap{display:grid;grid-template-columns:1fr 350px;gap:14px;align-items:start}
+@media(max-width:960px){.sb-wrap{grid-template-columns:1fr}}
+.sb-card{
+        background:var(--sb-card);border:1px solid var(--sb-line);border-radius:14px;
+        backdrop-filter:blur(8px);padding:16px;transition:border-color .25s,box-shadow .25s;
+}
+.sb-card:hover{border-color:rgba(45,212,232,.32);box-shadow:0 8px 32px rgba(45,212,232,.07)}
+.sb-h{display:flex;align-items:center;gap:8px;margin-bottom:12px}
+.sb-h h2{margin:0;font-size:14px;font-weight:700;letter-spacing:.5px;color:var(--sb-txt);display:flex;align-items:center;gap:8px}
+.sb-h h2::before{display:none}
+.sb-h .badge{margin-left:auto;font:600 11px/1 var(--sb-mono);color:var(--sb-cyan);background:rgba(45,212,232,.1);border:1px solid rgba(45,212,232,.25);padding:4px 9px;border-radius:20px}
+.sb-ic{width:26px;height:26px;border-radius:7px;display:inline-flex;align-items:center;justify-content:center;background:rgba(45,212,232,.1);border:1px solid rgba(45,212,232,.3);color:var(--sb-cyan);flex-shrink:0}
+.sb-ic svg{width:14px;height:14px}
+
+/* 顶部主机条 */
+.sb-top{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px;padding:12px 16px;border-radius:14px;background:linear-gradient(90deg,rgba(45,212,232,.08),rgba(15,23,42,.6));border:1px solid var(--sb-line)}
+.sb-top .nm{font:700 16px/1 var(--sb-mono);color:var(--sb-txt);letter-spacing:.5px}
+.sb-top .led{width:9px;height:9px;border-radius:50%;background:var(--sb-green);box-shadow:0 0 8px var(--sb-green);animation:sbPulse 2s infinite}
+@keyframes sbPulse{50%{opacity:.5}}
+.sb-top .up{font:12px/1 var(--sb-mono);color:var(--sb-dim)}
+.sb-top .clk{margin-left:auto;font:700 15px/1 var(--sb-mono);color:var(--sb-cyan);font-variant-numeric:tabular-nums}
+
+/* 生命体征 chips */
+.sb-vitals{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:14px}
+.sb-chip{background:var(--sb-card);border:1px solid var(--sb-line);border-radius:12px;padding:10px 14px;position:relative;overflow:hidden}
+
+/* ── 环形仪表 ── */
+.sb-gauge{background:var(--sb-card);border:1px solid var(--sb-line);border-radius:16px;padding:14px 10px 12px;display:flex;flex-direction:column;align-items:center;gap:8px;position:relative;overflow:hidden;transition:border-color .3s,box-shadow .3s}
+.sb-gauge:hover{border-color:rgba(45,212,232,.45);box-shadow:0 0 22px rgba(45,212,232,.13)}
+.sb-gauge .rig{position:relative;width:78px;height:78px}
+.sb-gauge .rig svg{width:100%;height:100%;transform:rotate(-90deg)}
+.sb-gauge .bgc{fill:none;stroke:rgba(148,163,184,.28);stroke-width:7.5}
+.sb-gauge .fgc{fill:none;stroke:url(#sbG);stroke-width:8;stroke-linecap:round;stroke-dasharray:226.2;stroke-dashoffset:226.2;transition:stroke-dashoffset .8s cubic-bezier(.22,1,.36,1);filter:drop-shadow(0 0 7px rgba(45,212,232,.85)) drop-shadow(0 0 16px rgba(45,212,232,.35))}
+.sb-gauge .fgc.g-temp{stroke:url(#sbGg);filter:drop-shadow(0 0 5px rgba(52,211,153,.55))}
+.sb-gauge .fgc.g-info{stroke:url(#sbGg);filter:drop-shadow(0 0 5px rgba(52,211,153,.5))}
+.sb-gauge.warn .fgc{stroke:#fbbf24;filter:drop-shadow(0 0 6px rgba(251,191,36,.7))}
+.sb-gauge .val{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font:700 16px var(--sb-mono);color:var(--sb-txt);font-variant-numeric:tabular-nums}
+.sb-gauge .val small{font-size:9px;color:var(--sb-dim);font-weight:400;margin-left:1px}
+.sb-gauge .val.sm{font-size:11.5px}
+.sb-gauge .lab{font-size:11px;color:#a8bcd6;letter-spacing:2.5px;font-weight:600;text-shadow:0 1px 3px rgba(11,18,32,.8)}
+.sb-gauge .val{text-shadow:0 0 12px rgba(45,212,232,.35)}
+
+/* ── 顶部状态带：扫描线流光 + 呼吸灯 ── */
+.sb-top{position:relative;overflow:hidden}
+.sb-top::after{content:'';position:absolute;inset:0;pointer-events:none;
+  background:linear-gradient(105deg,transparent 40%,rgba(45,212,232,.14) 50%,transparent 60%);
+  background-size:250% 100%;animation:sb-scan 3.6s linear infinite}
+@keyframes sb-scan{from{background-position:190% 0}to{background-position:-90% 0}}
+.sb-top .led{position:relative}
+.sb-top .led::after{content:'';position:absolute;inset:-5px;border-radius:50%;border:1px solid var(--sb-green);opacity:0;animation:sb-ring 2.4s ease-out infinite}
+@keyframes sb-ring{0%{transform:scale(.5);opacity:.8}100%{transform:scale(1.9);opacity:0}}
+
+/* ── 卡片 hover 边框流光（conic 旋转） ── */
+@property --sb-a{syntax:'<angle>';initial-value:0deg;inherits:false}
+.sb-card{position:relative}
+.sb-card::before{content:'';position:absolute;inset:-1px;border-radius:15px;padding:1px;pointer-events:none;
+  background:conic-gradient(from var(--sb-a),transparent 0 62%,rgba(45,212,232,.65) 78%,transparent 94%);
+  -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;
+  opacity:0;transition:opacity .35s}
+.sb-card:hover::before{opacity:1;animation:sb-rot 2.8s linear infinite}
+@keyframes sb-rot{to{--sb-a:360deg}}
+
+/* ── 客户端在线点脉冲 ── */
+.sb-dot{animation:sb-dotp 2.2s ease-in-out infinite}
+@keyframes sb-dotp{0%,100%{box-shadow:0 0 4px var(--sb-green)}50%{box-shadow:0 0 10px var(--sb-green)}}
+.sb-chip .l{font-size:11px;color:var(--sb-dim);letter-spacing:1px;margin-bottom:5px}
+.sb-chip .v{font:700 19px/1.1 var(--sb-mono);color:var(--sb-txt);font-variant-numeric:tabular-nums}
+.sb-chip .v small{font-size:11px;font-weight:400;color:var(--sb-dim)}
+.sb-chip .bar{height:3px;border-radius:2px;background:rgba(100,116,139,.2);margin-top:8px;overflow:hidden}
+.sb-chip .bar i{display:block;height:100%;width:0%;border-radius:2px;background:linear-gradient(90deg,var(--sb-cyan2),var(--sb-cyan));transition:width .6s;box-shadow:0 0 8px rgba(45,212,232,.5)}
+.sb-chip.warn .v{color:var(--sb-amber)}
+.sb-chip.warn .bar i{background:var(--sb-amber);box-shadow:0 0 8px rgba(251,191,36,.5)}
+.sb-chip.ok .v{color:var(--sb-green)}
+
+/* 吞吐图 */
+.sb-gwrap{position:relative;height:170px;margin:4px 0 8px}
+#sb-graph{width:100%;height:100%;display:block}
+.sb-glegend{display:flex;gap:16px;font:11px var(--sb-mono);color:var(--sb-dim)}
+.sb-glegend b{color:var(--sb-cyan);font-weight:600}
+.sb-glegend .up b{color:var(--sb-green)}
+.sb-rate{font:700 13px var(--sb-mono);font-variant-numeric:tabular-nums}
+
+/* 客户端表 */
+.sb-ctb{width:100%;border-collapse:collapse;font:12.5px var(--sb-mono)}
+.sb-ctb th{text-align:left;padding:7px 8px;color:var(--sb-dim);font:600 10.5px sans-serif;letter-spacing:.8px;border-bottom:1px solid var(--sb-line)}
+.sb-ctb td{padding:7px 8px;color:var(--sb-txt);border-bottom:1px solid rgba(30,41,59,.5)}
+.sb-ctb tr:last-child td{border-bottom:none}
+.sb-ctb tr:hover td{background:rgba(45,212,232,.04)}
+.sb-dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--sb-green);margin-right:7px;box-shadow:0 0 6px var(--sb-green)}
+
+/* 工具区 */
+.sb-tools{display:grid;gap:14px}
+.sb-tool .row{display:flex;gap:8px;margin-top:10px}
+.sb-in{
+        flex:1;min-width:0;background:rgba(8,14,26,.8)!important;border:1px solid rgba(100,116,139,.3)!important;
+        border-radius:8px!important;color:var(--sb-txt)!important;font:13px var(--sb-mono);padding:8px 12px;
+        transition:border-color .2s,box-shadow .2s;
+}
+.sb-in:focus{border-color:var(--sb-cyan2)!important;box-shadow:0 0 0 3px rgba(45,212,232,.15)!important;outline:none}
+.sb-btn{
+        border:1px solid rgba(45,212,232,.4);border-radius:8px;background:linear-gradient(135deg,#17b8d0,#0d94ab);
+        color:#04222a;font:600 13px sans-serif;padding:8px 16px;cursor:pointer;white-space:nowrap;
+        transition:box-shadow .2s,transform .1s;letter-spacing:.3px;
+}
+.sb-btn:hover{box-shadow:0 4px 16px rgba(45,212,232,.35)}
+.sb-btn:active{transform:translateY(1px)}
+.sb-btn.ghost{background:rgba(15,23,42,.8);color:var(--sb-txt);border-color:rgba(100,116,139,.4)}
+.sb-btn.danger{background:linear-gradient(135deg,#ef5350,#d63a38);border-color:rgba(248,113,113,.5);color:#2a0808}
+.sb-out{
+        margin-top:10px;background:rgba(2,6,14,.7);border:1px solid rgba(100,116,139,.25);border-radius:8px;
+        padding:10px 12px;font:11.5px/1.65 var(--sb-mono);color:#9fb3c8;white-space:pre-wrap;word-break:break-all;
+        max-height:220px;overflow:auto;display:none;
+}
+.sb-out.show{display:block}
+.sb-res{font:700 20px var(--sb-mono);color:var(--sb-cyan);margin-top:8px;display:none;text-shadow:0 0 16px rgba(45,212,232,.35)}
+.sb-res.show{display:block}
+.sb-res small{font:400 11px sans-serif;color:var(--sb-dim);display:block;margin-top:3px;text-shadow:none}
+.sb-pill{display:inline-flex;align-items:center;gap:6px;font:600 12px var(--sb-mono);padding:5px 12px;border-radius:20px;margin-top:8px;display:none}
+.sb-pill.show{display:inline-flex}
+.sb-pill.open{color:var(--sb-green);background:rgba(52,211,153,.1);border:1px solid rgba(52,211,153,.35)}
+.sb-pill.closed{color:var(--sb-red);background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.35)}
+.sb-desc{font-size:11.5px;color:var(--sb-dim);margin-top:2px}
+
+/* WiFi QR */
+.sb-qrow{display:flex;gap:14px;align-items:center;margin-top:10px;flex-wrap:wrap}
+#sb-qr{border-radius:10px;background:#fff;flex-shrink:0}
+.sb-wifiinfo{font:12px/1.8 var(--sb-mono);color:var(--sb-txt);min-width:0}
+.sb-wifiinfo b{color:var(--sb-cyan)}
+.sb-wifiinfo .k{color:var(--sb-dim)}
+.sb-select{
+        flex:1;min-width:0;background:rgba(8,14,26,.8)!important;border:1px solid rgba(100,116,139,.3)!important;
+        border-radius:8px!important;color:var(--sb-txt)!important;font:13px var(--sb-mono);padding:8px 10px;
+}
+.sb-actions{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:10px}
+@media(max-width:400px){.sb-actions{grid-template-columns:1fr}}
+.sb-act{
+        border:1px solid rgba(100,116,139,.35);border-radius:9px;background:rgba(15,23,42,.7);color:var(--sb-txt);
+        font:600 12px sans-serif;padding:11px 8px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px;
+        transition:border-color .2s,box-shadow .2s;
+}
+.sb-act:hover{border-color:var(--sb-cyan2);box-shadow:0 0 14px rgba(45,212,232,.15)}
+.sb-act.danger:hover{border-color:var(--sb-red);box-shadow:0 0 14px rgba(248,113,113,.2)}
+.sb-act svg{width:14px;height:14px}
+.sb-hint{font:11px var(--sb-mono);color:var(--sb-dim);margin-top:8px;min-height:14px}
+.sb-loading{display:inline-block;width:12px;height:12px;border:2px solid rgba(45,212,232,.25);border-top-color:var(--sb-cyan);border-radius:50%;animation:sbSpin .7s linear infinite;vertical-align:-2px;margin-right:6px}
+@keyframes sbSpin{to{transform:rotate(360deg)}}
+</style>
+
+<div class="sb-wrap" style="display:block">
+        <div class="sb-top">
+                <span class="led"></span>
+                <span class="nm" id="sb-host">--</span>
+                <span class="up" id="sb-up">已运行 --</span>
+                <span class="clk" id="sb-clk">--:--:--</span>
+        </div>
+
+        <svg width="0" height="0" style="position:absolute"><defs>
+                <linearGradient id="sbG" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stop-color="#2dd4e8"/><stop offset="100%" stop-color="#0e7490"/>
+                </linearGradient>
+                <linearGradient id="sbGg" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stop-color="#34d399"/><stop offset="100%" stop-color="#059669"/>
+                </linearGradient>
+        </defs></svg>
+
+        <div class="sb-vitals">
+                <div class="sb-gauge" id="sbg-cpu"><div class="rig"><svg viewBox="0 0 84 84"><circle class="bgc" cx="42" cy="42" r="36"/><circle class="fgc" cx="42" cy="42" r="36"/></svg><div class="val" id="sb-cpu">--<small>%</small></div></div><div class="lab">CPU</div></div>
+                <div class="sb-gauge" id="sbg-mem"><div class="rig"><svg viewBox="0 0 84 84"><circle class="bgc" cx="42" cy="42" r="36"/><circle class="fgc" cx="42" cy="42" r="36"/></svg><div class="val" id="sb-mem">--<small>%</small></div></div><div class="lab">内存</div></div>
+                <div class="sb-gauge" id="sbg-temp"><div class="rig"><svg viewBox="0 0 84 84"><circle class="bgc" cx="42" cy="42" r="36"/><circle class="fgc g-temp" cx="42" cy="42" r="36"/></svg><div class="val" id="sb-temp">--<small>°C</small></div></div><div class="lab">温度 °C</div></div>
+                <div class="sb-gauge" id="sbg-ct"><div class="rig"><svg viewBox="0 0 84 84"><circle class="bgc" cx="42" cy="42" r="36"/><circle class="fgc g-info" cx="42" cy="42" r="36"/></svg><div class="val sm" id="sb-ct">--</div></div><div class="lab">连接</div></div>
+                <div class="sb-gauge" id="sbg-la"><div class="rig"><svg viewBox="0 0 84 84"><circle class="bgc" cx="42" cy="42" r="36"/><circle class="fgc g-info" cx="42" cy="42" r="36"/></svg><div class="val" id="sb-la">--</div></div><div class="lab">负载</div></div>
+        </div>
+
+        <div class="sb-wrap">
+                <div style="display:grid;gap:14px">
+                        <div class="sb-card">
+                                <div class="sb-h">
+                                        <span class="sb-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></span>
+                                        <h2>WAN 实时吞吐</h2>
+                                        <span class="badge sb-rate" id="sb-rate">↓ -- ↑ --</span>
+                                </div>
+                                <div class="sb-gwrap"><canvas id="sb-graph"></canvas></div>
+                                <div class="sb-glegend"><span>下行 <b id="sb-lg-d">--</b></span><span class="up">上行 <b id="sb-lg-u">--</b></span><span style="margin-left:auto" id="sb-wif">--</span></div>
+                        </div>
+
+                        <div class="sb-card">
+                                <div class="sb-h">
+                                        <span class="sb-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="8" rx="1"/><rect x="3" y="12" width="18" height="8" rx="1"/><line x1="7" y1="8" x2="7.01" y2="8"/><line x1="7" y1="16" x2="7.01" y2="16"/></svg></span>
+                                        <h2>客户端</h2>
+                                        <span class="badge" id="sb-cc">--</span>
+                                </div>
+                                <table class="sb-ctb"><thead><tr><th>主机</th><th>IP</th><th>MAC</th></tr></thead><tbody id="sb-cl"></tbody></table>
+                        </div>
+                </div>
+
+                <div class="sb-tools">
+                        <div class="sb-card sb-tool">
+                                <div class="sb-h">
+                                        <span class="sb-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></span>
+                                        <h2>网络诊断</h2>
+                                </div>
+                                <div class="sb-desc">ping 目标（IP / 域名）</div>
+                                <div class="row"><input class="sb-in" id="sb-ping-in" placeholder="223.5.5.5" value="223.5.5.5"><button class="sb-btn" id="sb-ping-go">运行</button></div>
+                                <div class="sb-out" id="sb-ping-out"></div>
+                        </div>
+
+                        <div class="sb-card sb-tool">
+                                <div class="sb-h">
+                                        <span class="sb-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></span>
+                                        <h2>带宽测速</h2>
+                                </div>
+                                <div class="sb-desc">从镜像源拉取 1MB 实测下行</div>
+                                <div class="row"><button class="sb-btn" id="sb-sp-go" style="width:100%">开始测速</button></div>
+                                <div class="sb-res" id="sb-sp-res"></div>
+                        </div>
+
+                        <div class="sb-card sb-tool">
+                                <div class="sb-h">
+                                        <span class="sb-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2"/><path d="M2 8h3M2 16h3M19 8h3M19 16h3"/></svg></span>
+                                        <h2>网络唤醒 WOL</h2>
+                                </div>
+                                <div class="sb-desc">输入或从客户端选择 MAC</div>
+                                <div class="row"><input class="sb-in" id="sb-wol-in" placeholder="aa:bb:cc:dd:ee:ff" list="sb-macs"><button class="sb-btn" id="sb-wol-go">唤醒</button></div>
+                                <datalist id="sb-macs"></datalist>
+                                <div class="sb-hint" id="sb-wol-hint"></div>
+                        </div>
+
+                        <div class="sb-card sb-tool">
+                                <div class="sb-h">
+                                        <span class="sb-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M6 8h.01M6 12h.01M6 16h.01M10 8h8M10 12h8M10 16h8"/></svg></span>
+                                        <h2>WiFi 分享码</h2>
+                                </div>
+                                <div class="row" style="margin-top:4px"><select class="sb-select" id="sb-wifi-sel"></select></div>
+                                <div class="sb-qrow">
+                                        <canvas id="sb-qr" width="132" height="132"></canvas>
+                                        <div class="sb-wifiinfo" id="sb-wifi-info">选择网络生成二维码<br>手机扫码直接连 WiFi</div>
+                                </div>
+                        </div>
+
+                        <div class="sb-card sb-tool">
+                                <div class="sb-h">
+                                        <span class="sb-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></span>
+                                        <h2>端口检测</h2>
+                                </div>
+                                <div class="sb-desc">目标 host:port 连通性</div>
+                                <div class="row"><input class="sb-in" id="sb-pt-in" placeholder="223.5.5.5:53"><button class="sb-btn" id="sb-pt-go">检测</button></div>
+                                <span class="sb-pill" id="sb-pt-res"></span>
+                        </div>
+
+                        <div class="sb-card sb-tool">
+                                <div class="sb-h">
+                                        <span class="sb-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h.08a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h.08a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.08a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span>
+                                        <h2>快捷操作</h2>
+                                </div>
+                                <div class="sb-actions">
+                                        <button class="sb-act" id="sb-flush"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg>清 DNS 缓存</button>
+                                        <button class="sb-act" id="sb-renew"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg>重拨 WAN</button>
+                                        <button class="sb-act danger" id="sb-reboot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/></svg>重启路由</button>
+                                </div>
+                                <div class="sb-hint" id="sb-act-hint"></div>
+                        </div>
+                </div>
+        </div>
+</div>
+
+<script>
+/* 紧凑 QR 生成器（Model 2 / byte mode / ECC L / mask 0 / v1-10）
+ * 仅供 slate 工具箱 WiFi 二维码使用；与标准实现逐位对照验证过 */
+function qrGF() {
+  var E = new Array(512), L = new Array(256), x = 1;
+  for (var i = 0; i < 255; i++) { E[i] = x; L[x] = i; x <<= 1; if (x & 0x100) x ^= 0x11d; }
+  E[255] = E[0]; return { E: E, L: L };
+}
+function qrRS(gf, data, ecLen) {
+  /* 生成多项式 */
+  var g = [1];
+  for (var i = 0; i < ecLen; i++) {
+    var ng = new Array(g.length + 1).fill(0);
+    for (var j = 0; j < g.length; j++) {
+      ng[j] ^= g[j];
+      if (g[j]) { var e = gf.L[g[j]] + i; ng[j + 1] ^= gf.E[e % 255]; }
+    }
+    g = ng;
+  }
+  g.shift(); /* 去掉首 1，留 ecLen 个系数 */
+  /* 多项式除法求余 */
+  var rem = new Array(ecLen).fill(0);
+  for (var k = 0; k < data.length; k++) {
+    var f = data[k] ^ rem[0];
+    rem.shift(); rem.push(0);
+    if (f) for (var m = 0; m < ecLen; m++) if (g[m]) rem[m] ^= gf.E[(gf.L[g[m]] + gf.L[f]) % 255];
+  }
+  return rem;
+}
+function qrUTF8(s) {
+  var out = [];
+  for (var i = 0; i < s.length; i++) {
+    var c = s.charCodeAt(i);
+    if (c < 0x80) out.push(c);
+    else if (c < 0x800) { out.push(0xc0 | c >> 6, 0x80 | c & 63); }
+    else { out.push(0xe0 | c >> 12, 0x80 | c >> 6 & 63, 0x80 | c & 63); }
+  }
+  return out;
+}
+/* v1-10 ECC-L 块结构 [组数,组内数据字节数,纠错字节数] 与对齐坐标 */
+var QR_L = { 1: [[1, 19, 7]], 2: [[1, 34, 10]], 3: [[1, 55, 15]], 4: [[1, 80, 20]], 5: [[1, 108, 26]], 6: [[2, 68, 18]], 7: [[2, 78, 20]], 8: [[2, 97, 24]], 9: [[2, 116, 30]], 10: [[2, 68, 18], [2, 69, 18]] };
+var QR_AL = { 1: [], 2: [6, 18], 3: [6, 22], 4: [6, 26], 5: [6, 30], 6: [6, 34], 7: [6, 22, 38], 8: [6, 24, 42], 9: [6, 26, 46], 10: [6, 28, 50] };
+function qrBCH(data, poly, bits) {
+  var v = data << bits;
+  var hi = bits + poly.bitLen;
+  while (v >> bits >= 1 && v >= (1 << bits)) {
+    var d = v;
+    var s = -1;
+    for (var i = 31; i >= bits; i--) if (d >>> i & 1) { s = i; break; }
+    if (s < bits) break;
+    v ^= poly.g << (s - poly.deg);
+  }
+  return data << bits | v;
+}
+function qrEncode(text) {
+  var bytes = qrUTF8(text), n = bytes.length;
+  var v = 0, caps = [0, 17, 32, 53, 78, 106, 134, 154, 192, 230, 271];
+  for (var i = 1; i <= 10; i++) if (n + 2 + (i >= 10 ? 2 : 1) <= caps[i]) { v = i; break; }
+  if (!v) for (var j = 10; j >= 1; j--) { if (n <= caps[j]) { v = j; break; } }
+  if (!v) return null;
+  /* 位流：mode(4)+len(8/16)+data+terminator+pad */
+  var bs = [];
+  function push(val, len) { for (var b = len - 1; b >= 0; b--) bs.push(val >>> b & 1); }
+  push(4, 4); push(n, v >= 10 ? 16 : 8);
+  bytes.forEach(function (by) { push(by, 8); });
+  var totalData = 0; QR_L[v].forEach(function (b) { totalData += b[0] * b[1]; });
+  var totalBits = totalData * 8;
+  var term = Math.min(4, totalBits - bs.length);
+  push(0, term);
+  while (bs.length % 8) bs.push(0);
+  var cw = [];
+  for (var k = 0; k < bs.length; k += 8) { var by = 0; for (var m = 0; m < 8; m++) by = by << 1 | bs[k + m]; cw.push(by); }
+  var pads = [0xec, 0x11], pi = 0;
+  while (cw.length < totalData) cw.push(pads[pi++ % 2]);
+  /* 分块 + RS + 交织 */
+  var gf = qrGF(), blocks = [], off = 0;
+  QR_L[v].forEach(function (b) {
+    for (var g = 0; g < b[0]; g++) {
+      var d = cw.slice(off, off + b[1]); off += b[1];
+      blocks.push({ d: d, e: qrRS(gf, d, b[2]) });
+    }
+  });
+  var maxD = 0, maxE = 0;
+  blocks.forEach(function (b) { maxD = Math.max(maxD, b.d.length); maxE = Math.max(maxE, b.e.length); });
+  var fin = [];
+  for (var di = 0; di < maxD; di++) blocks.forEach(function (b) { if (di < b.d.length) fin.push(b.d[di]); });
+  for (var ei = 0; ei < maxE; ei++) blocks.forEach(function (b) { if (ei < b.e.length) fin.push(b.e[ei]); });
+  /* 矩阵 */
+  var size = 17 + 4 * v, M = [];
+  for (var r = 0; r < size; r++) M.push(new Array(size).fill(null));
+  function fp(r, c) {
+    for (var dr = -1; dr <= 7; dr++) for (var dc = -1; dc <= 7; dc++) {
+      var rr = r + dr, cc = c + dc;
+      if (rr < 0 || cc < 0 || rr >= size || cc >= size) continue;
+      M[rr][cc] = dr >= 0 && dr <= 6 && dc >= 0 && dc <= 6 && (dr == 0 || dr == 6 || dc == 0 || dc == 6 || dr == dc || dr + dc == 6) ? 1 : 0;
+    }
+  }
+  fp(0, 0); fp(0, size - 7); fp(size - 7, 0);
+  for (var t = 8; t < size - 8; t++) { if (M[6][t] === null) M[6][t] = t % 2 == 0 ? 1 : 0; if (M[t][6] === null) M[t][6] = t % 2 == 0 ? 1 : 0; }
+  var AP = QR_AL[v];
+  AP.forEach(function (ar) { AP.forEach(function (ac) {
+    if ((ar < 7 && ac < 7) || (ar < 7 && ac >= size - 8) || (ar >= size - 8 && ac < 7)) return;
+    for (var dr = -2; dr <= 2; dr++) for (var dc = -2; dc <= 2; dc++) M[ar + dr][ac + dc] = Math.max(Math.abs(dr), Math.abs(dc)) == 1 ? 0 : 1;
+  }); });
+  /* 格式信息（L=01, mask=0） */
+  var fmt = 0x77C4;
+  for (var fi = 0; fi < 15; fi++) {
+    var mod = fmt >>> fi & 1;
+    if (fi < 6) M[fi][8] = mod;
+    else if (fi < 8) M[fi + 1][8] = mod;
+    else M[size - 15 + fi][8] = mod;
+    if (fi < 8) M[8][size - 1 - fi] = mod;
+    else if (fi < 9) M[8][15 - fi] = mod;
+    else M[8][15 - fi - 1] = mod;
+  }
+  M[size - 8][8] = 1;
+  /* 版本信息 v7+ */
+  if (v >= 7) {
+    var vg = { g: 0x1f25, deg: 12 };
+    var vv = v << 12, vd = v << 12;
+    for (var s2 = 31; s2 >= 12; s2--) { if (vd >>> s2 & 1) vd ^= 0x1f25 << (s2 - 12); }
+    var vinfo = vv | vd;
+    for (var vi = 0; vi < 18; vi++) {
+      var vb = vinfo >>> vi & 1;
+      M[Math.floor(vi / 3)][vi % 3 + size - 8 - 3] = vb;
+      M[vi % 3 + size - 8 - 3][Math.floor(vi / 3)] = vb;
+    }
+  }
+  /* 数据放置（蛇形）+ mask0 */
+  var inc = -1, row = size - 1, bitIdx = 7, byteIdx = 0;
+  for (var col = size - 1; col > 0; col -= 2) {
+    if (col == 6) col--;
+    while (true) {
+      for (var c2 = 0; c2 < 2; c2++) {
+        if (M[row][col - c2] === null) {
+          var dark = false;
+          if (byteIdx < fin.length) dark = (fin[byteIdx] >>> bitIdx & 1) == 1;
+          if ((row + col - c2) % 2 == 0) dark = !dark; /* mask 0 */
+          M[row][col - c2] = dark ? 1 : 0;
+          bitIdx--;
+          if (bitIdx == -1) { byteIdx++; bitIdx = 7; }
+        }
+      }
+      row += inc;
+      if (row < 0 || row >= size) { row -= inc; inc = -inc; break; }
+    }
+  }
+  return M;
+}
+/* 渲染到 canvas（每模块 4px，含 quiet zone 4 模块） */
+function qrRender(canvas, text, px) {
+  var M = qrEncode(text);
+  if (!M) return false;
+  var n = M.length, q = 4, scale = px / (n + q * 2);
+  canvas.width = canvas.height = px;
+  var g = canvas.getContext('2d');
+  g.fillStyle = '#fff'; g.fillRect(0, 0, px, px);
+  g.fillStyle = '#0b1220';
+  for (var r = 0; r < n; r++) for (var c = 0; c < n; c++) if (M[r][c]) g.fillRect((c + q) * scale, (r + q) * scale, Math.ceil(scale), Math.ceil(scale));
+  return true;
+}
+
+
+(function(){
+'use strict';
+var G = '/cgi-bin/slatebox';
+/* 会话：LuCI cookie 的 path=/cgi-bin/luci/，直接 fetch 拿不到 —— 由模板
+   服务端嵌入本页 session id（页面本身已过鉴权才渲染，同源同级信任），
+   CGI 用 ubus session 验证。fetch 全局包装自动附 sid。 */
+var SB_SID = '<%=luci.dispatcher.context.authsession%>';
+(function(){ var _f = window.fetch.bind(window);
+  window.fetch = function(u, o){ if(typeof u === 'string' && u.indexOf('/cgi-bin/slatebox') > -1){ u += (u.indexOf('?') > -1 ? '&' : '?') + 'sid=' + SB_SID; } return _f(u, o); }; })();
+var $ = function(id){ return document.getElementById(id) };
+function updown(id, v){ var e = $(id); if (e) e.innerHTML = v; }
+/* 环形仪表：pct 0-100 → stroke-dashoffset（C=2π×36≈226.2） */
+var SB_C = 226.2;
+function setGauge(k, pct, html, warn){
+        var g = $('sbg-'+k), v = $('sb-'+k);
+        if (v) v.innerHTML = html;
+        if (!g) return;
+        g.className = 'sb-gauge' + (warn ? ' warn' : '');
+        var c = g.querySelector('.fgc');
+        if (c) c.style.strokeDashoffset = (SB_C * (1 - Math.max(pct > 0 ? 4 : 0, Math.min(100, pct)) / 100)).toFixed(1);
+}
+function fmtB(b){ if(!b||b<1) return '0 B'; var u=['B','KB','MB','GB','TB'],i=0; while(b>=1024&&i<4){b/=1024;i++} return (b>=100?b.toFixed(0):b.toFixed(1))+' '+u[i] }
+function fmtMbps(bps){ var m=(bps*8)/1e6; if(m<0.01) return '<0.01 Mbps'; return (m<0.1?m.toFixed(2):m<10?m.toFixed(1):Math.round(m)+' Mbps') }
+function esc(s){ return String(s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c] }) }
+
+/* ── 生命体征轮询 ── */
+var prev=null, hist=[], HMAX=180, wanName='';
+function pushHist(t,r,s){ hist.push({t:t,r:r,s:s}); while(hist.length>HMAX) hist.shift() }
+async function poll(){
+        try{
+                var d = await (await fetch(G+'?v=1',{cache:'no-store'})).json();
+                updown('sb-host', d.host||'--');
+                updown('sb-clk', new Date().toTimeString().slice(0,8));
+                var h=Math.floor(d.up/3600), m=Math.floor(d.up%3600/60);
+                updown('sb-up','已运行 '+(h>0?h+' 时 ':'')+m+' 分');
+                var c=d.cpu, cpuPct=0;
+                if(prev && prev.cpu){
+                        var tot=0,idl=0;
+                        for(var i=0;i<c.length;i++){ tot+=c[i]-prev.cpu[i] }
+                        idl=(c[3]-prev.cpu[3])+((c[4]!==undefined&&prev.cpu[4]!==undefined)?(c[4]-prev.cpu[4]):0);
+                        if(tot>0) cpuPct=Math.round((1-idl/tot)*100);
+                }
+                var mt=d.mem[0]||1, mp=Math.round((1-d.mem[1]/mt)*100);
+                var np={cpu:c.slice(),net:d.net,ts:d.ts};
+                /* CPU/MEM/温/连接/负载 */
+                setGauge('cpu', cpuPct, cpuPct+'<small>%</small>', cpuPct>80);
+                setGauge('mem', mp, mp+'<small>%</small>', mp>85);
+                var tp=d.temp||0;
+                setGauge('temp', Math.min(100,tp), String(tp), tp>75);
+                setGauge('ct', Math.min(100,d.ct[0]/d.ct[1]*100), String(d.ct[0]), d.ct[0]/d.ct[1]>0.85);
+                setGauge('la', Math.min(100,(d.la?d.la[0]:0)*25), (d.la&&d.la[0]!==undefined&&d.la[0]!==null?d.la[0].toFixed(2):'--'), (d.la?d.la[0]:0)>2);
+                /* 客户端 */
+                var rows=(d.clients||[]).map(function(c){return '<tr><td><span class="sb-dot"></span>'+esc(c[0])+'</td><td>'+esc(c[1])+'</td><td>'+esc(c[2])+'</td></tr>'}).join('');
+                $('sb-cl').innerHTML=rows||'<tr><td colspan="3" style="color:var(--sb-dim)">无 DHCP 客户端</td></tr>';
+                updown('sb-cc',(d.clients||[]).length+' 台');
+                $('sb-macs').innerHTML=(d.clients||[]).map(function(c){return '<option value="'+esc(c[2])+'">'+esc(c[0])+'</option>'}).join('');
+                /* 速率（逻辑口归并） */
+                if(d.map){ d.map.split(',').forEach(function(kvA){var kv=kvA.split('=');
+                        if(kv[0]&&kv[1]&&kv[0]!==kv[1]&&kv[1]!=='lo'&&d.net[kv[1]]&&!d.net[kv[0]]) d.net[kv[0]]=d.net[kv[1]]; }) }
+                var wif=d.wanif||''; wanName=wif;
+                updown('sb-wif', wif?('出口 '+wif):'--');
+                var rr=0,ss=0;
+                if(prev && prev.net && prev.net[wif] && d.net[wif]){
+                        var dt=d.ts-prev.ts;
+                        if(dt>0&&dt<15){
+                                rr=Math.max(0,Math.round((d.net[wif].rx-prev.net[wif].rx)/dt));
+                                ss=Math.max(0,Math.round((d.net[wif].tx-prev.net[wif].tx)/dt));
+                                pushHist(d.ts,rr,ss);
+                                draw();
+                        }
+                }
+                updown('sb-rate','\u2193 '+fmtMbps(rr)+'  \u2191 '+fmtMbps(ss));
+                updown('sb-lg-d',fmtB(rr)+'/s'); updown('sb-lg-u',fmtB(ss)+'/s');
+                prev=np;
+        }catch(e){}
+}
+
+/* ── 吞吐图 ── */
+function draw(){
+        var cv=$('sb-graph'), ctx=cv.getContext('2d');
+        var W=cv.width=cv.clientWidth*(window.devicePixelRatio||1), H=cv.height=cv.clientHeight*(window.devicePixelRatio||1);
+        if(!W) return;
+        ctx.clearRect(0,0,W,H);
+        var pts=hist; if(pts.length<2) return;
+        var t0=pts[0].t, t1=pts[pts.length-1].t||t0+1, span=Math.max(8,t1-t0);
+        var mx=16; pts.forEach(function(p){ mx=Math.max(mx,p.r,p.s) });
+        mx*=1.15;
+        function X(t){ return (t-t0)/span*(W-8)+4 }
+        function Y(v){ return H-10-(v/mx)*(H-26) }
+        /* 网格 */
+        ctx.strokeStyle='rgba(100,116,139,.14)'; ctx.lineWidth=1;
+        for(var g=1;g<4;g++){ var y=(H-10)/4*g+4; ctx.beginPath(); ctx.moveTo(4,y); ctx.lineTo(W-4,y); ctx.stroke() }
+        /* 下行填充 */
+        var grd=ctx.createLinearGradient(0,0,0,H);
+        grd.addColorStop(0,'rgba(45,212,232,.30)'); grd.addColorStop(1,'rgba(45,212,232,0)');
+        ctx.beginPath();
+        ctx.moveTo(X(pts[0].t),H-10);
+        pts.forEach(function(p){ ctx.lineTo(X(p.t),Y(p.r)) });
+        ctx.lineTo(X(pts[pts.length-1].t),H-10); ctx.closePath();
+        ctx.fillStyle=grd; ctx.fill();
+        /* 下行线 */
+        ctx.beginPath(); pts.forEach(function(p,i){ i?ctx.lineTo(X(p.t),Y(p.r)):ctx.moveTo(X(p.t),Y(p.r)) });
+        ctx.strokeStyle='#2dd4e8'; ctx.lineWidth=1.6*(window.devicePixelRatio||1); ctx.shadowColor='rgba(45,212,232,.6)'; ctx.shadowBlur=6; ctx.stroke(); ctx.shadowBlur=0;
+        /* 上行线 */
+        ctx.beginPath(); pts.forEach(function(p,i){ i?ctx.lineTo(X(p.t),Y(p.s)):ctx.moveTo(X(p.t),Y(p.s)) });
+        ctx.strokeStyle='#34d399'; ctx.lineWidth=1.4*(window.devicePixelRatio||1); ctx.shadowColor='rgba(52,211,153,.5)'; ctx.shadowBlur=5; ctx.stroke(); ctx.shadowBlur=0;
+        /* 峰值标注 */
+        ctx.fillStyle='rgba(100,116,139,.8)'; ctx.font=(10*(window.devicePixelRatio||1))+'px ui-monospace,monospace';
+        ctx.fillText(fmtB(mx/1.15)+'/s',6,14);
+        /* 峰值虚线 */
+        ctx.setLineDash([4,4]); ctx.strokeStyle='rgba(148,163,184,.30)';
+        ctx.beginPath(); ctx.moveTo(4,Y(mx/1.15)); ctx.lineTo(W-4,Y(mx/1.15)); ctx.stroke();
+        ctx.setLineDash([]);
+        /* 端点光斑（外晕 + 内核，随 2s 刷新产生"数据活着"感） */
+        var lp=pts[pts.length-1], lx=X(lp.t), ly=Y(lp.r), dpr=(window.devicePixelRatio||1);
+        ctx.fillStyle='rgba(45,212,232,.22)'; ctx.beginPath(); ctx.arc(lx,ly,7*dpr,0,7); ctx.fill();
+        ctx.fillStyle='#67e3f2'; ctx.beginPath(); ctx.arc(lx,ly,2.6*dpr,0,7); ctx.fill();
+        var uy=Y(lp.s);
+        ctx.fillStyle='rgba(52,211,153,.20)'; ctx.beginPath(); ctx.arc(lx,uy,6*dpr,0,7); ctx.fill();
+        ctx.fillStyle='#6ee7b7'; ctx.beginPath(); ctx.arc(lx,uy,2.2*dpr,0,7); ctx.fill();
+}
+window.addEventListener('resize',draw);
+
+/* ── 工具：ping ── */
+$('sb-ping-go').onclick=async function(){
+        var h=$('sb-ping-in').value.trim(); if(!h)return;
+        var out=$('sb-ping-out'); out.className='sb-out show'; out.innerHTML='<span class="sb-loading"></span>测量中…';
+        var r=await fetch(G+'?ping='+encodeURIComponent(h),{cache:'no-store'});
+        out.textContent=await r.text();
+};
+
+/* ── 工具：测速 ── */
+$('sb-sp-go').onclick=async function(){
+        var b=this,res=$('sb-sp-res');
+        res.className='sb-res show'; res.innerHTML='<span class="sb-loading"></span>正在拉取 1 MB…';
+        b.disabled=true;
+        try{
+                var d=await (await fetch(G+'?speed=1',{cache:'no-store'})).json();
+                res.innerHTML=fmtMbps(d.speed)+'<small>下行实测 · 镜像源 1MB</small>';
+        }catch(e){ res.innerHTML='--<small>测速失败</small>' }
+        b.disabled=false;
+};
+
+/* ── 工具：WOL ── */
+$('sb-wol-go').onclick=async function(){
+        var m=$('sb-wol-in').value.trim(); if(!m)return;
+        var hint=$('sb-wol-hint'); hint.textContent='发送中…';
+        var d=await (await fetch(G+'?wol='+encodeURIComponent(m),{cache:'no-store'})).json();
+        hint.textContent = d.ok===1?'✔ 唤醒帧已发送':(d.ok===-1?'✘ 路由器缺少 ether-wake 工具':'✘ 发送失败，检查 MAC');
+};
+
+/* ── 工具：WiFi QR ── */
+var wifiList=null;
+async function loadWifi(){
+        try{
+                wifiList=await (await fetch(G+'?wifi=1',{cache:'no-store'})).json();
+                var sel=$('sb-wifi-sel');
+                if(!wifiList.length){ sel.innerHTML='<option>无无线网络</option>'; return }
+                sel.innerHTML=wifiList.map(function(w,i){return '<option value="'+i+'">'+esc(w.ssid)+'</option>'}).join('');
+                sel.onchange=wifiQr;
+                if(wifiList.length) wifiQr();
+        }catch(e){}
+}
+function wifiQr(){
+        if(!wifiList||!wifiList.length)return;
+        var w=wifiList[+$('sb-wifi-sel').value||0]; if(!w)return;
+        function E(s){return String(s).replace(/([\\;,:"])/g,'\\$1')}
+        var t=(w.enc&&w.enc!=='none')?'WPA':'nopass';
+        var str='WIFI:T:'+t+';S:'+E(w.ssid)+';P:'+E(w.key||'')+';;';
+        var ok=qrRender($('sb-qr'),str,132);
+        var enc=w.enc&&w.enc!=='none'?w.enc:'开放';
+        $('sb-wifi-info').innerHTML=ok?('<b>'+esc(w.ssid)+'</b><br><span class="k">加密</span> '+esc(enc)+'<br><span class="k">密码</span> '+(w.key?esc(w.key):'—')):'二维码生成失败';
+}
+loadWifi();
+
+/* ── 工具：端口 ── */
+$('sb-pt-go').onclick=async function(){
+        var v=$('sb-ping-in'); var t=$('sb-pt-in').value.trim(); if(!t)return;
+        var pill=$('sb-pt-res'); pill.className='sb-pill show'; pill.textContent='检测中…';
+        var d=await (await fetch(G+'?port='+encodeURIComponent(t),{cache:'no-store'})).json();
+        pill.className='sb-pill show '+(d.state==='open'?'open':'closed');
+        pill.textContent=d.state==='open'?'● 端口开放':'● 端口不通';
+};
+
+/* ── 工具：快捷操作 ── */
+var actHint=$('sb-act-hint');
+$('sb-flush').onclick=async function(){ actHint.textContent='刷新中…'; var d=await (await fetch(G+'?flush=1',{cache:'no-store'})).json(); actHint.textContent=d.ok?'✔ DNS 缓存已清除':'✘ 清除失败'; };
+$('sb-renew').onclick=async function(){ if(!confirm('重新拨号 WAN？'))return; actHint.textContent='重拨中…'; await fetch(G+'?renew=1'); actHint.textContent='✔ 已触发重拨'; };
+$('sb-reboot').onclick=async function(){
+        if(!confirm('确定重启路由器？'))return;
+        actHint.textContent='路由器即将重启…';
+        await fetch(G+'?reboot=1');
+};
+
+poll(); setInterval(poll,2000);
+})();
+</script>
