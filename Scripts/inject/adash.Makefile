@@ -49,6 +49,8 @@ define Package/luci-app-adash/install
 	$(INSTALL_DATA) $(PKG_BUILD_DIR)/fwmanager-common-head.htm $(1)/usr/lib/lua/luci/view/fwmanager/common_head.htm
 	$(INSTALL_DIR) $(1)/etc/uci-defaults
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/adash-ucid $(1)/etc/uci-defaults/99_adash-cron
+	$(INSTALL_DIR) $(1)/etc/sysctl.d
+	$(INSTALL_DATA) $(PKG_BUILD_DIR)/adash-sysctl.conf $(1)/etc/sysctl.d/11-adash-conntrack.conf
 endef
 
 $(eval $(call BuildPackage,luci-app-adash))
