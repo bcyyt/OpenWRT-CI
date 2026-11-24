@@ -292,7 +292,12 @@
 .sm-t-sm .sm-t-mono{margin-top:1px}
 #sm-t-right .sm-t-mono{flex:0 0 auto}
 #sm-t-right .sm-t-main{flex:1;min-width:0}
-@media(max-width:760px){.sm-t-grid{grid-template-columns:1fr;gap:14px}.sm-topo-svg{display:none}}
+@media(max-width:760px){.sm-t-grid{grid-template-columns:1fr;gap:14px}.sm-topo-svg{display:none}
+  .sm-tnode{max-width:100%;box-sizing:border-box;overflow:hidden}
+  .sm-t-name,.sm-t-mono{white-space:normal;word-break:break-all;overflow-wrap:anywhere}
+  #sm-t-dev{max-width:none}
+  .sm-t-grid{padding:6px}
+}
 </style>
 <%+fwmanager/common_head%>
 <div class="fwm-wrap">
