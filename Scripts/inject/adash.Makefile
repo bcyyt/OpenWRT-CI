@@ -39,16 +39,16 @@ define Build/Compile
 endef
 
 define Package/luci-app-adash/install
-        $(INSTALL_DIR) $(1)/www/cgi-bin
-        $(INSTALL_BIN) $(PKG_BUILD_DIR)/adash-cgi $(1)/www/cgi-bin/adash
-        $(INSTALL_DIR) $(1)/usr/lib/lua/luci/controller
-        $(INSTALL_BIN) $(PKG_BUILD_DIR)/adash-controller.lua $(1)/usr/lib/lua/luci/controller/adash.lua
-        $(INSTALL_DIR) $(1)/usr/lib/lua/luci/view/adash
-        $(INSTALL_DATA) $(PKG_BUILD_DIR)/adash-view.htm $(1)/usr/lib/lua/luci/view/adash/status.htm
-        $(INSTALL_DIR) $(1)/usr/lib/lua/luci/view/fwmanager
-        $(INSTALL_DATA) $(PKG_BUILD_DIR)/fwmanager-common-head.htm $(1)/usr/lib/lua/luci/view/fwmanager/common_head.htm
-        $(INSTALL_DIR) $(1)/etc/uci-defaults
-        $(INSTALL_BIN) $(PKG_BUILD_DIR)/adash-ucid $(1)/etc/uci-defaults/99_adash-cron
+	$(INSTALL_DIR) $(1)/www/cgi-bin
+	$(INSTALL_BIN) $(PKG_BUILD_DIR)/adash-cgi $(1)/www/cgi-bin/adash
+	$(INSTALL_DIR) $(1)/usr/lib/lua/luci/controller
+	$(INSTALL_BIN) $(PKG_BUILD_DIR)/adash-controller.lua $(1)/usr/lib/lua/luci/controller/adash.lua
+	$(INSTALL_DIR) $(1)/usr/lib/lua/luci/view/adash
+	$(INSTALL_DATA) $(PKG_BUILD_DIR)/adash-view.htm $(1)/usr/lib/lua/luci/view/adash/status.htm
+	$(INSTALL_DIR) $(1)/usr/lib/lua/luci/view/fwmanager
+	$(INSTALL_DATA) $(PKG_BUILD_DIR)/fwmanager-common-head.htm $(1)/usr/lib/lua/luci/view/fwmanager/common_head.htm
+	$(INSTALL_DIR) $(1)/etc/uci-defaults
+	$(INSTALL_BIN) $(PKG_BUILD_DIR)/adash-ucid $(1)/etc/uci-defaults/99_adash-cron
 endef
 
 $(eval $(call BuildPackage,luci-app-adash))

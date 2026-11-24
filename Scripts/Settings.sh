@@ -232,8 +232,11 @@ case "$WRT_CONFIG" in
   IPQ95XX-WIFI-NO|LEDE-IPQ95XX-WIFI-NO)
         #2026-11-21: LEDE 纯有线线并入（无线剥离逻辑同源，lede ipq95xx.mk 设备定义与 owrt 一字不差）
         #仪表盘后端按主题门控：bootstrap 非 v 主题线不编入 statusmon（同 2026-11-21 LEDE 决策）
+        #2026-11-24: argon 主题（QCB-ARGON 线）→ luci-app-adash 低 CPU 仪表盘
         if [ "$WRT_THEME" = "vantage" ]; then
                 echo "CONFIG_PACKAGE_luci-app-statusmon=y" >> ./.config
+        elif [ "$WRT_THEME" = "argon" ]; then
+                echo "CONFIG_PACKAGE_luci-app-adash=y" >> ./.config
         fi
         echo "CONFIG_PACKAGE_zte-wifi=y" >> ./.config
         #设备定义剥无线包：ath12k 固件 blob + 校准数据。
