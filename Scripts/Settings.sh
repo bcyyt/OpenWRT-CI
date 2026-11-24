@@ -62,6 +62,14 @@ cat > ./package/base-files/files/etc/uci-defaults/99-keep-confs <<'KEEPCONF'
 for f in /etc/config/daed /etc/config/natfrp /etc/daed /etc/natfrp /etc/statusflow /etc/statusmon /etc/iptv-auth; do
         grep -qxF "$f" /etc/sysupgrade.conf 2>/dev/null || echo "$f" >> /etc/sysupgrade.conf
 done
+# /mnt/data 整树保护（2026-11-24 实机翻车点2）：SBE1V1K 无独立数据分区，
+# /mnt/data 是 overlay 普通目录（iptv-auth dataroot，含 phoenix 扫描历史/EPG/
+# 预览图共 ~82M），升级即被重置 → 开机全量拉取+全量扫描。整树入保留清单根治；
+# S20 系列有真数据分区（99-datadisk 挂载，升级不丢），跳过以免白拷贝 80M+ 进备份
+case "$(cat /tmp/sysinfo/board_name 2>/dev/null)" in
+        supergateway,s20*) ;;
+        *) grep -qxF '/mnt/data' /etc/sysupgrade.conf 2>/dev/null || echo '/mnt/data' >> /etc/sysupgrade.conf ;;
+esac
 exit 0
 KEEPCONF
 
