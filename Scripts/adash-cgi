@@ -1277,27 +1277,49 @@ _ad_cpu_view() {
 }
 
 # PPE 表项占用：60s 视图驱动缓存（原 statusppe worker 每 5s 常驻采样，已移除）
-# 6.18 主线布局：/sys/kernel/debug/ppe{0,1}/entries（t=总行数 v4/v6=协议计数）
+# 三布局适配（对齐原 worker v5 全量逻辑）：
+#   A. 6.18 双引擎：/sys/kernel/debug/ppe{0,1}/entries + bind（t=行数 v4/v6=协议计数 b*=绑定计数）
+#   B. MTK 6.12：/sys/kernel/debug/mtk_ppe/entries 单文件（归 ppe0 槽位）
+#   C. IPQ95XX 6.18 qcom_ppe 单引擎：/sys/kernel/debug/ppe/active_flows = "v4 v6 total/容量"
+#      （活跃流即硬件绑定流 → b/bv4/bv6 = v4/v6 活跃数；仅该布局设备走到此分支）
 _ad_ppe_json() {
-    local F=/tmp/adash-ppe.json hw et ea eb ent p t0 a0 b0 t1 a1 b1
+    local F=/tmp/adash-ppe.json hw ent p bf bent t a b ba bb t0 a0 b0 ba0 bb0 t1 a1 b1 ba1 bb1 af
     if [ -s "$F" ] && [ $(( $(date +%s) - $(stat -c %Y "$F" 2>/dev/null || echo 0) )) -lt 60 ]; then
         cat "$F"; return
     fi
     hw=$(uci -q get firewall.@defaults[0].flow_offloading_hw 2>/dev/null)
     [ "$hw" = "1" ] || hw=0
-    t0=0; a0=0; b0=0; t1=0; a1=0; b1=0
-    for p in /sys/kernel/debug/ppe0/entries /sys/kernel/debug/ppe1/entries; do
-        [ -r "$p" ] || continue
-        ent=$(cat "$p" 2>/dev/null)
-        et=0; ea=0; eb=0
-        [ -n "$ent" ] && { et=$(printf '%s\n' "$ent" | wc -l); ea=$(printf '%s\n' "$ent" | grep -c 'IPv4'); eb=$(printf '%s\n' "$ent" | grep -c 'IPv6'); }
-        case "$p" in
-            *ppe0*) t0=$et; a0=$ea; b0=$eb ;;
-            *ppe1*) t1=$et; a1=$ea; b1=$eb ;;
-        esac
-    done
-    printf '{"hw":%d,"cpu":-1,"cpu_avg":-1,"usr":0,"sys":0,"ppe0":{"t":%d,"v4":%d,"v6":%d,"b":0,"bv4":0,"bv6":0},"ppe1":{"t":%d,"v4":%d,"v6":%d,"b":0,"bv4":0,"bv6":0},"ts":%d}\n' \
-        "$hw" "$t0" "$a0" "$b0" "$t1" "$a1" "$b1" "$(date +%s)" > "$F.tmp.$$" 2>/dev/null \
+    t0=0; a0=0; b0=0; ba0=0; bb0=0; t1=0; a1=0; b1=0; ba1=0; bb1=0
+    if [ -r /sys/kernel/debug/ppe0/entries ] || [ -r /sys/kernel/debug/ppe1/entries ]; then
+        for p in /sys/kernel/debug/ppe0/entries /sys/kernel/debug/ppe1/entries; do
+            [ -r "$p" ] || continue
+            ent=$(cat "$p" 2>/dev/null); t=0; a=0; b=0; ba=0; bb=0
+            [ -n "$ent" ] && { t=$(printf '%s\n' "$ent" | wc -l); a=$(printf '%s\n' "$ent" | grep -c 'IPv4'); b=$(printf '%s\n' "$ent" | grep -c 'IPv6'); }
+            bf=$(printf '%s' "$p" | sed 's|/entries$|/bind|')
+            if [ -r "$bf" ]; then
+                bent=$(cat "$bf" 2>/dev/null)
+                [ -n "$bent" ] && { ba=$(printf '%s\n' "$bent" | grep -c 'IPv4'); bb=$(printf '%s\n' "$bent" | grep -c 'IPv6'); }
+            fi
+            case "$p" in
+                *ppe0*) t0=$t; a0=$a; b0=$b; ba0=$ba; bb0=$bb ;;
+                *ppe1*) t1=$t; a1=$a; b1=$b; ba1=$ba; bb1=$bb ;;
+            esac
+        done
+    elif [ -r /sys/kernel/debug/mtk_ppe/entries ]; then
+        ent=$(cat /sys/kernel/debug/mtk_ppe/entries 2>/dev/null)
+        [ -n "$ent" ] && { t0=$(printf '%s\n' "$ent" | wc -l); a0=$(printf '%s\n' "$ent" | grep -ci 'ip4'); b0=$(printf '%s\n' "$ent" | grep -ci 'ip6'); }
+    elif [ -r /sys/kernel/debug/ppe/active_flows ]; then
+        af=$(cat /sys/kernel/debug/ppe/active_flows 2>/dev/null)
+        if [ -n "$af" ]; then
+            set -- $af
+            a0=$1; b0=$2; t0=${3%%/*}
+            ba0=$1; bb0=$2
+        fi
+    fi
+    # b = 绑定合计（view「绑定/表项」数据源；原 statusppe 链路无此字段恒 0，此处修正）
+    local bn0=$((ba0+bb0)) bn1=$((ba1+bb1))
+    printf '{"hw":%d,"cpu":-1,"cpu_avg":-1,"usr":0,"sys":0,"ppe0":{"t":%d,"v4":%d,"v6":%d,"b":%d,"bv4":%d,"bv6":%d},"ppe1":{"t":%d,"v4":%d,"v6":%d,"b":%d,"bv4":%d,"bv6":%d},"ts":%d}\n' \
+        "$hw" "$t0" "$a0" "$b0" "$bn0" "$ba0" "$bb0" "$t1" "$a1" "$b1" "$bn1" "$ba1" "$bb1" "$(date +%s)" > "$F.tmp.$$" 2>/dev/null \
         && mv -f "$F.tmp.$$" "$F" 2>/dev/null
     chmod 644 "$F" 2>/dev/null
     cat "$F" 2>/dev/null || echo '{"hw":0,"cpu":-1,"cpu_avg":-1}'
@@ -1885,7 +1907,7 @@ _sm_pppoe_acct_load
 for iface_dir in /sys/class/net/*; do
     iface=$(basename "$iface_dir")
     case "$iface" in
-        eth*|wlan*|ra*|br-lan|wan|br-wan|pppoe-*|ppp-*) ;;
+        eth*|wlan*|ra*|br-lan|wan*|br-wan|pppoe-*|ppp-*) ;;
         *) continue ;;
     esac
     _m=${iface//-/_}; _m=${_m//./_}
@@ -1912,7 +1934,7 @@ for iface_dir in /sys/class/net/*; do
     case "$iface" in
         br-lan) iface_type="LAN" ;;
         pppoe-*|ppp-*) iface_type="WAN" ;;
-        wan|br-wan) iface_type="WAN" ;;
+        wan*|br-wan) iface_type="WAN" ;;
         wlan*|ra*) iface_type="WIFI" ;;
     esac
     # v4.13：PPPoE 用逻辑口自身计数器（IP payload，与运营商/协议分类口径一致）

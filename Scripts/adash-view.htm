@@ -269,9 +269,11 @@
 .sm-topo{position:relative;background-color:#F4F5F1;background-image:radial-gradient(#DDDFD8 1px,transparent 1px);background-size:20px 20px;border-radius:10px;padding:18px;overflow:hidden}
 .sm-topo-svg{position:absolute;left:0;top:0;width:100%;height:100%;z-index:1;pointer-events:none}
 .sm-t-grid{position:relative;z-index:2;display:grid;grid-template-columns:200px 1fr 230px;gap:30px;align-items:center;min-height:150px}
+.sm-zteb{display:inline-flex;align-items:center;gap:4px;margin-left:6px;padding:1px 7px;border-radius:8px;font-size:10px;font-weight:600;line-height:1.6;color:#0891b2;background:rgba(6,182,212,.12);border:1px solid rgba(6,182,212,.25);vertical-align:middle;white-space:nowrap;max-width:180px;overflow:hidden;text-overflow:ellipsis}
+.sm-zteb.node{color:#7c3aed;background:rgba(139,92,246,.10);border-color:rgba(139,92,246,.25)}
 .sm-tnode{background:#fff;border:1px solid #E3E5DD;border-radius:12px;box-shadow:0 2px 8px rgba(40,50,30,.06);padding:12px 14px;position:relative;z-index:2}
 #sm-t-inet,#sm-t-dev{display:flex;align-items:center;gap:12px}
-#sm-t-dev{padding:16px 18px;box-shadow:0 3px 14px rgba(40,50,30,.10)}
+#sm-t-dev{padding:16px 18px;box-shadow:0 3px 14px rgba(40,50,30,.10);justify-self:center;max-width:280px}
 .sm-t-icon{width:48px;height:48px;border-radius:14px;background:#EEF0EA;display:flex;align-items:center;justify-content:center;flex:0 0 48px;color:#4A4F44}
 .sm-t-icon svg{width:24px;height:24px}
 .sm-t-badge{width:56px;height:56px;border-radius:14px;background:#A9C522;display:flex;align-items:center;justify-content:center;flex:0 0 56px;color:#fff;box-shadow:0 2px 10px rgba(169,197,34,.35)}
@@ -308,7 +310,7 @@
     <div class="sm-perf-col"><div class="sm-rw"><div class="sm-uptime-block"><div class="sm-uptime-big" id="sm-uptime">--</div><div class="sm-uptime-sub">已运行</div></div><div class="sm-ri"><div class="sm-rr long"><span class="sm-rl">固件</span><span class="sm-rv" id="sm-sys-fw">--</span></div><div class="sm-rr long"><span class="sm-rl">内核</span><span class="sm-rv" id="sm-sys-kernel">--</span></div><div class="sm-rr"><span class="sm-rl">主机名</span><span class="sm-rv" id="sm-sys-host">--</span></div><div class="sm-rr"><span class="sm-rl">开机时刻</span><span class="sm-rv" id="sm-sys-boot">--</span></div><div class="sm-rr"><span class="sm-rl">连接追踪</span><span class="sm-rv" id="sm-sys-conn">--</span></div><div class="sm-rr"><span class="sm-rl">系统时间</span><span class="sm-rv" id="sm-sys-clock">--</span></div></div></div><div class="sm-spk"><div class="sm-spk-t"><span>近 3 分钟连接表占用</span><span id="sm-spark-conn-max">峰值 --%</span></div><div class="sm-spk-b" id="sm-spark-conn"><div class="sm-spk-e">采集中...</div></div></div></div>
     <div class="sm-perf-col"><div class="sm-rw"><div class="sm-ring"><svg viewBox="0 0 100 100" width="100" height="100"><circle class="sm-rbg" cx="50" cy="50" r="42"/><circle class="sm-rfg" cx="50" cy="50" r="42" id="sm-cpu-ring" style="stroke:var(--sm-p)" stroke-dasharray="263.89" stroke-dashoffset="263.89"/></svg><div class="sm-rt" id="sm-cpu-rt">--%</div></div><div class="sm-ri"><div class="sm-rr long"><span class="sm-rl">型号</span><span class="sm-rv" id="sm-cpu-model">--</span></div><div class="sm-rr"><span class="sm-rl">核心数</span><span class="sm-rv" id="sm-cpu-cores">--</span></div><div class="sm-rr"><span class="sm-rl">频率</span><span class="sm-rv" id="sm-cpu-freq">--</span></div><div class="sm-rr"><span class="sm-rl">负载 1/5/15m</span><span class="sm-rv" id="sm-cpu-load">--</span></div></div></div></div>
     <div class="sm-perf-col"><div class="sm-rw"><div class="sm-ring"><svg viewBox="0 0 100 100" width="100" height="100"><circle class="sm-rbg" cx="50" cy="50" r="42"/><circle class="sm-rfg" cx="50" cy="50" r="42" id="sm-mem-ring" style="stroke:var(--sm-s)" stroke-dasharray="263.89" stroke-dashoffset="263.89"/></svg><div class="sm-rt" id="sm-mem-rt">--%</div></div><div class="sm-ri"><div class="sm-rr"><span class="sm-rl">总量</span><span class="sm-rv" id="sm-mem-total">--</span></div><div class="sm-rr"><span class="sm-rl">已用</span><span class="sm-rv" id="sm-mem-used">--</span></div><div class="sm-rr"><span class="sm-rl">可用</span><span class="sm-rv" id="sm-mem-avail">--</span></div><div class="sm-rr"><span class="sm-rl">缓存/缓冲</span><span class="sm-rv" id="sm-mem-cache">--</span></div></div></div></div>
-    <div class="sm-perf-col"><div class="sm-rw"><div class="sm-ring"><svg viewBox="0 0 100 100" width="100" height="100"><circle class="sm-rbg" cx="50" cy="50" r="42"/><circle class="sm-rfg" cx="50" cy="50" r="42" id="sm-ppe-ring" style="stroke:#0ea5e9" stroke-dasharray="263.89" stroke-dashoffset="263.89"/></svg><div class="sm-rt" id="sm-ppe-rt">--%</div></div><div class="sm-ri"><div class="sm-rr"><span class="sm-rl">硬件加速</span><span class="sm-rv" id="sm-ppe-hw">--</span></div><div class="sm-rr"><span class="sm-rl">PPE0 绑定/表项</span><span class="sm-rv" id="sm-ppe0">--</span></div><div class="sm-rr"><span class="sm-rl">PPE0 v4/v6 绑定</span><span class="sm-rv" id="sm-ppe0-vg">--</span></div><div class="sm-rr"><span class="sm-rl">PPE1 绑定/表项</span><span class="sm-rv" id="sm-ppe1">--</span></div><div class="sm-rr"><span class="sm-rl">PPE1 v4/v6 绑定</span><span class="sm-rv" id="sm-ppe1-vg">--</span></div><div class="sm-rr"><span class="sm-rl">表项合计</span><span class="sm-rv" id="sm-ppe-tot">--</span></div></div></div>
+    <div class="sm-perf-col"><div class="sm-rw"><div class="sm-ring"><svg viewBox="0 0 100 100" width="100" height="100"><circle class="sm-rbg" cx="50" cy="50" r="42"/><circle class="sm-rfg" cx="50" cy="50" r="42" id="sm-ppe-ring" style="stroke:#0ea5e9" stroke-dasharray="263.89" stroke-dashoffset="263.89"/></svg><div class="sm-rt" id="sm-ppe-rt">--%</div></div><div class="sm-ri"><div class="sm-rr"><span class="sm-rl">硬件加速</span><span class="sm-rv" id="sm-ppe-hw">--</span></div><div class="sm-rr"><span class="sm-rl">PPE0 绑定/表项</span><span class="sm-rv" id="sm-ppe0">--</span></div><div class="sm-rr"><span class="sm-rl">PPE0 v4/v6 绑定</span><span class="sm-rv" id="sm-ppe0-vg">--</span></div><div class="sm-rr" id="sm-ppe1-row" style="display:none"><span class="sm-rl">PPE1 绑定/表项</span><span class="sm-rv" id="sm-ppe1">--</span></div><div class="sm-rr" id="sm-ppe1vg-row" style="display:none"><span class="sm-rl">PPE1 v4/v6 绑定</span><span class="sm-rv" id="sm-ppe1-vg">--</span></div><div class="sm-rr"><span class="sm-rl">表项合计</span><span class="sm-rv" id="sm-ppe-tot">--</span></div></div></div>
     </div>
     <div class="sm-perf-chart">
       <div class="sm-flow-chart">
@@ -393,7 +395,6 @@
   <div class="sm-cb">
     <div style="font-size:11px;color:var(--sm-g400);margin-bottom:10px">连接数含路由器自身及外部入站连接，客户端表仅统计内网设备发起的连接</div>
     <div class="sm-pg">
-    <div class="sm-pi ext-hl"><span class="sm-pic" style="color:#e58a8a"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg></span><div class="sm-pl">外部连接</div><div class="sm-pv" id="sm-p-ext">--</div><div class="sm-ps">通往 / 来自公网</div><div class="sm-pbar"><div class="sm-pfill" id="sm-p-ext-bar" style="background:#e8b4b4;width:0%"></div></div></div>
     <div class="sm-pi"><span class="sm-pic" style="color:var(--sm-p)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></span><div class="sm-pl">TCP 连接</div><div class="sm-pv" id="sm-p-tcp-c">--</div><div class="sm-ps" id="sm-p-tcp-t">--</div><div class="sm-pbar"><div class="sm-pfill" id="sm-p-tcp-bar" style="background:var(--sm-p);width:0%"></div></div></div>
     <div class="sm-pi"><span class="sm-pic" style="color:var(--sm-ac)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="2"/><path d="M16.24 7.76a6 6 0 010 8.49M7.76 16.24a6 6 0 010-8.49M19.07 4.93a10 10 0 010 14.14M4.93 19.07a10 10 0 010-14.14"/></svg></span><div class="sm-pl">UDP 连接</div><div class="sm-pv" id="sm-p-udp">--</div><div class="sm-ps" id="sm-p-udp-s">--</div><div class="sm-pbar"><div class="sm-pfill" id="sm-p-udp-bar" style="background:var(--sm-ac);width:0%"></div></div></div>
     <div class="sm-pi"><span class="sm-pic" style="color:var(--sm-w)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg></span><div class="sm-pl">ICMP 连接</div><div class="sm-pv" id="sm-p-icmp">--</div><div class="sm-ps">数据包</div><div class="sm-pbar"><div class="sm-pfill" style="background:var(--sm-w);width:100%"></div></div></div>
@@ -420,12 +421,6 @@
     <th data-key="name">设备</th><th data-key="ip">IP 地址</th><th data-key="mac">MAC</th><th data-key="conn" class="sm-ta-c">连接</th><th data-key="rxr" class="sm-ta-r">接收速率</th><th data-key="txr" class="sm-ta-r">发送速率</th><th data-key="rxt" class="sm-ta-r">总接收</th><th data-key="txt" class="sm-ta-r">总发送</th>
   </tr></thead><tbody id="sm-cl"><tr><td colspan="8" class="sm-empty">加载中...</td></tr></tbody></table></div>
   <div class="sm-cpage" id="sm-cpage"></div>
-</div>
-
-<!-- 磁盘使用 -->
-<div class="sm-card" style="margin-bottom:14px">
-  <div class="sm-ch"><h2><span class="sm-ic amber"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg></span>磁盘使用</h2><span class="meta" id="sm-dc">--</span></div>
-  <div class="sm-cb" id="sm-disk" style="max-height:200px;overflow-y:auto"><div class="sm-empty">加载中...</div></div>
 </div>
 
 <!-- 服务 -->
@@ -776,6 +771,24 @@ function sm_cPager(n,pages){
   h+='<button type="button" data-p="'+(sm_cpage+1)+'"'+(sm_cpage>=pages?' disabled':'')+'>下一页</button></div>';
   el.innerHTML=h;
 }
+// ===== ZTE mesh 徽章（数据：/cgi-bin/zteinfo，zte-wifi 守护维护 /tmp/zte-wifi.json）=====
+var sm_zte={c:{},n:{},ts:0};
+function sm_zteLoad(){
+  if(Date.now()-sm_zte.ts<15000)return;
+  fetch('/cgi-bin/zteinfo',{cache:'no-store'}).then(function(r){return r.json()}).then(function(d){
+    if(d.disabled)return;
+    sm_zte=d;sm_zte.ts=Date.now();
+    var el=document.getElementById('sm-cl');
+    if(el&&el.rows.length&&window.sm_last)sm_clients(window.sm_last);
+  }).catch(function(){});
+}
+function sm_zteBadge(ip){
+  var n=sm_zte.n&&sm_zte.n[ip],c=sm_zte.c&&sm_zte.c[ip];
+  if(n)return '<span class="sm-zteb node" title="中兴 mesh 节点">ZTE mesh · '+sm_esc(n.m||'')+'</span>';
+  if(c)return '<span class="sm-zteb" title="中兴 mesh 无线">中兴mesh · '+sm_esc(c.b||'')+(c.n?' · '+sm_esc(c.n):'')+'</span>';
+  return '';
+}
+
 function sm_clients(d){
   var all=sm_sortList(d.clients||[]),ch='',act=0,idle=0,off=0;
   all.forEach(function(c){if(c.state==='active')act++;else if(c.state==='idle')idle++;else off++});
@@ -793,7 +806,7 @@ function sm_clients(d){
     else vb='<span class="sm-vtag v4">v4</span>';
     var cc=c.connections||0;
     ch+='<tr style="cursor:pointer" onclick="sm_showClient(\''+sm_esc(c.ip)+'\',\''+sm_esc(nm)+'\',\''+sm_esc(c.mac)+'\')">'
-      +'<td class="sm-cnm"><span class="sm-ddot '+c.state+'"></span><span class="n" title="'+sm_esc(c.mac)+'">'+sm_esc(nm)+'</span></td>'
+      +'<td class="sm-cnm"><span class="sm-ddot '+c.state+'"></span><span class="n" title="'+sm_esc(c.mac)+'">'+sm_esc(nm)+'</span>'+sm_zteBadge(c.ip)+'</td>'
       +'<td class="sm-mono" style="font-weight:500;color:var(--sm-p)">'+sm_esc(c.ip)+vb
       +(c.ip6?'<div style="font-size:10px;color:var(--sm-g400);font-weight:400;margin-top:2px;word-break:break-all">'+sm_esc(c.ip6.split(',')[0])+'</div>':'')
       +'</td>'
@@ -847,7 +860,18 @@ function sm_renderTopo(d){
   var box=document.getElementById('sm-topo');if(!box)return;
   var wan=d.wan||{};
   var sys=d.system||{};
-  sm_topoSetText('sm-tt-pub',wan.pub||'未知');
+  var _pub=wan.pub;
+  if(!_pub||_pub==='--'||_pub==='未知'){
+    (d.network||[]).some(function(n){
+      if(n.type!=='WAN'||!n.ip4)return false;
+      var m=n.ip4.split(',')[0].trim().split('.');
+      if(m.length!==4)return false;
+      var a=+m[0],b=+m[1];
+      if(a===10||a===127||(a===172&&b>=16&&b<=31)||(a===192&&b===168)||(a===169&&b===254)||(a===100&&b>=64&&b<=127))return false;
+      _pub=n.ip4.split(',')[0].trim();return true;
+    });
+  }
+  sm_topoSetText('sm-tt-pub',_pub||'未知');
   sm_topoSetText('sm-tt-dns',wan.dns&&wan.dns!=='127.0.0.1'?'DNS '+wan.dns:'');
   sm_topoSetText('sm-tt-host',sys.board||sys.hostname||'--');
   sm_topoSetText('sm-tt-up','已运行 '+sm_u(sys.uptime));
@@ -890,7 +914,7 @@ function sm_render(d){
   window.sm_cpuAvg=window.sm_cpuAvg||[];var smNowS=Math.floor(Date.now()/1000);var sm_cv=(d.ppe&&typeof d.ppe.cpu_avg==='number'&&d.ppe.cpu_avg>=0)?d.ppe.cpu_avg:((d.ppe&&typeof d.ppe.cpu==='number'&&d.ppe.cpu>=0)?d.ppe.cpu:d.system.cpu_usage);window.sm_liveCpu=sm_ca;window.sm_cpuAvg.push({t:smNowS,v:sm_cv});while(window.sm_cpuAvg.length&&smNowS-window.sm_cpuAvg[0].t>30)window.sm_cpuAvg.shift();var sm_ca=0;for(var smi=0;smi<window.sm_cpuAvg.length;smi++)sm_ca+=window.sm_cpuAvg[smi].v;sm_ca=window.sm_cpuAvg.length?Math.round(sm_ca/window.sm_cpuAvg.length):d.system.cpu_usage;sm_sr('sm-cpu-ring',sm_ca,sm_lc(sm_ca));var crt=document.getElementById('sm-cpu-rt');if(crt)crt.textContent=sm_ca+'%';
   document.getElementById('sm-cpu-model').textContent=d.system.cpu_model;document.getElementById('sm-cpu-cores').textContent=d.system.cpu_cores+' 核';
   document.getElementById('sm-cpu-freq').textContent=sm_freq(d.system);document.getElementById('sm-cpu-load').textContent=d.system.load.join(' / ');
-  if(d.ppe){var pa=d.ppe.ppe0||{},pb=d.ppe.ppe1||{};var pb0=pa.b||0,pb1=pb.b||0;var pu=(pa.v4||0)+(pa.v6||0)+(pb.v4||0)+(pb.v6||0);var pt=(pa.t||0)+(pb.t||0);var pp=pt>0?Math.round((pb0+pb1)/pt*10000)/100:0;sm_sr('sm-ppe-ring',pp,sm_lc(pp));var prt=document.getElementById('sm-ppe-rt');if(prt)prt.textContent=pp<1?pp.toFixed(2)+'%':Math.round(pp)+'%';var phw=document.getElementById('sm-ppe-hw');if(phw)phw.textContent=d.ppe.hw?'开启':'关闭';var p0=document.getElementById('sm-ppe0');if(p0)p0.textContent=pb0+' / '+((pa.v4||0)+(pa.v6||0));var p1=document.getElementById('sm-ppe1');if(p1)p1.textContent=pb1+' / '+((pb.v4||0)+(pb.v6||0));var pv0=document.getElementById('sm-ppe0-vg');if(pv0)pv0.textContent=((pa.bv4!=null?pa.bv4:pa.v4)||0)+' / '+((pa.bv6!=null?pa.bv6:pa.v6)||0);var pv1=document.getElementById('sm-ppe1-vg');if(pv1)pv1.textContent=((pb.bv4!=null?pb.bv4:pb.v4)||0)+' / '+((pb.bv6!=null?pb.bv6:pb.v6)||0);var ptot=document.getElementById('sm-ppe-tot');if(ptot)ptot.textContent=pu+' / '+pt;}
+  if(d.ppe){var pa=d.ppe.ppe0||{},pb=d.ppe.ppe1||{};var pb0=pa.b||0,pb1=pb.b||0;var p1r=document.getElementById('sm-ppe1-row'),p1vr=document.getElementById('sm-ppe1vg-row');if(p1r)p1r.style.display=(pb.t>0?'':'none');if(p1vr)p1vr.style.display=(pb.t>0?'':'none');var pu=(pa.v4||0)+(pa.v6||0)+(pb.v4||0)+(pb.v6||0);var pt=(pa.t||0)+(pb.t||0);var pp=pt>0?Math.round((pb0+pb1)/pt*10000)/100:0;sm_sr('sm-ppe-ring',pp,sm_lc(pp));var prt=document.getElementById('sm-ppe-rt');if(prt)prt.textContent=pp<1?pp.toFixed(2)+'%':Math.round(pp)+'%';var phw=document.getElementById('sm-ppe-hw');if(phw)phw.textContent=d.ppe.hw?'开启':'关闭';var p0=document.getElementById('sm-ppe0');if(p0)p0.textContent=pb0+' / '+((pa.v4||0)+(pa.v6||0));var p1=document.getElementById('sm-ppe1');if(p1)p1.textContent=pb1+' / '+((pb.v4||0)+(pb.v6||0));var pv0=document.getElementById('sm-ppe0-vg');if(pv0)pv0.textContent=((pa.bv4!=null?pa.bv4:pa.v4)||0)+' / '+((pa.bv6!=null?pa.bv6:pa.v6)||0);var pv1=document.getElementById('sm-ppe1-vg');if(pv1)pv1.textContent=((pb.bv4!=null?pb.bv4:pb.v4)||0)+' / '+((pb.bv6!=null?pb.bv6:pb.v6)||0);var ptot=document.getElementById('sm-ppe-tot');if(ptot)ptot.textContent=pu+' / '+pt;}
   sm_sr('sm-mem-ring',mp,sm_lc(mp));var mrt=document.getElementById('sm-mem-rt');if(mrt)mrt.textContent=mp+'%';
   document.getElementById('sm-mem-total').textContent=sm_f(d.memory.total*1024);document.getElementById('sm-mem-used').textContent=sm_f(d.memory.used*1024);
   document.getElementById('sm-mem-avail').textContent=sm_f(d.memory.available*1024);document.getElementById('sm-mem-cache').textContent=sm_f((d.memory.cached+d.memory.buffers)*1024);
@@ -920,13 +944,11 @@ function sm_render(d){
   document.getElementById('sm-p-udp').textContent=p.ct_udp||0;document.getElementById('sm-p-udp-s').textContent='总计 '+p.ct_udp_total;
   document.getElementById('sm-p-icmp').textContent=p.ct_icmp||0;
   document.getElementById('sm-p-ip').textContent=p.conntrack_current||0;document.getElementById('sm-p-ct-s').textContent='容量上限 '+p.conntrack_max;
-  document.getElementById('sm-p-ext').textContent=p.ct_external||0;
   var cm=p.conntrack_max||1,cc2=p.conntrack_current||0;
   document.getElementById('sm-ct').textContent='连接追踪 '+cc2+' / '+cm+' ('+Math.round(cc2/cm*100)+'%)';
   document.getElementById('sm-p-tcp-bar').style.width=Math.min(100,Math.round((p.ct_tcp_estab||0)/Math.max(1,cm)*100))+'%';
   document.getElementById('sm-p-udp-bar').style.width=Math.min(100,Math.round((p.ct_udp||0)/Math.max(1,cm)*100))+'%';
   document.getElementById('sm-p-ct-bar').style.width=Math.min(100,Math.round(cc2/Math.max(1,cm)*100))+'%';
-  document.getElementById('sm-p-ext-bar').style.width=Math.min(100,Math.round((p.ct_external||0)/Math.max(1,cm)*100))+'%';
   var nh='';
   d.network.forEach(function(n){
     var b=n.state==='up'?'<span class="sm-badge sm-b-up">UP</span>':'<span class="sm-badge sm-b-down">DOWN</span>';
@@ -935,10 +957,6 @@ function sm_render(d){
   });
   document.getElementById('sm-net').innerHTML=nh;document.getElementById('sm-net-count').textContent=d.network.length+' 个接口';
   sm_clients(d);
-  var dh='';
-  d.disk.forEach(function(dk){var dp=dk.usepct||0;dh+='<div class="sm-dk"><div class="sm-dkh"><span class="sm-dkm">'+dk.mount+'<span class="sm-dkf">'+dk.fs+'</span></span><span class="sm-dki">'+sm_f(dk.used*1024)+' / '+sm_f(dk.total*1024)+' ('+dp+'%)</span></div><div class="sm-dkb"><div class="sm-dkf2" style="background:'+sm_lc(dp)+';width:'+dp+'%"></div></div></div>'});
-  if(!dh)dh='<div class="sm-empty">无挂载点</div>';
-  document.getElementById('sm-disk').innerHTML=dh;document.getElementById('sm-dc').textContent=d.disk.length+' 个挂载点';
   var sh='',run=0,stop=0;
   d.services.forEach(function(s){sh+='<div class="sm-svt '+s.status+'"><span class="sm-sdot"></span><div><div class="sm-svn">'+s.name+'</div><div class="sm-svp">'+(s.pid>0?'PID '+s.pid:(s.status==='running'?'运行中':'已停止'))+'</div></div></div>';if(s.status==='running')run++;else stop++});
   document.getElementById('sm-svc').innerHTML=sh;document.getElementById('sm-svc-sum').textContent=run+' 运行 / '+stop+' 停止';
@@ -1109,7 +1127,7 @@ Array.prototype.forEach.call(document.querySelectorAll('.sm-win-tabs'),function(
 sm_perfAxis();
 sm_fetch();
 sm_fetchSysH();
-setInterval(function(){if(!document.hidden)sm_fetch()},5000);document.addEventListener('visibilitychange',function(){if(!document.hidden)sm_fetch()});
+setInterval(function(){if(!document.hidden)sm_fetch()},5000);setInterval(function(){if(!document.hidden)sm_zteLoad()},5000);document.addEventListener('visibilitychange',function(){if(!document.hidden)sm_fetch()});
 setInterval(sm_fetchSysH,60000);
 </script>
 
