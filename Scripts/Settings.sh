@@ -209,7 +209,13 @@ echo "CONFIG_PACKAGE_luci-app-$WRT_THEME-config=y" >> ./.config
 # 2026-11-19: CS 线已整体下线删除（workflow + Config）
 case "$WRT_CONFIG" in
   MEDIATEK-WIFI-*|IPQ95XX)
-        echo "CONFIG_PACKAGE_luci-app-statusmon=y" >> ./.config
+        # adash（2026-11-24）：IPQ95XX 按主题分流——vantage 走 statusmon 后端，
+        # argon（QCB-ARGON 线）走 luci-app-adash 低 CPU 仪表盘（无常驻采样）
+        if [ "$WRT_THEME" = "argon" ]; then
+                echo "CONFIG_PACKAGE_luci-app-adash=y" >> ./.config
+        else
+                echo "CONFIG_PACKAGE_luci-app-statusmon=y" >> ./.config
+        fi
         echo "CONFIG_PACKAGE_zte-wifi=y" >> ./.config
         # 2026-11-18: daed 全面接管代理，openclash 移出固件（运行时也可 apk del）
         ;;
