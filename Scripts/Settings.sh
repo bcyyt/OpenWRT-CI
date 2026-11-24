@@ -399,8 +399,12 @@ fi
 #SBE1V1K 的 10G 口 PHY = RTL8261BE，上游 realtek 驱动 ID 表无 LED ops → 10G 灯死。
 #V大 751 系只覆盖 RTL8221B/RTL8226B-CG；743 的目标表项（RTL8254B/8261BE/N/
 #8264/8264B）与其零重叠、hunk 区域零重叠，可安全叠加。phylib 硬件灯路线：
-#驱动 ops 自动注册，无需 DTS 改动。守卫以 V大树 751-03 为血统标记，他树跳过。
-if [ -f target/linux/generic/hack-6.18/751-03-net-phy-realtek-enable-RTL8226B-CG-hardware-LEDs.patch ] \
+#驱动 ops 自动注册，无需 DTS 改动。双重守卫：血统（V大树 751-03 存在）+ 平台
+#（种子 .config 含 CONFIG_TARGET_qualcommbe，即 IPQ95xx/IPQ53xx 目标）。MTK/AIROHA
+#等同建一棵 V树但不带 RTL826x PHY，注入只会让它们平摊 realtek_main.c 补丁链风险
+#（2026-11-24 翻车点3：tab 事故让 MTK-ALL 在 toolchain 头文件阶段一并挂掉）。
+if grep -q "^CONFIG_TARGET_qualcommbe=y" .config 2>/dev/null \
+   && [ -f target/linux/generic/hack-6.18/751-03-net-phy-realtek-enable-RTL8226B-CG-hardware-LEDs.patch ] \
    && [ ! -f target/linux/generic/hack-6.18/743-net-phy-realtek-add-rtl826x-led-support.patch ]; then
 cat > target/linux/generic/hack-6.18/743-net-phy-realtek-add-rtl826x-led-support.patch <<'RTL826XLED'
 --- a/drivers/net/phy/realtek/realtek_main.c
