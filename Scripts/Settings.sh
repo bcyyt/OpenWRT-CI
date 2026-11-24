@@ -205,8 +205,6 @@ echo "CONFIG_PACKAGE_luci-app-$WRT_THEME-config=y" >> ./.config
 # slate 主题（2026-11-24）：独立于主题变量安装，用户可在 系统-系统-设计 里
 # 随时切换；体积 ~76KB 不构成负担。luci-app-slatebox 已下线（11-25 反馈有 bug）
 echo "CONFIG_PACKAGE_luci-theme-slate=y" >> ./.config
-# fcdash（2026-11-25）：仿 FanchmWrt 布局仪表盘，数据复用 adash（DEP 已拉 adash）
-echo "CONFIG_PACKAGE_luci-app-fcdash=y" >> ./.config
 
 #===仪表盘/代理运行时包固化（2026-11-17）：原依赖 workflow_dispatch 手动输入 PACKAGE，不输入即丢失===
 # 仅 MEDIATEK-WIFI-*（VIKINGYFY 源，无 statusfw）；2026-11-21: IPQ95XX（SBE1V1K）线并入
