@@ -430,6 +430,20 @@ WRT_ROOT2=$PWD
 (cd "$SL_DIR" && make --no-print-directory -f Makefile TOPDIR="$WRT_ROOT2" INCLUDE_DIR="$WRT_ROOT2/include" -n >/dev/null 2>/tmp/sl_syntax.err) \
         && echo "slate Makefile syntax: OK" \
         || { echo "slate Makefile syntax FAILED:"; head -5 /tmp/sl_syntax.err; exit 1; }
+#===luci-app-fcdash（2026-11-25：仿 FanchmWrt 布局仪表盘，数据源复用 adash CGI）===
+if [ "$WRT_THEME" = "argon" ] && [[ "$WRT_CONFIG" == IPQ95XX* ]]; then
+FC_DIR="./package/bcyyt/luci-app-fcdash"
+mkdir -p "$FC_DIR/files"
+cp "$GITHUB_WORKSPACE/Scripts/inject/fcdash.Makefile" "$FC_DIR/Makefile"
+for sf in fcdash-view.htm fcdash-controller.lua; do
+        cp "$GITHUB_WORKSPACE/Scripts/$sf" "$FC_DIR/files/$sf" || echo "fcdash: $sf missing"
+done
+WRT_ROOT3=$PWD
+(cd "$FC_DIR" && make --no-print-directory -f Makefile TOPDIR="$WRT_ROOT3" INCLUDE_DIR="$WRT_ROOT3/include" -n >/dev/null 2>/tmp/fc_syntax.err) \
+        && echo "fcdash Makefile syntax: OK" \
+        || { echo "fcdash Makefile syntax FAILED:"; head -5 /tmp/fc_syntax.err; exit 1; }
+fi
+
 #===irq-tune（MT7988 以太网中断分核 + TX 队列 XPS）：自编组件独立成包（2026-11-18）===
 # boot 期一次性调优：eth 中断向量按核摊开 + TX 队列 XPS；rc.d 符号链接随包内置自启
 # 仅 MediaTek 目标启用（Settings.sh），其它平台脚本自动跳过无副作用
