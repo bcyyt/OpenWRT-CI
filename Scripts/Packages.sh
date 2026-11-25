@@ -415,7 +415,7 @@ done
 WRT_ROOT=$PWD
 (cd "$AD_DIR" && make --no-print-directory -f Makefile TOPDIR="$WRT_ROOT" INCLUDE_DIR="$WRT_ROOT/include" -n >/dev/null 2>/tmp/ad_syntax.err) \
         && echo "adash Makefile syntax: OK" \
-        || { echo "adash Makefile syntax FAILED:"; head -5 /tmp/ad_syntax.err; }
+        || { echo "adash Makefile syntax FAILED:"; head -5 /tmp/ad_syntax.err; echo "FATAL: adash 已启用但 Makefile 语法错误，提前终止避免浪费整轮编译"; exit 1; }
 fi
 
 #===irq-tune（MT7988 以太网中断分核 + TX 队列 XPS）：自编组件独立成包（2026-11-18）===
