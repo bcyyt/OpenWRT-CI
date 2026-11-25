@@ -30,27 +30,30 @@ define Package/luci-app-adash
 endef
 
 define Build/Prepare
-	rm -rf $(PKG_BUILD_DIR)
-	mkdir -p $(PKG_BUILD_DIR)
-	$(CP) $(PKG_DIR)/files/. $(PKG_BUILD_DIR)/
+        rm -rf $(PKG_BUILD_DIR)
+        mkdir -p $(PKG_BUILD_DIR)
+        $(CP) $(PKG_DIR)/files/. $(PKG_BUILD_DIR)/
 endef
 
 define Build/Compile
 endef
 
 define Package/luci-app-adash/install
-	$(INSTALL_DIR) $(1)/www/cgi-bin
-	$(INSTALL_BIN) $(PKG_BUILD_DIR)/adash-cgi $(1)/www/cgi-bin/adash
-	$(INSTALL_DIR) $(1)/usr/lib/lua/luci/controller
-	$(INSTALL_BIN) $(PKG_BUILD_DIR)/adash-controller.lua $(1)/usr/lib/lua/luci/controller/adash.lua
-	$(INSTALL_DIR) $(1)/usr/lib/lua/luci/view/adash
-	$(INSTALL_DATA) $(PKG_BUILD_DIR)/adash-view.htm $(1)/usr/lib/lua/luci/view/adash/status.htm
-	$(INSTALL_DIR) $(1)/usr/lib/lua/luci/view/fwmanager
-	$(INSTALL_DATA) $(PKG_BUILD_DIR)/fwmanager-common-head.htm $(1)/usr/lib/lua/luci/view/fwmanager/common_head.htm
-	$(INSTALL_DIR) $(1)/etc/uci-defaults
-	$(INSTALL_BIN) $(PKG_BUILD_DIR)/adash-ucid $(1)/etc/uci-defaults/99_adash-cron
-	$(INSTALL_DIR) $(1)/etc/sysctl.d
-	$(INSTALL_DATA) $(PKG_BUILD_DIR)/adash-sysctl.conf $(1)/etc/sysctl.d/11-adash-conntrack.conf
+        $(INSTALL_DIR) $(1)/www/cgi-bin
+        $(INSTALL_BIN) $(PKG_BUILD_DIR)/adash-cgi $(1)/www/cgi-bin/adash
+        $(INSTALL_DIR) $(1)/usr/lib/lua/luci/controller
+        $(INSTALL_BIN) $(PKG_BUILD_DIR)/adash-controller.lua $(1)/usr/lib/lua/luci/controller/adash.lua
+        $(INSTALL_DIR) $(1)/usr/lib/lua/luci/view/adash
+        $(INSTALL_DATA) $(PKG_BUILD_DIR)/adash-view.htm $(1)/usr/lib/lua/luci/view/adash/status.htm
+        $(INSTALL_DIR) $(1)/usr/lib/lua/luci/view/fwmanager
+        $(INSTALL_DATA) $(PKG_BUILD_DIR)/fwmanager-common-head.htm $(1)/usr/lib/lua/luci/view/fwmanager/common_head.htm
+        $(INSTALL_DIR) $(1)/etc/uci-defaults
+        $(INSTALL_BIN) $(PKG_BUILD_DIR)/adash-ucid $(1)/etc/uci-defaults/99_adash-cron
+        $(INSTALL_DIR) $(1)/etc/sysctl.d
+        # 序号必须 >11：上游 11-nf-conntrack.conf(established=7440) 与本文件同目录，
+        # sysctl 按文件名倒序加载、后加载者覆盖前者；11-adash 字典序早于 11-nf
+        # 被压住，实测新固件仍 7440。改 21-adash 保证在 11-nf 之后加载生效
+        $(INSTALL_DATA) $(PKG_BUILD_DIR)/adash-sysctl.conf $(1)/etc/sysctl.d/21-adash-conntrack.conf
 endef
 
 $(eval $(call BuildPackage,luci-app-adash))
