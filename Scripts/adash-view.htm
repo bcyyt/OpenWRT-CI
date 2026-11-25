@@ -15,30 +15,22 @@
 .sm-ic.cyan{background:#ecfeff;color:var(--sm-ac)}
 .sm-ic svg{width:15px;height:15px}
 .sm-ic.purple{background:#f5f3ff;color:#7c3aed}
-/* 接口状态端口卡（v19.2）：无外框裸卡流，同概览页风格 */
-.sm-ports{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:2px 10px;padding:12px 16px 10px}
-@media(max-width:720px){.sm-ports{grid-template-columns:repeat(auto-fill,minmax(148px,1fr));padding:10px 12px 8px}}
-.sm-port{padding:6px 8px 8px;background:transparent;border:none;border-radius:var(--sm-rs)}
-.sm-port:hover{background:var(--sm-g50)}
-.sm-port-head{display:flex;align-items:center;justify-content:space-between;gap:6px;min-width:0}
-.sm-port-name{display:inline-flex;align-items:center;gap:5px;font-size:13px;font-weight:700;color:var(--sm-g800);letter-spacing:.02em;line-height:1.2;white-space:nowrap}
-.sm-port-ic{display:inline-flex;flex-shrink:0;color:var(--sm-g400)}
-.sm-port-ic svg{width:15px;height:15px}
-.sm-port-ic.amber{color:var(--sm-w)}
-.sm-port-ic.blue{color:var(--sm-p)}
-.sm-port-ic.purple{color:#7c3aed}
-.sm-pill{font-size:10.5px;font-weight:650;padding:2px 7px;border-radius:99px;display:inline-flex;align-items:center;gap:4px;white-space:nowrap;flex-shrink:0}
-.sm-pill::before{content:'';width:5px;height:5px;border-radius:50%;background:currentColor;box-shadow:0 0 0 2px rgba(22,163,74,.12)}
-.sm-pill.off::before{box-shadow:0 0 0 2px rgba(100,116,139,.12)}
-.sm-pill.on{background:var(--sm-sb);color:var(--sm-s)}
-.sm-pill.off{background:var(--sm-g100);color:var(--sm-g500)}
-.sm-port-sub{font-size:10.5px;color:var(--sm-g400);margin-top:3px;padding-left:20px}
-.sm-port-speed{font-size:17px;font-weight:700;color:var(--sm-g900);margin-top:8px;font-family:var(--sm-mono);line-height:1.2}
-.sm-port-speed small{font-size:10px;font-weight:500;color:var(--sm-g400);margin-left:5px;font-family:inherit}
-.sm-port-speed.na{color:var(--sm-g300)}
-.sm-port-rate{display:flex;gap:12px;margin-top:6px;font-size:10.5px;color:var(--sm-g500);font-family:var(--sm-mono);white-space:nowrap;overflow:hidden}
-.sm-port-rate .dn{color:var(--sm-s)}
-.sm-port-rate .up{color:var(--sm-p)}
+/* 接口状态端口卡（v19.3）：复刻 OpenWrt 原生端口状态部件——拟物网口图标+灰标题条+负载色条 */
+.sm-ports{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;padding:14px 16px}
+@media(max-width:720px){.sm-ports{grid-template-columns:repeat(auto-fill,minmax(128px,1fr));gap:10px;padding:10px 12px}}
+.sm-port{background:#fff;border-radius:10px;box-shadow:0 2px 6px rgba(0,0,0,.12);overflow:hidden;display:flex;flex-direction:column}
+.sm-port.wanrow{grid-column:1/-1;max-width:186px;justify-self:center;width:100%}
+.sm-port-h{background:#ececee;padding:6px 0;text-align:center;font-size:12px;font-weight:650;color:var(--sm-g600);letter-spacing:.03em}
+.sm-port-b{padding:10px 8px 0;text-align:center}
+.sm-port-b img{width:56px;height:56px;display:block;margin:0 auto}
+.sm-port-b .icfb{width:56px;height:56px;display:flex;align-items:center;justify-content:center;margin:0 auto;border-radius:9px;background:var(--sm-g100);color:var(--sm-g500)}
+.sm-port-b .icfb svg{width:28px;height:28px}
+.sm-port-sp{font-size:12px;font-weight:650;color:var(--sm-g500);margin-top:4px}
+.sm-port-sp.up{color:#5a6b8c}
+.sm-port-bar{height:10px;width:100%;background:#ececee;margin-top:9px;transition:background .4s}
+.sm-port-t{padding:8px 10px 10px;text-align:center;font-size:11px;color:var(--sm-g500);font-family:var(--sm-mono);line-height:1.75}
+.sm-port-t .dn{color:var(--sm-s);font-weight:600}
+.sm-port-t .up{color:var(--sm-p);font-weight:600}
 .sm-ch .meta{font-size:12px;color:var(--sm-g400);white-space:nowrap;font-variant-numeric:tabular-nums}
 .sm-cb{padding:14px 16px}
 .sm-grid{display:grid;gap:14px;margin-bottom:14px}
@@ -548,35 +540,60 @@ function sm_f(b){if(!b||b<0)return '0 B';if(b<1024)return b+' B';if(b<1048576)re
 function sm_fr(r){if(!r||r<1)return '0 Mbps';var mb=(r*8)/1000000;if(mb<0.01)return '<0.01 Mbps';return (mb<0.1?mb.toFixed(2):(mb<10?mb.toFixed(1):String(Math.round(mb))))+' Mbps'}
 function sm_spd(s){if(!s||s<1)return'—';if(s>=1000){var g=s/1000;return(g%1?g.toFixed(1):Math.round(g))+' Gbps'}return s+' Mbps'}
 
-/* 接口状态端口卡（v19）：物理口（wan/ethN/lanN）+ WiFi 射频；speed/duplex 由 CGI 采集 */
+/* 接口状态端口卡（v19.3）：复刻 OpenWrt 原生端口状态部件样式 */
 var SM_PT_RE=/^(wan[0-9]*|eth[0-9]+|lan[0-9]+|wlan[0-9]+|ra[0-9]+)$/;
+function sm_gbe(s){if(!s||s<1)return'';if(s>=1000){var g=s/1000;return(g%1?g.toFixed(1):Math.round(g))+' GbE'}return s+' MbE'}
+function sm_portbar(n){
+  var on=n.state==='up';if(!on)return'#ececee';
+  var cap=(n.speed||0)*1000000;if(cap<=0)return'#ececee';
+  var pct=(((n.rx_rate||0)+(n.tx_rate||0))*8)/cap;
+  if(pct<=0)return'#ececee';
+  if(pct<0.02)return'#b8e6d8';
+  if(pct<0.5)return'#66ccb8';
+  if(pct<0.85)return'#7ce27c';
+  return'#ee8a8a';
+}
 function sm_ports(d){
   var box=document.getElementById('sm-ports');if(!box)return;
   var pts=(d.network||[]).filter(function(n){return SM_PT_RE.test(n.name)});
   var card=document.getElementById('sm-portcard');
   if(!pts.length){if(card)card.style.display='none';return}
   if(card)card.style.display='';
+  var WIFI_IC='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.55a11 11 0 0114.08 0"/><path d="M1.42 9a16 16 0 0121.16 0"/><path d="M8.53 16.11a6 6 0 016.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg>';
   var h='';
+  /* 排序：LAN/ETH 口在前，WAN 类独行居中，WiFi 最后 */
+  var lans=[],wans=[],wifis=[];
   pts.forEach(function(n){
-    var isw=/^wan[0-9]*$/.test(n.name),iswf=/^(wlan|ra)[0-9]+$/.test(n.name),on=n.state==='up';
-    var nm=n.name.replace(/^lan([0-9]+)$/i,'LAN $1').replace(/^eth([0-9]+)$/i,'ETH $1').replace(/^wlan([0-9]+)$/i,'WLAN $1').replace(/^ra([0-9]+)$/i,'RA $1').replace(/^wan([0-9]+)$/i,'WAN $1');
-    if(n.name==='wan')nm='WAN';
-    var sub=isw?(n.name==='wan'?'互联网出口':'WAN 扩展口'):(iswf?'无线射频':'局域网口');
-    var ic=isw?'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>'
-        :iswf?'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.55a11 11 0 0114.08 0"/><path d="M1.42 9a16 16 0 0121.16 0"/><path d="M8.53 16.11a6 6 0 016.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg>'
-        :'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M6 9v4h2.5v3h2.5v-3h2v3h2.5v-3H18V9z"/></svg>';
-    var chip=isw?'amber':(iswf?'purple':'blue');
-    var spd=(iswf||!on||!n.speed)?'<div class="sm-port-speed na">—</div>'
-      :'<div class="sm-port-speed">'+sm_spd(n.speed)+((n.duplex==='full')?'<small>全双工</small>':(n.duplex==='half'?'<small>半双工</small>':''))+'</div>';
-    h+='<div class="sm-port"><div class="sm-port-head">'
-      +'<span class="sm-port-name"><span class="sm-port-ic '+chip+'">'+ic+'</span>'+nm+'</span>'
-      +'<span class="sm-pill '+(on?'on':'off')+'">'+(iswf?(on?'运行中':'已关闭'):(on?'已连接':'未连接'))+'</span></div>'
-      +'<div class="sm-port-sub">'+sub+'</div>'
-      +spd
-      +'<div class="sm-port-rate"><span class="dn">&#9660; '+sm_fr(n.rx_rate||0)+'</span><span class="up">&#9650; '+sm_fr(n.tx_rate||0)+'</span></div>'
+    if(/^(wlan|ra)[0-9]+$/.test(n.name))wifis.push(n);
+    else if(/^wan[0-9]*$/.test(n.name))wans.push(n);
+    else lans.push(n);
+  });
+  lans.concat(wifis).forEach(function(n){
+    var iswf=/^(wlan|ra)[0-9]+$/.test(n.name),on=n.state==='up';
+    var icon=iswf
+      ?'<span class="icfb">'+WIFI_IC+'</span>'
+      :'<img src="/luci-static/resources/icons/port_' +(on?'up':'down')+ '.svg" alt="" onerror="this.outerHTML=\'<span class=icfb>&#9635;</span>\'">';
+    var spd=iswf?(on?'运行中':'已关闭'):(on?sm_gbe(n.speed):'未连接');
+    h+='<div class="sm-port"><div class="sm-port-h">'+n.name+'</div>'
+      +'<div class="sm-port-b">'+icon+'<div class="sm-port-sp '+(on?'up':'')+'">'+spd+'</div></div>'
+      +'<div class="sm-port-bar" data-bar="'+n.name+'"></div>'
+      +'<div class="sm-port-t"><div class="up">&#9650; '+sm_f(n.tx)+'</div><div class="dn">&#9660; '+sm_f(n.rx)+'</div></div>'
+      +'</div>';
+  });
+  wans.forEach(function(n){
+    var on=n.state==='up';
+    var icon='<img src="/luci-static/resources/icons/port_' +(on?'up':'down')+ '.svg" alt="" onerror="this.outerHTML=\'<span class=icfb>&#9635;</span>\'">';
+    h+='<div class="sm-port wanrow"><div class="sm-port-h">'+n.name+'</div>'
+      +'<div class="sm-port-b">'+icon+'<div class="sm-port-sp '+(on?'up':'')+'">'+(on?sm_gbe(n.speed):'未连接')+'</div></div>'
+      +'<div class="sm-port-bar" data-bar="'+n.name+'"></div>'
+      +'<div class="sm-port-t"><div class="up">&#9650; '+sm_f(n.tx)+'</div><div class="dn">&#9660; '+sm_f(n.rx)+'</div></div>'
       +'</div>';
   });
   box.innerHTML=h;
+  pts.forEach(function(n){
+    var b=box.querySelector('[data-bar="'+n.name+'"]');
+    if(b)b.style.background=sm_portbar(n);
+  });
   var cnt=document.getElementById('sm-port-count');if(cnt)cnt.textContent=pts.length+' 个接口';
 }
 function sm_u(s){if(!s)return'--';var d=Math.floor(s/86400),h=Math.floor(s%86400/3600),m=Math.floor(s%3600/60);if(d>0)return d+'天 '+h+'小时';if(h>0)return h+'小时 '+m+'分';return m+'分钟'}
