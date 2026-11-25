@@ -17,9 +17,11 @@
 .sm-ic.purple{background:#f5f3ff;color:#7c3aed}
 /* 接口状态端口卡（v19.3）：复刻 OpenWrt 原生端口状态部件——拟物网口图标+灰标题条+负载色条 */
 .sm-ports{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;padding:14px 16px}
-@media(max-width:720px){.sm-ports{grid-template-columns:repeat(auto-fill,minmax(128px,1fr));gap:10px;padding:10px 12px}}
+@media(max-width:720px){.sm-ports{grid-template-columns:repeat(auto-fill,minmax(128px,1fr));gap:10px;padding:10px 12px}.sm-wanrow{gap:10px}.sm-wanrow .sm-port{width:calc(50% - 5px)}}
 .sm-port{background:#fff;border-radius:10px;box-shadow:0 2px 6px rgba(0,0,0,.12);overflow:hidden;display:flex;flex-direction:column}
-.sm-port.wanrow{grid-column:1/-1;max-width:186px;justify-self:center;width:100%}
+/* WAN 行：多个 WAN 口并排居中（1 个也居中），不再每口独占一行 */
+.sm-wanrow{grid-column:1/-1;display:flex;justify-content:center;gap:12px;flex-wrap:wrap}
+.sm-wanrow .sm-port{width:186px;max-width:100%;flex:0 1 auto}
 .sm-port-h{background:#ececee;padding:6px 0;text-align:center;font-size:12px;font-weight:650;color:var(--sm-g600);letter-spacing:.03em}
 .sm-port-b{padding:10px 8px 0;text-align:center}
 .sm-port-b img{width:56px;height:56px;display:block;margin:0 auto}
@@ -580,15 +582,19 @@ function sm_ports(d){
       +'<div class="sm-port-t"><div class="up">&#9650; '+sm_f(n.tx)+'</div><div class="dn">&#9660; '+sm_f(n.rx)+'</div></div>'
       +'</div>';
   });
-  wans.forEach(function(n){
-    var on=n.state==='up';
-    var icon='<img src="/luci-static/resources/icons/port_' +(on?'up':'down')+ '.svg" alt="" onerror="this.outerHTML=\'<span class=icfb>&#9635;</span>\'">';
-    h+='<div class="sm-port wanrow"><div class="sm-port-h">'+n.name+'</div>'
-      +'<div class="sm-port-b">'+icon+'<div class="sm-port-sp '+(on?'up':'')+'">'+(on?sm_gbe(n.speed):'未连接')+'</div></div>'
-      +'<div class="sm-port-bar" data-bar="'+n.name+'"></div>'
-      +'<div class="sm-port-t"><div class="up">&#9650; '+sm_f(n.tx)+'</div><div class="dn">&#9660; '+sm_f(n.rx)+'</div></div>'
-      +'</div>';
-  });
+  if(wans.length){
+    h+='<div class="sm-wanrow">';
+    wans.forEach(function(n){
+      var on=n.state==='up';
+      var icon='<img src="/luci-static/resources/icons/port_' +(on?'up':'down')+ '.svg" alt="" onerror="this.outerHTML=\'<span class=icfb>&#9635;</span>\'">';
+      h+='<div class="sm-port"><div class="sm-port-h">'+n.name+'</div>'
+        +'<div class="sm-port-b">'+icon+'<div class="sm-port-sp '+(on?'up':'')+'">'+(on?sm_gbe(n.speed):'未连接')+'</div></div>'
+        +'<div class="sm-port-bar" data-bar="'+n.name+'"></div>'
+        +'<div class="sm-port-t"><div class="up">&#9650; '+sm_f(n.tx)+'</div><div class="dn">&#9660; '+sm_f(n.rx)+'</div></div>'
+        +'</div>';
+    });
+    h+='</div>';
+  }
   box.innerHTML=h;
   pts.forEach(function(n){
     var b=box.querySelector('[data-bar="'+n.name+'"]');
