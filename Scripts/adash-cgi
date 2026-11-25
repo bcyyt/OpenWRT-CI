@@ -1840,7 +1840,10 @@ elif [ -f /proc/net/nf_conntrack ]; then
       n=split(a,h,":"); p=h[1]":"h[2]":"h[3]":"h[4]
       if(p!=""&&p!=":::") print p
     }' | tr '\n' '|')
-    _proto_stats=$(awk -v OWN="|${_own_ip}" -v LAN6="|${_lan6}" '
+    # 活跃判定阈值=当前 established 超时的 2/3（动态取值：sysctl 调小后阈值自动跟随，
+    # 否则写死 1200 在 600s 超时下永远达不到 → 全部误判为闲置）
+    _act_th=$(( $(cat /proc/sys/net/netfilter/nf_conntrack_tcp_timeout_established 2>/dev/null || echo 7440) * 2 / 3 ))
+    _proto_stats=$(awk -v OWN="|${_own_ip}" -v LAN6="|${_lan6}" -v ACT="${_act_th}" '
       function z(s){ gsub(/^0+/,"",s); return (s==""?"0":s) }
       function p4(s, n,h){ n=split(s,h,":"); return z(h[1])":"z(h[2])":"z(h[3])":"z(h[4]) }
       function is_int(ip){
@@ -1879,8 +1882,8 @@ elif [ -f /proc/net/nf_conntrack ]; then
       if(p=="tcp"){
         tcp++
         if(tcp_st=="ESTABLISHED"||off){tcp_e++; active=1
-          # 剩余超时≥1200s(2/3满值)=近期有流量刷新=活跃；否则=幽灵闲置
-          if($5+0>=1200) tcp_act++; else tcp_idle++
+          # 剩余超时≥ACT(2/3 满值)=近期有流量刷新=活跃；否则=幽灵闲置
+          if($5+0>=ACT) tcp_act++; else tcp_idle++
         }
       } else if(p=="udp"){
         udp++
