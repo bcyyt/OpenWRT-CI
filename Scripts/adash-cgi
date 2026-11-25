@@ -1638,7 +1638,12 @@ if [ -s "$_sm_cache" ] && [ -s "$_sm_cts" ]; then
     fi
 fi
 date +%s > "$_sm_cts"
-exec 9>&1
+# v4.50 修复：响应缓存保存 fd 9→7——proto/PPPoE/client 三个 flock 都用
+#      fd 9 当锁句柄（exec 9>/tmp/adash-*.lock），顶层 PPPoE 记账段在每次重建
+#      都执行，exec 9> 会把保存的 stdout 顶掉；结尾 exec 1>&9 恢复出的 stdout
+#      指向锁文件，整个 8KB JSON 被 cat 进 /tmp/adash-pppoe-acct.lock 而非
+#      发给浏览器 → 重建响应全空、?live=1 实时端点必空 → 仪表盘数字冻结
+exec 7>&1
 exec > "$_sm_cache.tmp.$$"
 
 # ===== 系统 =====
@@ -2444,6 +2449,6 @@ cat <<JSONEOF
   "timestamp": $NOW
 }
 JSONEOF
-exec 1>&9 9>&-
+exec 1>&7 7>&-
 [ -s "$_sm_cache.tmp.$$" ] && mv -f "$_sm_cache.tmp.$$" "$_sm_cache"
 cat "$_sm_cache"
