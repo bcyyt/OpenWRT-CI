@@ -70,21 +70,38 @@
 .sm-table td{padding:9px 12px;border-bottom:1px solid var(--sm-g100);color:var(--sm-g800);vertical-align:middle}
 .sm-table tr:last-child td{border-bottom:none}
 .sm-table tbody tr:nth-child(even) td{background:#fafcff}
-#sm-client-table th{position:sticky;top:0;z-index:5;box-shadow:0 1px 0 var(--sm-g100)}
 .sm-table tbody tr{transition:background .12s}
 .sm-table tbody tr:hover td{background:var(--sm-g50)}
 .sm-ta-r{text-align:right}.sm-ta-c{text-align:center}
 .sm-mono{font-family:var(--sm-mono);font-size:12px;letter-spacing:-.2px}
 .sm-empty{text-align:center;padding:26px 16px!important;color:var(--sm-g300)}
 /* 排序列 */
-#sm-client-table th[data-key]{cursor:pointer;user-select:none;transition:color .15s}
-#sm-client-table th[data-key]:hover{color:var(--sm-p)}
-#sm-client-table th[data-key]::after{content:'\2195';display:inline-block;margin-left:4px;font-size:10px;opacity:.3}
-#sm-client-table th.sorted{color:var(--sm-p);font-weight:600}
-#sm-client-table th.sorted::after{opacity:1}
-#sm-client-table th.sorted.asc::after{content:'\2191'}
-#sm-client-table th.sorted.desc::after{content:'\2193'}
 /* 徽章 */
+/* 客户端卡片（Vantage 风，v16） */
+.sm-cgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(216px,1fr));gap:10px}
+.sm-ccard{position:relative;background:#fff;border:1px solid var(--sm-g200);border-radius:var(--sm-rs);padding:10px 12px 11px;cursor:pointer;overflow:hidden;transition:border-color .15s,box-shadow .15s,transform .15s}
+.sm-ccard::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--sm-g300)}
+.sm-ccard.active::before{background:var(--sm-s)}
+.sm-ccard.idle::before{background:var(--sm-g300)}
+.sm-ccard.offline{opacity:.5}
+.sm-ccard.offline::before{background:var(--sm-g200)}
+.sm-ccard:hover{border-color:var(--sm-p);box-shadow:0 2px 10px rgba(37,99,235,.10);transform:translateY(-1px)}
+@keyframes sm-brth{0%,100%{box-shadow:0 0 0 0 rgba(22,163,74,.22)}50%{box-shadow:0 0 0 4px rgba(22,163,74,.05)}}
+.sm-ccard.active{animation:sm-brth 2.6s ease-in-out infinite}
+.sm-ccard .cr1{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:600;color:var(--sm-g900);min-width:0}
+.sm-ccard .cr1 .n{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sm-ccard .cip{font-size:11px;color:var(--sm-g400);margin-top:2px;font-family:var(--sm-mono);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sm-ccard .cbars{display:flex;flex-direction:column;gap:3px;margin:8px 0 6px}
+.sm-ccard .cb{height:3px;border-radius:2px;background:var(--sm-g100);overflow:hidden}
+.sm-ccard .cb i{display:block;height:100%;border-radius:2px;transition:width .6s ease;min-width:2%}
+.sm-ccard .cb.dn i{background:var(--sm-p)}
+.sm-ccard .cb.up i{background:var(--sm-s)}
+.sm-ccard .crt{display:flex;justify-content:space-between;gap:6px;font-size:11px;font-variant-numeric:tabular-nums;color:var(--sm-g500);white-space:nowrap}
+.sm-ccard .crt .dn{color:var(--sm-p)}.sm-ccard .crt .up{color:var(--sm-s)}
+.sm-ccard .crt .mute{color:var(--sm-g300);font-style:normal;letter-spacing:.5px}
+.sm-ccard.quiet .cbars{opacity:.45}
+.sm-ccard.quiet .crt .mute{color:var(--sm-g400)}
+@media(max-width:640px){.sm-cgrid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}}
 .sm-ctabs{display:flex;flex-wrap:wrap;gap:6px;padding:10px 16px 8px}
 .sm-ctab{border:1px solid var(--sm-g200);background:#fff;border-radius:999px;padding:5px 12px;font-size:12px;color:var(--sm-g600);cursor:pointer;line-height:1.3}
 .sm-ctab.on{border-color:var(--sm-p);background:var(--sm-pb);color:var(--sm-p);font-weight:600}
@@ -473,9 +490,7 @@
     <button type="button" class="sm-ctab" data-st="idle">空闲 <b id="sm-c-idle">0</b></button>
     <button type="button" class="sm-ctab" data-st="offline">离线 <b id="sm-c-off">0</b></button>
   </div>
-  <div class="sm-cb sm-tscroll" style="padding:0"><table class="sm-table" id="sm-client-table"><thead><tr>
-    <th data-key="name">设备</th><th data-key="ip">IP 地址</th><th data-key="mac">MAC</th><th data-key="conn" class="sm-ta-c">连接</th><th data-key="rxr" class="sm-ta-r">接收速率</th><th data-key="txr" class="sm-ta-r">发送速率</th><th data-key="rxt" class="sm-ta-r">总接收</th><th data-key="txt" class="sm-ta-r">总发送</th>
-  </tr></thead><tbody id="sm-cl"><tr><td colspan="8" class="sm-empty">加载中...</td></tr></tbody></table></div>
+  <div class="sm-cb" style="padding:12px"><div class="sm-cgrid" id="sm-cl"><span class="sm-empty">加载中...</span></div></div>
   <div class="sm-cpage" id="sm-cpage"></div>
 </div>
 
@@ -835,23 +850,17 @@ function sm_renderMonthTraffic(t){
 }
 
 /* 客户端排序偏好 */
-var sm_sort={key:'ip',dir:1},sm_last=null;
+var sm_sort={key:'rxr',dir:-1},sm_last=null;
 try{var sv=JSON.parse(localStorage.getItem('sm-csort')||'{}');if(sv&&sv.key)sm_sort={key:sv.key,dir:sv.dir||1}}catch(e){}
-var sm_cfilter='',sm_cpage=1,sm_cpsize=10;
+var sm_cfilter='',sm_cpage=1,sm_cpsize=24;
 try{var cf=localStorage.getItem('sm-cfilter');if(cf==='active'||cf==='idle'||cf==='offline')sm_cfilter=cf}catch(e){}
 var sm_keys={name:function(c){return c.name||c.ip||''},ip:function(c){return c.ip||''},mac:function(c){return c.mac||''},conn:function(c){return c.connections||0},rxr:function(c){return c.rx_rate||0},txr:function(c){return c.tx_rate||0},rxt:function(c){return c.rx||0},txt:function(c){return c.tx||0}};
 var sm_num={conn:1,rxr:1,txr:1,rxt:1,txt:1};
 var sm_lab={name:'设备',ip:'IP',mac:'MAC',conn:'连接数',rxr:'接收速率',txr:'发送速率',rxt:'总接收',txt:'总发送'};
 function sm_esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
 function sm_sortList(list){var f=sm_keys[sm_sort.key]||sm_keys.ip,d=sm_sort.dir;return list.slice().sort(function(a,b){var va=f(a),vb=f(b);if(typeof va==='number'&&typeof vb==='number')return(va-vb)*d;return String(va).localeCompare(String(vb))*d})}
-function sm_sortIcons(){Array.prototype.forEach.call(document.querySelectorAll('#sm-client-table th[data-key]'),function(th){var k=th.getAttribute('data-key');th.classList.toggle('sorted',k===sm_sort.key);th.classList.toggle('asc',k===sm_sort.key&&sm_sort.dir>0);th.classList.toggle('desc',k===sm_sort.key&&sm_sort.dir<0)})}
-document.querySelector('#sm-client-table thead').addEventListener('click',function(e){
-  var th=e.target.closest('th[data-key]');if(!th)return;
-  var k=th.getAttribute('data-key');
-  if(sm_sort.key===k){sm_sort.dir=-sm_sort.dir}else{sm_sort.key=k;sm_sort.dir=sm_num[k]?-1:1}
-  try{localStorage.setItem('sm-csort',JSON.stringify(sm_sort))}catch(e2){}
-  sm_cpage=1;sm_sortIcons();if(sm_last)sm_clients(sm_last);
-});
+function sm_sortIcons(){}
+
 document.getElementById('sm-ctabs').addEventListener('click',function(e){
   var btn=e.target.closest('button[data-st]');if(!btn)return;
   sm_cfilter=btn.getAttribute('data-st')||'';sm_cpage=1;
@@ -897,7 +906,7 @@ function sm_zteBadge(ip){
 }
 
 function sm_clients(d){
-  var all=sm_sortList(d.clients||[]),ch='',act=0,idle=0,off=0;
+  var all=sm_sortList(d.clients||[]),ch='',act=0,idle=0,off=0,mxr=1,mxt=1;
   all.forEach(function(c){if(c.state==='active')act++;else if(c.state==='idle')idle++;else off++});
   var list=sm_cfilter?all.filter(function(c){
     var st=c.state==='active'?'active':(c.state==='idle'?'idle':'offline');
@@ -905,27 +914,32 @@ function sm_clients(d){
   }):all;
   var pages=Math.max(1,Math.ceil(list.length/sm_cpsize));
   if(sm_cpage>pages)sm_cpage=pages;if(sm_cpage<1)sm_cpage=1;
-  list.slice((sm_cpage-1)*sm_cpsize,sm_cpage*sm_cpsize).forEach(function(c){
+  var pg=list.slice((sm_cpage-1)*sm_cpsize,sm_cpage*sm_cpsize);
+  pg.forEach(function(c){if((c.rx_rate||0)>mxr)mxr=c.rx_rate||0;if((c.tx_rate||0)>mxt)mxt=c.tx_rate||0});
+  function sm_cfr(r){r=r||0;var kb=r/1024;if(kb<0.05)return '0 KB/s';if(kb<1024)return (kb<10?kb.toFixed(1):Math.round(kb))+' KB/s';return (kb/1024).toFixed(1)+' MB/s'}
+  pg.forEach(function(c){
     var nm=c.name||c.ip||c.mac||'未知';
+    var st=c.state==='active'?'active':(c.state==='idle'?'idle':'offline');
     var vb='';
     if(c.version==='46')vb='<span class="sm-vtag v4">v4</span><span class="sm-vtag v6">v6</span>';
     else if(c.version==='6')vb='<span class="sm-vtag v6">v6</span>';
     else vb='<span class="sm-vtag v4">v4</span>';
-    var cc=c.connections||0;
-    ch+='<tr style="cursor:pointer" onclick="sm_showClient(\''+sm_esc(c.ip)+'\',\''+sm_esc(nm)+'\',\''+sm_esc(c.mac)+'\')">'
-      +'<td class="sm-cnm"><span class="sm-ddot '+c.state+'"></span><span class="n" title="'+sm_esc(c.mac)+'">'+sm_esc(nm)+'</span>'+sm_zteBadge(c.ip)+'</td>'
-      +'<td class="sm-mono" style="font-weight:500;color:var(--sm-p)">'+sm_esc(c.ip)+vb
-      +(c.ip6?'<div style="font-size:10px;color:var(--sm-g400);font-weight:400;margin-top:2px;word-break:break-all">'+sm_esc(c.ip6.split(',')[0])+'</div>':'')
-      +'</td>'
-      +'<td class="sm-mono" style="font-size:11px;color:var(--sm-g400)">'+sm_esc(c.mac)+'</td>'
-      +'<td class="sm-ta-c"><span class="sm-conn'+(cc>100?' hot':cc>30?' warm':'')+'">'+cc+'</span></td>'
-      +'<td class="sm-ta-r sm-rate"><span class="ar dn">&#9660;</span><span class="vl">'+sm_fr(c.rx_rate)+'</span></td>'
-      +'<td class="sm-ta-r sm-rate"><span class="ar up2">&#9650;</span><span class="vl">'+sm_fr(c.tx_rate)+'</span></td>'
-      +'<td class="sm-ta-r sm-rate"><span class="tt">'+sm_f(c.rx)+'</span></td>'
-      +'<td class="sm-ta-r sm-rate"><span class="tt">'+sm_f(c.tx)+'</span></td>'
-      +'</tr>';
+    var wdn=Math.max(2,Math.min(100,Math.round((c.rx_rate||0)/mxr*100)));
+    var wup=Math.max(2,Math.min(100,Math.round((c.tx_rate||0)/mxt*100)));
+    var busy=((c.rx_rate||0)+(c.tx_rate||0))>=16;  /* ≥16B/s 有真实收发（纯ARP/心跳<10B/s） */
+    var rtHtml=busy
+      ?'<span class="dn">&darr; '+sm_cfr(c.rx_rate)+'</span><span class="up">&uarr; '+sm_cfr(c.tx_rate)+'</span>'
+      :'<span class="mute">静默</span>';
+    var stlab=st==='active'?'活跃':(st==='idle'?'空闲':'离线');
+    ch+='<div class="sm-ccard '+st+(busy?'':' quiet')+'" onclick="sm_showClient(\''+sm_esc(c.ip)+'\',\''+sm_esc(nm)+'\',\''+sm_esc(c.mac)+'\')" title="'+sm_esc(nm)+' · '+sm_esc(c.mac)+' · '+stlab+' · 连接 '+(c.connections||0)+' · 累计 ↓'+sm_f(c.rx)+' ↑'+sm_f(c.tx)+'">'
+      +'<div class="cr1"><span class="sm-ddot '+st+'" title="'+stlab+'"></span><span class="n">'+sm_esc(nm)+'</span>'+sm_zteBadge(c.ip)+vb+'</div>'
+      +'<div class="cip">'+sm_esc(c.ip||c.mac||'')+'</div>'
+      +'<div class="cbars"><div class="cb dn"><i style="width:'+(busy?wdn:0)+'%"></i></div><div class="cb up"><i style="width:'+(busy?wup:0)+'%"></i></div></div>'
+      +'<div class="crt">'+rtHtml+'</div>'
+      +'</div>';
+
   });
-  if(!ch)ch='<tr><td colspan="8" class="sm-empty">'+(all.length?'该分类暂无设备':'无在线设备')+'</td></tr>';
+  if(!ch)ch='<span class="sm-empty" style="grid-column:1/-1">'+(all.length?'该分类暂无设备':'无在线设备')+'</span>';
   document.getElementById('sm-cl').innerHTML=ch;
   document.getElementById('sm-c-all').textContent=all.length;
   document.getElementById('sm-c-act').textContent=act;
