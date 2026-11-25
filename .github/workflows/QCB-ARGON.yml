@@ -6,9 +6,9 @@ name: QCB-ARGON
 
 #CI计划
 on:
-  #定时编译：每天北京时间 11:30（UTC 03:30，填 LEDE 下线后的空档，与 QCB-ALL 错开半小时）
+  #定时编译：每天北京时间 02:00（UTC 18:00，主力线排凌晨档首位）
   schedule:
-    - cron: '30 3 * * *'
+    - cron: '0 18 * * *'
   #push 触发（2026-11-24）：adash 高频迭代期， Scripts 注入件（adash 仪表盘/
   #conntrack 固化/注入包）变更即编译，无需等每日定时；主 workflow 文件变更也触发
   push:

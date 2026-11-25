@@ -6,9 +6,9 @@ name: MTK-S20P-612
 
 #CI计划
 on:
-  #定时编译：每天北京时间 04:30（UTC 20:30，错开其它线）
+  #定时编译：每天北京时间 02:20（UTC 18:20，凌晨档四线错峰第3位）
   schedule:
-    - cron: '30 2 * * *'
+    - cron: '20 18 * * *'
   #手动编译
   workflow_dispatch:
     inputs:
