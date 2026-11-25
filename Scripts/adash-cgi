@@ -1371,7 +1371,7 @@ _ad_ct_agg_ensure() {
         up[s1]+=b1;dn[s1]+=b2
         if(ctst=="ESTABLISHED"||ctst=="OFFLOAD"||(ctst=="ASSURED"&&proto=="udp"))cn[s1]++
       }
-      END{for(k in up)printf "%s|%.0f|%.0f|%d\\n",k,up[k]+0,dn[k]+0,cn[k]+0}' /proc/net/nf_conntrack 2>/dev/null \
+      END{for(k in up)printf "%s|%.0f|%.0f|%d\n",k,up[k]+0,dn[k]+0,cn[k]+0}' /proc/net/nf_conntrack 2>/dev/null \
         > "$F.tmp.$$" && mv -f "$F.tmp.$$" "$F" || rm -f "$F.tmp.$$" 2>/dev/null
     return 0
 }
