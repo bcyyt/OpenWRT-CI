@@ -563,28 +563,15 @@ function sm_ports(d){
   if(!pts.length){if(card)card.style.display='none';return}
   if(card)card.style.display='';
   var WIFI_IC='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.55a11 11 0 0114.08 0"/><path d="M1.42 9a16 16 0 0121.16 0"/><path d="M8.53 16.11a6 6 0 016.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg>';
-  var h='';
-  /* 排序：LAN/ETH 口在前，WAN 类独行居中，WiFi 最后 */
+  /* 分组 + 显示顺序：WAN → LAN → WiFi（v19.7，实机反馈） */
   var lans=[],wans=[],wifis=[];
   pts.forEach(function(n){
     if(/^(wlan|ra)[0-9]+$/.test(n.name))wifis.push(n);
     else if(/^wan[0-9]*$/.test(n.name))wans.push(n);
     else lans.push(n);
   });
-  lans.concat(wifis).forEach(function(n){
-    var iswf=/^(wlan|ra)[0-9]+$/.test(n.name),on=n.state==='up';
-    var icon=iswf
-      ?'<span class="icfb">'+WIFI_IC+'</span>'
-      :'<img src="/luci-static/resources/icons/port_' +(on?'up':'down')+ '.svg" alt="" onerror="this.outerHTML=\'<span class=icfb>&#9635;</span>\'">';
-    var spd=iswf?(on?'运行中':'已关闭'):(on?sm_gbe(n.speed):'未连接');
-    h+='<div class="sm-port"><div class="sm-port-h">'+n.name+'</div>'
-      +'<div class="sm-port-b">'+icon+'<div class="sm-port-sp '+(on?'up':'')+'">'+spd+'</div></div>'
-      +'<div class="sm-port-bar" data-bar="'+n.name+'"></div>'
-      +'<div class="sm-port-t"><div class="up">&#9650; '+sm_f(n.tx)+'</div><div class="dn">&#9660; '+sm_f(n.rx)+'</div></div>'
-      +'</div>';
-  });
-  /* WAN 排序：主 wan 在前，wanN 按编号升序（v19.5，实机反馈顺序颠倒） */
   wans.sort(function(a,b){if(a.name==='wan')return -1;if(b.name==='wan')return 1;return a.name.localeCompare(b.name,undefined,{numeric:true})});
+  var h='';
   if(wans.length){
     h+='<div class="sm-wanrow">';
     wans.forEach(function(n){
@@ -598,6 +585,18 @@ function sm_ports(d){
     });
     h+='</div>';
   }
+  lans.concat(wifis).forEach(function(n){
+    var iswf=/^(wlan|ra)[0-9]+$/.test(n.name),on=n.state==='up';
+    var icon=iswf
+      ?'<span class="icfb">'+WIFI_IC+'</span>'
+      :'<img src="/luci-static/resources/icons/port_' +(on?'up':'down')+ '.svg" alt="" onerror="this.outerHTML=\'<span class=icfb>&#9635;</span>\'">';
+    var spd=iswf?(on?'运行中':'已关闭'):(on?sm_gbe(n.speed):'未连接');
+    h+='<div class="sm-port"><div class="sm-port-h">'+n.name+'</div>'
+      +'<div class="sm-port-b">'+icon+'<div class="sm-port-sp '+(on?'up':'')+'">'+spd+'</div></div>'
+      +'<div class="sm-port-bar" data-bar="'+n.name+'"></div>'
+      +'<div class="sm-port-t"><div class="up">&#9650; '+sm_f(n.tx)+'</div><div class="dn">&#9660; '+sm_f(n.rx)+'</div></div>'
+      +'</div>';
+  });
   box.innerHTML=h;
   pts.forEach(function(n){
     var b=box.querySelector('[data-bar="'+n.name+'"]');
