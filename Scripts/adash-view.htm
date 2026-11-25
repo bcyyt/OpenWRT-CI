@@ -77,9 +77,9 @@
 .sm-empty{text-align:center;padding:26px 16px!important;color:var(--sm-g300)}
 /* 排序列 */
 /* 徽章 */
-/* 客户端卡片（Vantage 风，v16） */
-.sm-cgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(216px,1fr));gap:10px}
-.sm-ccard{position:relative;background:#fff;border:1px solid var(--sm-g200);border-radius:var(--sm-rs);padding:10px 12px 11px;cursor:pointer;overflow:hidden;transition:border-color .15s,box-shadow .15s,transform .15s}
+/* 客户端卡片（Vantage 风，v16.1：每排 2 卡 + 详细徽章） */
+.sm-cgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.sm-ccard{position:relative;background:#fff;border:1px solid var(--sm-g200);border-radius:var(--sm-rs);padding:10px 14px 11px;cursor:pointer;overflow:hidden;transition:border-color .15s,box-shadow .15s,transform .15s}
 .sm-ccard::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--sm-g300)}
 .sm-ccard.active::before{background:var(--sm-s)}
 .sm-ccard.idle::before{background:var(--sm-g300)}
@@ -88,9 +88,15 @@
 .sm-ccard:hover{border-color:var(--sm-p);box-shadow:0 2px 10px rgba(37,99,235,.10);transform:translateY(-1px)}
 @keyframes sm-brth{0%,100%{box-shadow:0 0 0 0 rgba(22,163,74,.22)}50%{box-shadow:0 0 0 4px rgba(22,163,74,.05)}}
 .sm-ccard.active{animation:sm-brth 2.6s ease-in-out infinite}
-.sm-ccard .cr1{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:600;color:var(--sm-g900);min-width:0}
+.sm-ccard .cr1{display:flex;align-items:center;gap:6px;font-size:13.5px;font-weight:600;color:var(--sm-g900);min-width:0}
 .sm-ccard .cr1 .n{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .sm-ccard .cip{font-size:11px;color:var(--sm-g400);margin-top:2px;font-family:var(--sm-mono);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sm-ccard .cmeta{display:flex;align-items:center;gap:5px;margin-top:6px;flex-wrap:wrap}
+.sm-ccard .cmac{font-size:10px;color:var(--sm-g400);font-family:var(--sm-mono);letter-spacing:.2px}
+.sm-ccard .cbadge{display:inline-flex;padding:1px 7px;border-radius:7px;font-size:10px;font-weight:600;background:var(--sm-g100);color:var(--sm-g500)}
+.sm-ccard .cbadge.warm{background:var(--sm-wb);color:var(--sm-w)}
+.sm-ccard .cbadge.hot{background:var(--sm-db);color:var(--sm-d)}
+.sm-ccard .cbadge.tot{background:var(--sm-pb);color:var(--sm-p);font-family:var(--sm-mono);font-weight:500}
 .sm-ccard .cbars{display:flex;flex-direction:column;gap:3px;margin:8px 0 6px}
 .sm-ccard .cb{height:3px;border-radius:2px;background:var(--sm-g100);overflow:hidden}
 .sm-ccard .cb i{display:block;height:100%;border-radius:2px;transition:width .6s ease;min-width:2%}
@@ -101,7 +107,7 @@
 .sm-ccard .crt .mute{color:var(--sm-g300);font-style:normal;letter-spacing:.5px}
 .sm-ccard.quiet .cbars{opacity:.45}
 .sm-ccard.quiet .crt .mute{color:var(--sm-g400)}
-@media(max-width:640px){.sm-cgrid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}}
+@media(max-width:768px){.sm-cgrid{grid-template-columns:1fr}}
 .sm-ctabs{display:flex;flex-wrap:wrap;gap:6px;padding:10px 16px 8px}
 .sm-ctab{border:1px solid var(--sm-g200);background:#fff;border-radius:999px;padding:5px 12px;font-size:12px;color:var(--sm-g600);cursor:pointer;line-height:1.3}
 .sm-ctab.on{border-color:var(--sm-p);background:var(--sm-pb);color:var(--sm-p);font-weight:600}
@@ -921,9 +927,9 @@ function sm_clients(d){
     var nm=c.name||c.ip||c.mac||'未知';
     var st=c.state==='active'?'active':(c.state==='idle'?'idle':'offline');
     var vb='';
-    if(c.version==='46')vb='<span class="sm-vtag v4">v4</span><span class="sm-vtag v6">v6</span>';
-    else if(c.version==='6')vb='<span class="sm-vtag v6">v6</span>';
-    else vb='<span class="sm-vtag v4">v4</span>';
+    if(c.version==='46')vb='<span class="sm-vtag v4">IPv4</span><span class="sm-vtag v6">IPv6</span>';
+    else if(c.version==='6')vb='<span class="sm-vtag v6">IPv6</span>';
+    else vb='<span class="sm-vtag v4">IPv4</span>';
     var wdn=Math.max(2,Math.min(100,Math.round((c.rx_rate||0)/mxr*100)));
     var wup=Math.max(2,Math.min(100,Math.round((c.tx_rate||0)/mxt*100)));
     var busy=((c.rx_rate||0)+(c.tx_rate||0))>=16;  /* ≥16B/s 有真实收发（纯ARP/心跳<10B/s） */
@@ -931,9 +937,14 @@ function sm_clients(d){
       ?'<span class="dn">&darr; '+sm_cfr(c.rx_rate)+'</span><span class="up">&uarr; '+sm_cfr(c.tx_rate)+'</span>'
       :'<span class="mute">静默</span>';
     var stlab=st==='active'?'活跃':(st==='idle'?'空闲':'离线');
-    ch+='<div class="sm-ccard '+st+(busy?'':' quiet')+'" onclick="sm_showClient(\''+sm_esc(c.ip)+'\',\''+sm_esc(nm)+'\',\''+sm_esc(c.mac)+'\')" title="'+sm_esc(nm)+' · '+sm_esc(c.mac)+' · '+stlab+' · 连接 '+(c.connections||0)+' · 累计 ↓'+sm_f(c.rx)+' ↑'+sm_f(c.tx)+'">'
+    var cc=c.connections||0;
+    var ccCls=cc>100?' hot':(cc>30?' warm':'');
+    var totB=(c.rx||0)+(c.tx||0);
+    var totHtml=totB>1048576?'<span class="cbadge tot">累计 '+sm_f(totB)+'</span>':'';
+    ch+='<div class="sm-ccard '+st+(busy?'':' quiet')+'" onclick="sm_showClient(\''+sm_esc(c.ip)+'\',\''+sm_esc(nm)+'\',\''+sm_esc(c.mac)+'\')" title="'+sm_esc(nm)+' · '+sm_esc(c.mac)+' · '+stlab+' · 累计 ↓'+sm_f(c.rx)+' ↑'+sm_f(c.tx)+'">'
       +'<div class="cr1"><span class="sm-ddot '+st+'" title="'+stlab+'"></span><span class="n">'+sm_esc(nm)+'</span>'+sm_zteBadge(c.ip)+vb+'</div>'
       +'<div class="cip">'+sm_esc(c.ip||c.mac||'')+'</div>'
+      +'<div class="cmeta"><span class="cmac">'+sm_esc(c.mac||'')+'</span><span class="cbadge'+ccCls+'" title="当前连接数">'+cc+' 连接</span>'+totHtml+'</div>'
       +'<div class="cbars"><div class="cb dn"><i style="width:'+(busy?wdn:0)+'%"></i></div><div class="cb up"><i style="width:'+(busy?wup:0)+'%"></i></div></div>'
       +'<div class="crt">'+rtHtml+'</div>'
       +'</div>';
