@@ -1265,7 +1265,7 @@ if [ -n "$_qs_live" ]; then
     printf '{"ts":%s,"up":%s,"la":[%s],"cpu":[%s],"map":"' "$(date +%s)" "$(cut -d. -f1 /proc/uptime)" "$_la" "$_cpu"
     ubus call network.interface dump 2>/dev/null | awk 'BEGIN{ORS=""}/"interface": "/{gsub(/[",]/,"",$2); i=$2}/"l3_device": "/{gsub(/[",]/,"",$2); d=$2;printf "%s%s=%s",(_m?",":""),i,d; _m=1; i=""}'
     printf '","net":{'
-    awk 'NR>2 {iface=$1; sub(/:$/,"",iface); gsub(/[ 	]/,"",iface); if(iface!="" && iface!="lo" && $2 ~ /^[0-9]+$/ && $10 ~ /^[0-9]+$/) {printf "%s\"%s\":{\"rx\":%s,\"tx\":%s}", (_f?",":""), iface, $2, $10; _f=1}}' /proc/net/dev 2>/dev/null
+    awk 'NR>2 {iface=$1; sub(/:$/,"",iface); gsub(/[    ]/,"",iface); if(iface!="" && iface!="lo" && $2 ~ /^[0-9]+$/ && $10 ~ /^[0-9]+$/) {printf "%s\"%s\":{\"rx\":%s,\"tx\":%s}", (_f?",":""), iface, $2, $10; _f=1}}' /proc/net/dev 2>/dev/null
     printf '}}
 '
     exit 0
@@ -1695,37 +1695,37 @@ cpu_cores=$(grep -c processor /proc/cpuinfo 2>/dev/null || echo 1)
 cpu_freq_min=0
 cpu_freq_max=0
 for _sf in /sys/devices/system/cpu/cpu[0-9]*/cpufreq/scaling_cur_freq; do
-	[ -f "$_sf" ] || continue
-	_khz=$(cat "$_sf" 2>/dev/null)
-	case "$_khz" in ''|*[!0-9]*) continue ;; esac
-	_mhz=$((_khz / 1000))
-	[ "$_mhz" -gt 0 ] || continue
-	if [ "$cpu_freq_min" -eq 0 ] || [ "$_mhz" -lt "$cpu_freq_min" ]; then
-		cpu_freq_min=$_mhz
-	fi
-	if [ "$_mhz" -gt "$cpu_freq_max" ]; then
-		cpu_freq_max=$_mhz
-	fi
+        [ -f "$_sf" ] || continue
+        _khz=$(cat "$_sf" 2>/dev/null)
+        case "$_khz" in ''|*[!0-9]*) continue ;; esac
+        _mhz=$((_khz / 1000))
+        [ "$_mhz" -gt 0 ] || continue
+        if [ "$cpu_freq_min" -eq 0 ] || [ "$_mhz" -lt "$cpu_freq_min" ]; then
+                cpu_freq_min=$_mhz
+        fi
+        if [ "$_mhz" -gt "$cpu_freq_max" ]; then
+                cpu_freq_max=$_mhz
+        fi
 done
 if [ "$cpu_freq_max" -eq 0 ]; then
-	# 无 cpufreq 驱动（MT7986 等 ARM SoC）：回退 debugfs 时钟树
-	for _cf in /sys/kernel/debug/clk/armpll/clk_rate /sys/kernel/debug/clk/cpu/clk_rate \
-		/sys/kernel/debug/clk/cpu0/clk_rate /sys/kernel/debug/clk/cpu_pll/clk_rate; do
-		[ -r "$_cf" ] || continue
-		_khz=$(cat "$_cf" 2>/dev/null)
-		case "$_khz" in ''|*[!0-9]*) continue ;; esac
-		_mhz=$((_khz / 1000000))
-		[ "$_mhz" -gt 0 ] || continue
-		cpu_freq_min=$_mhz
-		cpu_freq_max=$_mhz
-		break
-	done
+        # 无 cpufreq 驱动（MT7986 等 ARM SoC）：回退 debugfs 时钟树
+        for _cf in /sys/kernel/debug/clk/armpll/clk_rate /sys/kernel/debug/clk/cpu/clk_rate \
+                /sys/kernel/debug/clk/cpu0/clk_rate /sys/kernel/debug/clk/cpu_pll/clk_rate; do
+                [ -r "$_cf" ] || continue
+                _khz=$(cat "$_cf" 2>/dev/null)
+                case "$_khz" in ''|*[!0-9]*) continue ;; esac
+                _mhz=$((_khz / 1000000))
+                [ "$_mhz" -gt 0 ] || continue
+                cpu_freq_min=$_mhz
+                cpu_freq_max=$_mhz
+                break
+        done
 fi
 if [ "$cpu_freq_max" -eq 0 ]; then
-	_mhz=$(awk -F: '/^cpu MHz/{gsub(/ /,"",$2); printf "%.0f\n",$2; exit}' /proc/cpuinfo 2>/dev/null)
-	case "$_mhz" in ''|*[!0-9]*) _mhz=0 ;; esac
-	cpu_freq_min=$_mhz
-	cpu_freq_max=$_mhz
+        _mhz=$(awk -F: '/^cpu MHz/{gsub(/ /,"",$2); printf "%.0f\n",$2; exit}' /proc/cpuinfo 2>/dev/null)
+        case "$_mhz" in ''|*[!0-9]*) _mhz=0 ;; esac
+        cpu_freq_min=$_mhz
+        cpu_freq_max=$_mhz
 fi
 cpu_freq=$cpu_freq_max
 
@@ -1945,8 +1945,9 @@ for iface_dir in /sys/class/net/*; do
     case "$iface" in
         lan*)
             _ad_lsec=$(printf '%s\n' "$_uci_all" | sed -n "s/^network\.\([^.]*\)\.device='$iface'\$/\1/p" | head -1)
-            [ -n "$_ad_lsec" ] || continue
-            [ "$_ad_lsec" != "lan" ] && _ad_show=$_ad_lsec
+            # v19：DSA 桥成员口（无 uci device 引用，如 SBE1V1K lan1-3）不再跳过——
+            # 端口卡需展示物理口；拓扑右列只画有 IP 的接口，多余物理口自然不进拓扑
+            [ -n "$_ad_lsec" ] && [ "$_ad_lsec" != "lan" ] && _ad_show=$_ad_lsec
             ;;
     esac
     _m=${iface//-/_}; _m=${_m//./_}
@@ -2012,10 +2013,21 @@ for iface_dir in /sys/class/net/*; do
         esac
     fi
     # v4.6：速率计算移至前端，CGI 不再计算 rx_rate/tx_rate
+    # v19：物理口链路协商速率/双工（端口卡数据源；无链路 sysfs 读 EINVAL → 留空落 0）
+    link_speed=0; link_duplex=""
+    case "$iface" in
+        eth*|lan[0-9]*|wan*)
+            _spd=$(cat "$iface_dir/speed" 2>/dev/null)
+            case "$_spd" in
+                ''|*[!0-9]*) ;;
+                *) [ "$_spd" -gt 0 ] 2>/dev/null && { link_speed=$_spd; link_duplex=$(cat "$iface_dir/duplex" 2>/dev/null); } ;;
+            esac
+            ;;
+    esac
     case "$iface" in
         pppoe-*|ppp-*) _sm_pppoe_fold ;;
     esac
-    net_lines="$net_lines{\"name\":\"$_ad_show\",\"type\":\"$iface_type\",\"state\":\"$operstate\",\"rx\":$rx_bytes,\"tx\":$tx_bytes,\"rx_pkts\":$rx_pkts,\"tx_pkts\":$tx_pkts,\"ip\":\"$ip_addr\",\"ip4\":\"$ip4\",\"ip6\":\"$ip6\"},"
+    net_lines="$net_lines{\"name\":\"$_ad_show\",\"type\":\"$iface_type\",\"state\":\"$operstate\",\"speed\":$link_speed,\"duplex\":\"$link_duplex\",\"rx\":$rx_bytes,\"tx\":$tx_bytes,\"rx_pkts\":$rx_pkts,\"tx_pkts\":$tx_pkts,\"ip\":\"$ip_addr\",\"ip4\":\"$ip4\",\"ip6\":\"$ip6\"},"
     net_state="${net_state}${iface}:rx=${rx_bytes},tx=${tx_bytes};"
 done
 [ -n "$PPPACC_NAMES" ] && _sm_pppoe_acct_save

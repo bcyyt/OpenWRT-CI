@@ -14,6 +14,26 @@
 .sm-ic.amber{background:var(--sm-wb);color:var(--sm-w)}
 .sm-ic.cyan{background:#ecfeff;color:var(--sm-ac)}
 .sm-ic svg{width:15px;height:15px}
+.sm-ic.purple{background:#f5f3ff;color:#7c3aed}
+/* 接口状态端口卡（v19）：图标与卡片标题 .sm-ic 同规格 */
+.sm-ports{display:grid;grid-template-columns:repeat(auto-fill,minmax(172px,1fr));gap:10px;padding:14px 16px}
+@media(max-width:720px){.sm-ports{grid-template-columns:repeat(auto-fill,minmax(148px,1fr));padding:12px;gap:8px}}
+.sm-port{border:1px solid var(--sm-g200);border-radius:var(--sm-rs);padding:12px 14px 11px;background:#fff;transition:border-color .15s,box-shadow .15s,transform .15s}
+.sm-port:hover{border-color:var(--sm-pl);box-shadow:0 3px 10px rgba(37,99,235,.09);transform:translateY(-1px)}
+.sm-port-top{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:9px}
+.sm-pill{font-size:11px;font-weight:650;padding:2px 8px;border-radius:99px;display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
+.sm-pill::before{content:'';width:6px;height:6px;border-radius:50%;background:currentColor;box-shadow:0 0 0 3px rgba(22,163,74,.12)}
+.sm-pill.off::before{box-shadow:0 0 0 3px rgba(100,116,139,.12)}
+.sm-pill.on{background:var(--sm-sb);color:var(--sm-s)}
+.sm-pill.off{background:var(--sm-g100);color:var(--sm-g500)}
+.sm-port-name{font-size:13px;font-weight:700;color:var(--sm-g800);letter-spacing:.02em;line-height:1.2}
+.sm-port-sub{font-size:10.5px;color:var(--sm-g400);margin-top:2px}
+.sm-port-speed{font-size:17px;font-weight:700;color:var(--sm-g900);margin-top:9px;font-family:var(--sm-mono);line-height:1.2}
+.sm-port-speed small{font-size:10px;font-weight:500;color:var(--sm-g400);margin-left:5px;font-family:inherit}
+.sm-port-speed.na{color:var(--sm-g300)}
+.sm-port-rate{display:flex;gap:12px;margin-top:7px;font-size:10.5px;color:var(--sm-g500);font-family:var(--sm-mono);white-space:nowrap;overflow:hidden}
+.sm-port-rate .dn{color:var(--sm-s)}
+.sm-port-rate .up{color:var(--sm-p)}
 .sm-ch .meta{font-size:12px;color:var(--sm-g400);white-space:nowrap;font-variant-numeric:tabular-nums}
 .sm-cb{padding:14px 16px}
 .sm-grid{display:grid;gap:14px;margin-bottom:14px}
@@ -426,6 +446,12 @@
   </div>
 </div>
 
+<!-- 接口状态（物理口端口卡，v19） -->
+<div class="sm-card" id="sm-portcard" style="margin-bottom:14px">
+  <div class="sm-ch"><h2><span class="sm-ic cyan"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M6 9v4h2.5v3h2.5v-3h2v3h2.5v-3H18V9z"/></svg></span>接口状态</h2><span class="meta" id="sm-port-count">--</span></div>
+  <div class="sm-ports" id="sm-ports"><span class="sm-empty">加载中...</span></div>
+</div>
+
 <!-- 温度（CPU 封装 + 硬盘，3 小时 / 24 小时 可切换）-->
 <div class="sm-card" style="margin-bottom:14px">
   <div class="sm-ch"><h2><span class="sm-ic amber"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 14.76V3.5a2.5 2.5 0 00-5 0v11.26a4.5 4.5 0 105 0z"/></svg></span>温度</h2><div class="sm-hd-sub" style="display:flex;align-items:center;gap:12px"><span class="meta" id="sm-temp-meta">近 24 小时 · 每分钟采样</span><div class="sm-ctabs sm-win-tabs" style="padding:0"><button type="button" class="sm-ctab" data-win="10800">3 小时</button><button type="button" class="sm-ctab on" data-win="86400">24 小时</button></div></div></div>
@@ -515,6 +541,38 @@
 <script>
 function sm_f(b){if(!b||b<0)return '0 B';if(b<1024)return b+' B';if(b<1048576)return(b/1024).toFixed(1)+' KB';if(b<1073741824)return(b/1048576).toFixed(1)+' MB';return(b/1073741824).toFixed(2)+' GB'}
 function sm_fr(r){if(!r||r<1)return '0 Mbps';var mb=(r*8)/1000000;if(mb<0.01)return '<0.01 Mbps';return (mb<0.1?mb.toFixed(2):(mb<10?mb.toFixed(1):String(Math.round(mb))))+' Mbps'}
+function sm_spd(s){if(!s||s<1)return'—';if(s>=1000){var g=s/1000;return(g%1?g.toFixed(1):Math.round(g))+' Gbps'}return s+' Mbps'}
+
+/* 接口状态端口卡（v19）：物理口（wan/ethN/lanN）+ WiFi 射频；speed/duplex 由 CGI 采集 */
+var SM_PT_RE=/^(wan[0-9]*|eth[0-9]+|lan[0-9]+|wlan[0-9]+|ra[0-9]+)$/;
+function sm_ports(d){
+  var box=document.getElementById('sm-ports');if(!box)return;
+  var pts=(d.network||[]).filter(function(n){return SM_PT_RE.test(n.name)});
+  var card=document.getElementById('sm-portcard');
+  if(!pts.length){if(card)card.style.display='none';return}
+  if(card)card.style.display='';
+  var h='';
+  pts.forEach(function(n){
+    var isw=/^wan[0-9]*$/.test(n.name),iswf=/^(wlan|ra)[0-9]+$/.test(n.name),on=n.state==='up';
+    var nm=n.name.replace(/^lan([0-9]+)$/i,'LAN $1').replace(/^eth([0-9]+)$/i,'ETH $1').replace(/^wlan([0-9]+)$/i,'WLAN $1').replace(/^ra([0-9]+)$/i,'RA $1').replace(/^wan([0-9]+)$/i,'WAN $1');
+    if(n.name==='wan')nm='WAN';
+    var sub=isw?(n.name==='wan'?'互联网出口':'WAN 扩展口'):(iswf?'无线射频':'局域网口');
+    var ic=isw?'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>'
+        :iswf?'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.55a11 11 0 0114.08 0"/><path d="M1.42 9a16 16 0 0121.16 0"/><path d="M8.53 16.11a6 6 0 016.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg>'
+        :'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M6 9v4h2.5v3h2.5v-3h2v3h2.5v-3H18V9z"/></svg>';
+    var chip=isw?'amber':(iswf?'purple':'');
+    var spd=(iswf||!on||!n.speed)?'<div class="sm-port-speed na">—</div>'
+      :'<div class="sm-port-speed">'+sm_spd(n.speed)+((n.duplex==='full')?'<small>全双工</small>':(n.duplex==='half'?'<small>半双工</small>':''))+'</div>';
+    h+='<div class="sm-port"><div class="sm-port-top"><span class="sm-ic '+chip+'">'+ic+'</span>'
+      +'<span class="sm-pill '+(on?'on':'off')+'">'+(iswf?(on?'运行中':'已关闭'):(on?'已连接':'未连接'))+'</span></div>'
+      +'<div class="sm-port-name">'+nm+'</div><div class="sm-port-sub">'+sub+'</div>'
+      +spd
+      +'<div class="sm-port-rate"><span class="dn">&#9660; '+sm_fr(n.rx_rate||0)+'</span><span class="up">&#9650; '+sm_fr(n.tx_rate||0)+'</span></div>'
+      +'</div>';
+  });
+  box.innerHTML=h;
+  var cnt=document.getElementById('sm-port-count');if(cnt)cnt.textContent=pts.length+' 个接口';
+}
 function sm_u(s){if(!s)return'--';var d=Math.floor(s/86400),h=Math.floor(s%86400/3600),m=Math.floor(s%3600/60);if(d>0)return d+'天 '+h+'小时';if(h>0)return h+'小时 '+m+'分';return m+'分钟'}
 function sm_t(t){if(t===null||t===undefined)return'N/A';return parseFloat(t).toFixed(1)+'°C'}
 function sm_freq(s){s=s||{};var mx=parseInt(s.cpu_freq_max||s.cpu_freq||0,10)||0;var mn=parseInt(s.cpu_freq_min||0,10)||0;if(!mx)return'--';if(mn&&mn!==mx)return mn+'~'+mx+' MHz';return mx+' MHz'}
@@ -1048,6 +1106,7 @@ window.addEventListener('resize',function(){if(sm_topo_sig)sm_topoConnect()});
 
 function sm_render(d){
   try{sm_renderTopo(d)}catch(e){}
+  try{sm_ports(d)}catch(e){}
   document.getElementById('sm-uptime').textContent=sm_u(d.system.uptime);
   document.getElementById('sm-sys-fw').textContent=d.system.firmware||'--';
   document.getElementById('sm-sys-kernel').textContent=d.system.kernel||'--';
