@@ -15,23 +15,28 @@
 .sm-ic.cyan{background:#ecfeff;color:var(--sm-ac)}
 .sm-ic svg{width:15px;height:15px}
 .sm-ic.purple{background:#f5f3ff;color:#7c3aed}
-/* 接口状态端口卡（v19）：图标与卡片标题 .sm-ic 同规格 */
-.sm-ports{display:grid;grid-template-columns:repeat(auto-fill,minmax(172px,1fr));gap:10px;padding:14px 16px}
+/* 接口状态端口卡（v19.1）：裸线形小图标内联端口名左侧，同概览图例尺寸，无背景方块 */
+.sm-ports{display:grid;grid-template-columns:repeat(auto-fill,minmax(168px,1fr));gap:10px;padding:14px 16px}
 @media(max-width:720px){.sm-ports{grid-template-columns:repeat(auto-fill,minmax(148px,1fr));padding:12px;gap:8px}}
-.sm-port{border:1px solid var(--sm-g200);border-radius:var(--sm-rs);padding:12px 14px 11px;background:#fff;transition:border-color .15s,box-shadow .15s,transform .15s}
+.sm-port{border:1px solid var(--sm-g200);border-radius:var(--sm-rs);padding:11px 13px 10px;background:#fff;transition:border-color .15s,box-shadow .15s,transform .15s}
 .sm-port:hover{border-color:var(--sm-pl);box-shadow:0 3px 10px rgba(37,99,235,.09);transform:translateY(-1px)}
-.sm-port-top{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:9px}
-.sm-pill{font-size:11px;font-weight:650;padding:2px 8px;border-radius:99px;display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
-.sm-pill::before{content:'';width:6px;height:6px;border-radius:50%;background:currentColor;box-shadow:0 0 0 3px rgba(22,163,74,.12)}
-.sm-pill.off::before{box-shadow:0 0 0 3px rgba(100,116,139,.12)}
+.sm-port-head{display:flex;align-items:center;justify-content:space-between;gap:6px;min-width:0}
+.sm-port-name{display:inline-flex;align-items:center;gap:5px;font-size:13px;font-weight:700;color:var(--sm-g800);letter-spacing:.02em;line-height:1.2;white-space:nowrap}
+.sm-port-ic{display:inline-flex;flex-shrink:0;color:var(--sm-g400)}
+.sm-port-ic svg{width:15px;height:15px}
+.sm-port-ic.amber{color:var(--sm-w)}
+.sm-port-ic.blue{color:var(--sm-p)}
+.sm-port-ic.purple{color:#7c3aed}
+.sm-pill{font-size:10.5px;font-weight:650;padding:2px 7px;border-radius:99px;display:inline-flex;align-items:center;gap:4px;white-space:nowrap;flex-shrink:0}
+.sm-pill::before{content:'';width:5px;height:5px;border-radius:50%;background:currentColor;box-shadow:0 0 0 2px rgba(22,163,74,.12)}
+.sm-pill.off::before{box-shadow:0 0 0 2px rgba(100,116,139,.12)}
 .sm-pill.on{background:var(--sm-sb);color:var(--sm-s)}
 .sm-pill.off{background:var(--sm-g100);color:var(--sm-g500)}
-.sm-port-name{font-size:13px;font-weight:700;color:var(--sm-g800);letter-spacing:.02em;line-height:1.2}
-.sm-port-sub{font-size:10.5px;color:var(--sm-g400);margin-top:2px}
-.sm-port-speed{font-size:17px;font-weight:700;color:var(--sm-g900);margin-top:9px;font-family:var(--sm-mono);line-height:1.2}
+.sm-port-sub{font-size:10.5px;color:var(--sm-g400);margin-top:3px}
+.sm-port-speed{font-size:17px;font-weight:700;color:var(--sm-g900);margin-top:8px;font-family:var(--sm-mono);line-height:1.2}
 .sm-port-speed small{font-size:10px;font-weight:500;color:var(--sm-g400);margin-left:5px;font-family:inherit}
 .sm-port-speed.na{color:var(--sm-g300)}
-.sm-port-rate{display:flex;gap:12px;margin-top:7px;font-size:10.5px;color:var(--sm-g500);font-family:var(--sm-mono);white-space:nowrap;overflow:hidden}
+.sm-port-rate{display:flex;gap:12px;margin-top:6px;font-size:10.5px;color:var(--sm-g500);font-family:var(--sm-mono);white-space:nowrap;overflow:hidden}
 .sm-port-rate .dn{color:var(--sm-s)}
 .sm-port-rate .up{color:var(--sm-p)}
 .sm-ch .meta{font-size:12px;color:var(--sm-g400);white-space:nowrap;font-variant-numeric:tabular-nums}
@@ -560,12 +565,13 @@ function sm_ports(d){
     var ic=isw?'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>'
         :iswf?'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.55a11 11 0 0114.08 0"/><path d="M1.42 9a16 16 0 0121.16 0"/><path d="M8.53 16.11a6 6 0 016.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg>'
         :'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M6 9v4h2.5v3h2.5v-3h2v3h2.5v-3H18V9z"/></svg>';
-    var chip=isw?'amber':(iswf?'purple':'');
+    var chip=isw?'amber':(iswf?'purple':'blue');
     var spd=(iswf||!on||!n.speed)?'<div class="sm-port-speed na">—</div>'
       :'<div class="sm-port-speed">'+sm_spd(n.speed)+((n.duplex==='full')?'<small>全双工</small>':(n.duplex==='half'?'<small>半双工</small>':''))+'</div>';
-    h+='<div class="sm-port"><div class="sm-port-top"><span class="sm-ic '+chip+'">'+ic+'</span>'
+    h+='<div class="sm-port"><div class="sm-port-head">'
+      +'<span class="sm-port-name"><span class="sm-port-ic '+chip+'">'+ic+'</span>'+nm+'</span>'
       +'<span class="sm-pill '+(on?'on':'off')+'">'+(iswf?(on?'运行中':'已关闭'):(on?'已连接':'未连接'))+'</span></div>'
-      +'<div class="sm-port-name">'+nm+'</div><div class="sm-port-sub">'+sub+'</div>'
+      +'<div class="sm-port-sub">'+sub+'</div>'
       +spd
       +'<div class="sm-port-rate"><span class="dn">&#9660; '+sm_fr(n.rx_rate||0)+'</span><span class="up">&#9650; '+sm_fr(n.tx_rate||0)+'</span></div>'
       +'</div>';
