@@ -17,11 +17,12 @@
 .sm-ic.purple{background:#f5f3ff;color:#7c3aed}
 /* 接口状态端口卡（v19.3）：复刻 OpenWrt 原生端口状态部件——拟物网口图标+灰标题条+负载色条 */
 .sm-ports{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;padding:14px 16px}
-@media(max-width:720px){.sm-ports{grid-template-columns:repeat(auto-fill,minmax(128px,1fr));gap:10px;padding:10px 12px}.sm-wanrow{gap:10px}.sm-wanrow .sm-port{width:calc(50% - 5px)}}
+@media(max-width:720px){.sm-ports{grid-template-columns:repeat(auto-fill,minmax(128px,1fr));gap:10px;padding:10px 12px}}
 .sm-port{background:#fff;border-radius:10px;box-shadow:0 2px 6px rgba(0,0,0,.12);overflow:hidden;display:flex;flex-direction:column}
-/* WAN 行：多个 WAN 口并排居中（1 个也居中），不再每口独占一行 */
-.sm-wanrow{grid-column:1/-1;display:flex;justify-content:center;gap:12px;flex-wrap:wrap}
-.sm-wanrow .sm-port{width:186px;max-width:100%;flex:0 1 auto}
+/* WAN 行：≤720px 并排居中；桌面宽屏融入网格流避免阶梯错位（v19.5） */
+.sm-wanrow{display:flex;justify-content:center;gap:10px;flex-wrap:wrap}
+.sm-wanrow .sm-port{width:calc(50% - 5px);max-width:100%;flex:0 1 auto}
+@media(min-width:721px){.sm-wanrow{display:contents}.sm-wanrow .sm-port{width:auto}}
 .sm-port-h{background:#ececee;padding:6px 0;text-align:center;font-size:12px;font-weight:650;color:var(--sm-g600);letter-spacing:.03em}
 .sm-port-b{padding:10px 8px 0;text-align:center}
 .sm-port-b img{width:56px;height:56px;display:block;margin:0 auto}
@@ -582,6 +583,8 @@ function sm_ports(d){
       +'<div class="sm-port-t"><div class="up">&#9650; '+sm_f(n.tx)+'</div><div class="dn">&#9660; '+sm_f(n.rx)+'</div></div>'
       +'</div>';
   });
+  /* WAN 排序：主 wan 在前，wanN 按编号升序（v19.5，实机反馈顺序颠倒） */
+  wans.sort(function(a,b){if(a.name==='wan')return -1;if(b.name==='wan')return 1;return a.name.localeCompare(b.name,undefined,{numeric:true})});
   if(wans.length){
     h+='<div class="sm-wanrow">';
     wans.forEach(function(n){
