@@ -481,12 +481,6 @@
   </div></div>
 </div>
 
-<!-- 网络接口 -->
-<div class="sm-card" style="margin-bottom:14px">
-  <div class="sm-ch"><h2><span class="sm-ic cyan"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12.55a11 11 0 0114.08 0"/><path d="M1.42 9a16 16 0 0121.16 0"/><path d="M8.53 16.11a6 6 0 016.95 0"/><line x1="12" y1="20" x2="12" y2="20"/></svg></span>网络接口</h2><span class="meta" id="sm-net-count">--</span></div>
-  <div class="sm-cb sm-tscroll" style="padding:0"><table class="sm-table"><thead><tr><th>接口</th><th>类型</th><th>状态</th><th>IP 地址</th><th class="sm-ta-r">接收速率</th><th class="sm-ta-r">发送速率</th><th class="sm-ta-r">总接收</th><th class="sm-ta-r">总发送</th></tr></thead><tbody id="sm-net"><tr><td colspan="8" class="sm-empty">加载中...</td></tr></tbody></table></div>
-</div>
-
 <!-- 已连接客户端 -->
 <div class="sm-card" style="margin-bottom:14px">
   <div class="sm-ch"><h2><span class="sm-ic green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg></span>已连接客户端</h2><span class="meta" id="sm-cc">--</span></div>
@@ -906,8 +900,8 @@ function sm_zteLoad(){
 }
 function sm_zteBadge(ip){
   var n=sm_zte.n&&sm_zte.n[ip],c=sm_zte.c&&sm_zte.c[ip];
-  if(n)return '<span class="sm-zteb node" title="中兴 mesh 节点">ZTE mesh · '+sm_esc(n.m||'')+'</span>';
-  if(c)return '<span class="sm-zteb" title="中兴 mesh 无线 · '+sm_esc(c.n||'')+'">'+sm_esc(c.b||'mesh')+'</span>';
+  if(n)return '<span class="sm-zteb node" title="中兴 mesh 节点 · '+(n.r||'')+' · 固件 '+(n.sv||'')+'">ZTE mesh '+(n.r||'')+' · '+sm_esc(n.m||'')+'</span>';
+  if(c)return '<span class="sm-zteb" title="接入 '+sm_esc(c.n||'')+'（中兴 mesh）">'+sm_esc(c.b||'mesh')+' · '+sm_esc(c.n||'')+'</span>';
   return '';
 }
 
@@ -1103,13 +1097,6 @@ function sm_render(d){
   document.getElementById('sm-p-tcp-bar').style.width=Math.min(100,Math.round((p.ct_tcp_estab||0)/Math.max(1,cm)*100))+'%';
   document.getElementById('sm-p-udp-bar').style.width=Math.min(100,Math.round((p.ct_udp||0)/Math.max(1,cm)*100))+'%';
   document.getElementById('sm-p-ct-bar').style.width=Math.min(100,Math.round(cc2/Math.max(1,cm)*100))+'%';
-  var nh='';
-  d.network.forEach(function(n){
-    var b=n.state==='up'?'<span class="sm-badge sm-b-up">UP</span>':'<span class="sm-badge sm-b-down">DOWN</span>';
-    var tp='<span class="sm-badge sm-b-'+(n.type||'physical')+'">'+(n.type||'PHYS')+'</span>';
-    nh+='<tr id="sm-if-'+n.name+'"><td class="sm-mono" style="font-weight:600;color:var(--sm-g900);font-size:12.5px">'+n.name+'</td><td>'+tp+'</td><td>'+b+'</td><td><span class="sm-ifip">'+(n.ip||'<span style="color:var(--sm-g300)">无</span>')+'</span></td><td class="sm-ta-r sm-rate"><span class="ar dn">&#9660;</span><span class="vl">'+sm_fr(n.rx_rate)+'</span></td><td class="sm-ta-r sm-rate"><span class="ar up2">&#9650;</span><span class="vl">'+sm_fr(n.tx_rate)+'</span></td><td class="sm-ta-r sm-rate"><span class="tt">'+sm_f(n.rx)+'</span></td><td class="sm-ta-r sm-rate"><span class="tt">'+sm_f(n.tx)+'</span></td></tr>';
-  });
-  document.getElementById('sm-net').innerHTML=nh;document.getElementById('sm-net-count').textContent=d.network.length+' 个接口';
   sm_clients(d);
   var sh='',run=0,stop=0;
   d.services.forEach(function(s){sh+='<div class="sm-svt '+s.status+'"><span class="sm-sdot"></span><div><div class="sm-svn">'+s.name+'</div><div class="sm-svp">'+(s.pid>0?'PID '+s.pid:(s.status==='running'?'运行中':'已停止'))+'</div></div></div>';if(s.status==='running')run++;else stop++});
