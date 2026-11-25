@@ -1335,10 +1335,16 @@ _ad_ppe_json() {
         fi
     fi
     [ -n "${_ad_pcap:-}" ] || _ad_pcap=0
+    # PPE 硬件资源池占用（host/next-hop 表；IPQ95xx: flow 4096/host 6144/nexthop 2560）
+    rs=$(cat /sys/kernel/debug/ppe/resource_stats 2>/dev/null)
+    _hrow=$(printf '%s\n' "$rs" | sed -n 's/.*host active:\([0-9]*\) capacity:\([0-9]*\).*/\1 \2/p' | head -1)
+    _nrow=$(printf '%s\n' "$rs" | sed -n 's/.*nexthop active:\([0-9]*\) capacity:\([0-9]*\).*/\1 \2/p' | head -1)
+    set -- ${_hrow:-- -}; _ha=$1; _hc=$2
+    set -- ${_nrow:-- -}; _na=$1; _nc=$2
     # b = 绑定合计（view「绑定/表项」数据源；原 statusppe 链路无此字段恒 0，此处修正）
     local bn0=$((ba0+bb0)) bn1=$((ba1+bb1))
-    printf '{"hw":%d,"cpu":-1,"cpu_avg":-1,"usr":0,"sys":0,"cap":%s,"ppe0":{"t":%d,"v4":%d,"v6":%d,"b":%d,"bv4":%d,"bv6":%d},"ppe1":{"t":%d,"v4":%d,"v6":%d,"b":%d,"bv4":%d,"bv6":%d},"ts":%d}\n' \
-        "$hw" "${_ad_pcap:-0}" "$t0" "$a0" "$b0" "$bn0" "$ba0" "$bb0" "$t1" "$a1" "$b1" "$bn1" "$ba1" "$bb1" "$(date +%s)" > "$F.tmp.$$" 2>/dev/null \
+    printf '{"hw":%d,"cpu":-1,"cpu_avg":-1,"usr":0,"sys":0,"cap":%s,"ppe0":{"t":%d,"v4":%d,"v6":%d,"b":%d,"bv4":%d,"bv6":%d},"ppe1":{"t":%d,"v4":%d,"v6":%d,"b":%d,"bv4":%d,"bv6":%d},"host":{"a":%d,"c":%d},"nh":{"a":%d,"c":%d},"ts":%d}\n' \
+        "$hw" "${_ad_pcap:-0}" "$t0" "$a0" "$b0" "$bn0" "$ba0" "$bb0" "$t1" "$a1" "$b1" "$bn1" "$ba1" "$bb1" "$_ha" "$_hc" "$_na" "$_nc" "$(date +%s)" > "$F.tmp.$$" 2>/dev/null \
         && mv -f "$F.tmp.$$" "$F" 2>/dev/null
     chmod 644 "$F" 2>/dev/null
     cat "$F" 2>/dev/null || echo '{"hw":0,"cpu":-1,"cpu_avg":-1}'
