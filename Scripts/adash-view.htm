@@ -636,7 +636,7 @@ async function sm_fetchLive(){
     /* map:"wan2=lan3,wan=pppoe-wan,..." → 逻辑名速率归并（物理口字节挂到逻辑口名） */
     if(d.map){
       var segs=d.map.split(',');sm_liveMap={};
-      for(var si=0;si<segs.length;si++){var kv=segs[si].split('=');if(kv[0]&&kv[1]&&kv[0]!==kv[1]&&kv[1]!=='lo')sm_liveMap[kv[1]]=kv[0]}
+      for(var si=0;si<segs.length;si++){var kv=segs[si].split('=');if(kv[0]&&kv[1]&&kv[0]!==kv[1]&&kv[1]!=='lo'&&!sm_liveMap[kv[1]])sm_liveMap[kv[1]]=kv[0]}
     }
     if(d.net&&sm_liveMap){
       Object.keys(sm_liveMap).forEach(function(phy){var lg=sm_liveMap[phy];if(d.net[phy]&&!d.net[lg]){d.net[lg]=d.net[phy]}})
@@ -664,15 +664,15 @@ function sm_livePaint(d){
       var tts=tr.querySelectorAll('.tt');if(tts[0])tts[0].textContent=sm_f(n.rx||0);if(tts[1])tts[1].textContent=sm_f(n.tx||0)}
   });
   var cl=0,cr=0;((d.clients)||[]).forEach(function(c){if(c.state!=='offline'){cl++;cr+=(c.rx_rate||0)+(c.tx_rate||0)}});
-  (d.network||[]).forEach(function(n){if(n.name.indexOf('ppp')===0)sm_topoSetText('sm-tt-pub-r','↓ '+sm_fr(n.rx_rate||0)+' · ↑ '+sm_fr(n.tx_rate||0))});
-  sm_topoSetText('sm-tr-cl-r','↓ '+sm_fr(cr));
+  (d.network||[]).forEach(function(n){if(n.name.indexOf('ppp')===0){var wr=sm_wanRate(d,n);sm_topoSetText('sm-tt-pub-r','↓ '+sm_fr(wr.rx_rate||0)+' · ↑ '+sm_fr(wr.tx_rate||0))}});
+  var br19=sm_brRate(d);sm_topoSetText('sm-tr-cl-r',br19?('↓ '+sm_fr(br19.rx_rate||0)+' · ↑ '+sm_fr(br19.tx_rate||0)):'↓ 0 B/s');
   var smwan=sm_getSelWan(d.network||[]);
   if(smwan){
     var smnow=Math.floor(Date.now()/1000);
     if(!sm_flow[smwan.name])sm_flow[smwan.name]=[];
     var smhf=sm_flow[smwan.name];
     if(!smhf.length||smnow-smhf[smhf.length-1].t>=2){
-      smhf.push({t:smnow,r:smwan.rx_rate||0,s:smwan.tx_rate||0});
+      var swr=sm_wanRate(d,smwan);smhf.push({t:smnow,r:swr.rx_rate||0,s:swr.tx_rate||0});
       var smcut=smnow-sm_FWIN;
       while(smhf.length&&smhf[0].t<smcut)smhf.shift();
       sm_saveFlow();
@@ -733,6 +733,20 @@ var sm_selWan='';
 try{var sw=localStorage.getItem('sm-selwan');if(sw)sm_selWan=sw}catch(e){}
 function sm_getWanList(net){return(net||[]).filter(function(n){return n.type==='WAN'})}
 function sm_getSelWan(net){var wans=sm_getWanList(net);if(!wans.length)return null;if(!sm_selWan)sm_selWan=wans[0].name;for(var i=0;i<wans.length;i++){if(wans[i].name===sm_selWan)return wans[i]}return wans[0]}
+/* v19.9 速率口径（参考 statusmon"总量以 WAN 物理口为准"）：PPE 硬件转发的流量
+   绕过 pppoe-wan 虚接口与 nft set 计数，只有物理口 /proc/net/dev 完整——
+   ppp* 虚接口速率一律借用底层物理口（live map 反查：sm_liveMap[phy]=logical） */
+function sm_wanRate(d,n){
+  var pr=null,name=n&&n.name;
+  if(name&&name.indexOf('ppp')===0){
+    /* 多候选（wan6=pppoe-wan 与 wan=pppoe-wan 并存）取 d.network 里实际存在的物理口 */
+    for(var k in sm_liveMap){if(sm_liveMap[k]===name){
+      (d.network||[]).forEach(function(x){if(x.name===k)pr=x});
+    }}
+  }
+  return pr||n;
+}
+function sm_brRate(d){var b=null;(d.network||[]).forEach(function(n){if(n.name==='br-lan')b=n});return b}
 function sm_hm(t){var d=new Date(t*1000);return ('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2)}
 function sm_hover(el,vals,t1,t2,fmtFn){
   var tip=el.querySelector('.sm-chtip'),line=el.querySelector('.sm-chline');
@@ -1137,10 +1151,10 @@ function sm_renderTopo(d){
   /* v19.5: pppoe* 的 IPv6/速率并入左侧互联网卡显示 */
   var ppp=null;(d.network||[]).some(function(n){if(n.name.indexOf('ppp')===0){ppp=n;return true}});
   sm_topoSetText('sm-tt-pub6',ppp&&ppp.ip6?ppp.ip6:'');
-  sm_topoSetText('sm-tt-pub-r',ppp?('↓ '+sm_fr(ppp.rx_rate||0)+' · ↑ '+sm_fr(ppp.tx_rate||0)):'');
+  sm_topoSetText('sm-tt-pub-r',ppp?(function(){var wr=sm_wanRate(d,ppp);return '↓ '+sm_fr(wr.rx_rate||0)+' · ↑ '+sm_fr(wr.tx_rate||0)})():'');
   var cl=0,cr=0;
   (d.clients||[]).forEach(function(c){if(c.state!=='offline'){cl++;cr+=(c.rx_rate||0)+(c.tx_rate||0)}});
-  sm_topoSetText('sm-tr-cl-r','↓ '+sm_fr(cr));
+  var br19b=sm_brRate(d);sm_topoSetText('sm-tr-cl-r',br19b?('↓ '+sm_fr(br19b.rx_rate||0)+' · ↑ '+sm_fr(br19b.tx_rate||0)):'↓ 0 B/s');
   var sig=sm_topoSig(d);
   if(sig!==sm_topo_sig){
   sm_topo_sig=sig;
@@ -1156,7 +1170,7 @@ function sm_renderTopo(d){
     if(n.type==='WAN'){lh+=card}else{rh+=card}
   });
   var ub=document.getElementById('sm-t-upbox');if(ub)ub.innerHTML=lh;
-  rh+='<div class="sm-tnode sm-t-sm sm-t-click" onclick="sm_jumpClients()" title="点击查看客户端列表"><div class="sm-t-label">有线</div><div style="display:flex;align-items:baseline;gap:8px"><span class="sm-t-name">'+cl+' 台设备</span><span class="sm-t-mono" id="sm-tr-cl-r" style="margin-left:auto;flex:0 0 auto">↓ 0 B/s</span></div></div>';
+  rh+='<div class="sm-tnode sm-t-sm sm-t-click" onclick="sm_jumpClients()" title="点击查看客户端列表"><div class="sm-t-label">有线</div><div style="display:flex;align-items:baseline;gap:8px"><span class="sm-t-name">'+cl+' 台设备</span><span class="sm-t-mono" id="sm-tr-cl-r" style="margin-left:auto;flex:0 0 auto">↓ 0 B/s · ↑ 0 B/s</span></div></div>';
   var rc=document.getElementById('sm-t-right');if(rc)rc.innerHTML=rh;
   var meta=document.getElementById('sm-topo-meta');if(meta)meta.textContent=ifc+' 个接口 · '+cl+' 台客户端';
   /* v19.6: 重建后延迟补画 —— 覆盖字体加载/内容回流造成的卡片位移 */
@@ -1204,7 +1218,7 @@ if(pnr)pnr.textContent=(pno.a!=null?pno.a:'--')+' / '+(pno.c||'--');}
     var smnow=Math.floor(Date.now()/1000);
     if(!sm_flow[smwan.name])sm_flow[smwan.name]=[];
     var smhf=sm_flow[smwan.name];
-    smhf.push({t:smnow,r:smwan.rx_rate||0,s:smwan.tx_rate||0});
+    var swr=sm_wanRate(d,smwan);smhf.push({t:smnow,r:swr.rx_rate||0,s:swr.tx_rate||0});
     var smcut=smnow-sm_FWIN;
     while(smhf.length&&smhf[0].t<smcut)smhf.shift();
     sm_saveFlow();
