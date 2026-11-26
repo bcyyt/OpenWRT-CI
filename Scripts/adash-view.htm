@@ -665,7 +665,7 @@ function sm_livePaint(d){
   });
   var cl=0,cr=0;((d.clients)||[]).forEach(function(c){if(c.state!=='offline'){cl++;cr+=(c.rx_rate||0)+(c.tx_rate||0)}});
   (d.network||[]).forEach(function(n){if(n.name.indexOf('ppp')===0){var wr=sm_wanRate(d,n);sm_topoSetText('sm-tt-pub-r','↓ '+sm_fr(wr.rx_rate||0)+' · ↑ '+sm_fr(wr.tx_rate||0))}});
-  var br19=sm_brRate(d);sm_topoSetText('sm-tr-cl-r',br19?('↓ '+sm_fr(br19.rx_rate||0)+' · ↑ '+sm_fr(br19.tx_rate||0)):'↓ 0 B/s');
+  var br19=sm_brRate(d);var br19t=br19?('↓ '+sm_fr(br19.tx_rate||0)+' · ↑ '+sm_fr(br19.rx_rate||0)):'↓ 0 B/s · ↑ 0 B/s';sm_topoSetText('sm-tr-cl-r',br19t);sm_topoSetText('sm-tr-br-lan-r',br19t);
   var smwan=sm_getSelWan(d.network||[]);
   if(smwan){
     var smnow=Math.floor(Date.now()/1000);
@@ -746,7 +746,16 @@ function sm_wanRate(d,n){
   (d.network||[]).forEach(function(x){if(x.name===lg&&x!==n)pr=x});
   return pr||n;
 }
-function sm_brRate(d){var b=null;(d.network||[]).forEach(function(n){if(n.name==='br-lan')b=n});return b}
+/* v19.9d: LAN 真实流量 = 桥端口聚合(lan1+lan2+...)。PPE 桥转发同样绕过
+   br-lan netdev 统计(实测硬转下载时 br-lan tx 仅计 4 成,lan1 tx 才是设备真实收量)。
+   排除被逻辑口占用的 lan*(map 物理口键,如 lan3=wan2 IPTV)。设备视角:↓=tx 下发 ↑=rx 回传 */
+function sm_brRate(d){
+  var rx=0,tx=0;
+  (d.network||[]).forEach(function(n){
+    if(n.name&&n.name.indexOf('lan')===0&&!sm_liveMap[n.name]){rx+=(n.rx_rate||0);tx+=(n.tx_rate||0)}
+  });
+  return {rx_rate:rx,tx_rate:tx};
+}
 function sm_hm(t){var d=new Date(t*1000);return ('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2)}
 function sm_hover(el,vals,t1,t2,fmtFn){
   var tip=el.querySelector('.sm-chtip'),line=el.querySelector('.sm-chline');
@@ -1154,7 +1163,7 @@ function sm_renderTopo(d){
   sm_topoSetText('sm-tt-pub-r',ppp?(function(){var wr=sm_wanRate(d,ppp);return '↓ '+sm_fr(wr.rx_rate||0)+' · ↑ '+sm_fr(wr.tx_rate||0)})():'');
   var cl=0,cr=0;
   (d.clients||[]).forEach(function(c){if(c.state!=='offline'){cl++;cr+=(c.rx_rate||0)+(c.tx_rate||0)}});
-  var br19b=sm_brRate(d);sm_topoSetText('sm-tr-cl-r',br19b?('↓ '+sm_fr(br19b.rx_rate||0)+' · ↑ '+sm_fr(br19b.tx_rate||0)):'↓ 0 B/s');
+  var br19b=sm_brRate(d);var br19bt=br19b?('↓ '+sm_fr(br19b.tx_rate||0)+' · ↑ '+sm_fr(br19b.rx_rate||0)):'↓ 0 B/s · ↑ 0 B/s';sm_topoSetText('sm-tr-cl-r',br19bt);sm_topoSetText('sm-tr-br-lan-r',br19bt);
   var sig=sm_topoSig(d);
   if(sig!==sm_topo_sig){
   sm_topo_sig=sig;
