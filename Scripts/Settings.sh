@@ -421,3 +421,33 @@ else
   echo "RTL8261 10G PHY LED 补丁已注入（hack-6.18/743，10G 灯激活）"
 fi
 fi
+
+#===IPv6 over PPPoE 稳定性修复（2026-11-26 SBE1V1K 实机定位，详 TROUBLESHOOTING.md 坑4）===
+#坑A: config_generate pppoe 分支给 wan 写 ipv6='1' → netifd 动态生成 wan_6，其 handler
+#      在 owrt 源码上无限崩溃（ubus Invalid argument），重复 DHCPv6 会话把静态 wan6 的
+#      前缀获取拖到 2~16 分钟波动。删掉后 pppd 照常协商 IPv6CP，实测拨号后 6 秒拿前缀。
+#坑B: 同文件生成的 wan6 缺 reqaddress → odhcp6c 不带 -Ntry；国内 BRAS 只发 IA_PD 不发
+#      IA_NA（地址靠 SLAAC），缺此参数则 wan6 拿到前缀却永远没地址。
+#修法1（出厂层）：sed 修构建树 config_generate，dhcp/pppoe 双分支生效；未命中仅告警
+#      不中断（lede 等他源结构漂移不陪葬，真源保证由修法2兜底）
+#修法2（兜底层）：uci-defaults 96-wan6-ipv6-fix 开机一次性强效，额外覆盖"sysupgrade
+#      恢复了带 wan.ipv6='1' 旧备份"路径；wan6 非 dhcpv6 板卡守卫跳过，全线安全复用
+CFG_GEN="./package/base-files/files/bin/config_generate"
+if [ -f "$CFG_GEN" ]; then
+        sed -i -f "$GITHUB_WORKSPACE/Scripts/inject/wan6-v6.sed" "$CFG_GEN"
+        if grep -qF "set network.\$1.ipv6='1'" "$CFG_GEN"; then
+                echo "[警告] wan6-v6.sed 删 wan.ipv6 未命中——上游 config_generate 结构变更，请人工核对"
+        else
+                echo "config_generate: wan.ipv6='1' 已移除（pppoe 分支，wan_6 崩溃循环源头）"
+        fi
+        if [ "$(grep -c "reqaddress='try'" "$CFG_GEN")" -ge 2 ]; then
+                echo "config_generate: wan6 reqaddress='try' 已补齐（dhcp/pppoe 双分支）"
+        else
+                echo "[警告] wan6-v6.sed 追加 reqaddress 未命中——上游结构变更，运行时兜底层仍生效"
+        fi
+else
+        echo "[警告] config_generate 不存在（非标准源码树？），跳过出厂层修复"
+fi
+mkdir -p ./package/base-files/files/etc/uci-defaults
+cp "$GITHUB_WORKSPACE/Scripts/inject/96-wan6-ipv6-fix" ./package/base-files/files/etc/uci-defaults/96-wan6-ipv6-fix
+chmod +x ./package/base-files/files/etc/uci-defaults/96-wan6-ipv6-fix

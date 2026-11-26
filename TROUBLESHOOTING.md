@@ -122,3 +122,45 @@ dat 过期后新被墙站点会漏到直连（打不开），因此规则库必�
 
 v1 脚本曾因健康检查用 `tail -60` 找 Bind，被启动初期刷屏的节点 ALIVE
 日志挤出窗口造成误判回滚——v3 改为重启后日志全量 grep + 轮询。
+
+---
+
+## 坑4 [已修进 CI]：IPv6 前缀慢/无地址双坑——wan_6 崩溃循环 + wan6 缺 reqaddress
+
+**日期**：2026-11-26 根治（SBE1V1K / IPQ9574 + 重庆电信 PPPoE，全程实机验证；坑3 的彻底版）
+
+**现象**（v19.9d 实机）：
+1. 刷机/重拨后 IPv6 前缀 2~16 分钟才拿到（波动），期间 wan6 一直 pending；
+2. `logread` 里 `wan_6` 每秒 5 条 `setting up` + `ubus error: Invalid argument` 崩溃循环；
+3. 前缀到手后 wan6 仍无 IPv6 地址（LuCI ipv6-address 空）。
+
+**根因（两个独立坑，均为固件出厂内置）**：
+- **坑A**：`config_generate` pppoe 分支给 wan 写 `ipv6='1'` → netifd 依此动态生成
+  `wan_6`（与静态 wan6 只差一个下划线，LuCI 极易混淆）。该 handler 在 owrt 源码上
+  无限崩溃重启，每次重启都向 BRAS 发起新 DHCPv6 会话抢前缀——br-lan 同期堆积 3 组
+  不同租期 /60 即此症状，静态 wan6 被拖入反复重试（"很久"的直接原因）。
+  **删掉该参数后 pppd 照常协商 IPv6CP**（LL 地址日志可见），实测拨号后 6 秒拿前缀。
+- **坑B**：同一分支生成的 wan6 不带 `reqaddress` → odhcp6c 不带 `-Ntry` 启动；
+  国内 BRAS 普遍只发 IA_PD 不发 IA_NA，WAN 侧地址靠 SLAAC 生成，odhcp6c 不请求
+  就不上报地址 → wan6"拿到前缀却永远没地址"。补 `reqaddress='try'` 即时解决。
+
+**坑3 的更正**：当时判为"动态 wan6 重拨后不重建"，实为 wan_6 handler 崩溃循环
+（现象相似、机制不同）；坑3 的静态 wan6 方案正确并沿用，本坑补齐另两个根因。
+
+**CI 修复（Settings.sh 尾部 + Scripts/inject/，2026-11-26）**：
+1. 出厂层：`wan6-v6.sed` 修构建树 config_generate——删 pppoe 分支 `ipv6='1'`、
+   dhcp/pppoe 双分支 wan6 补 `reqaddress='try'`；命中情况回显，未命中仅告警
+   （lede 等他源结构漂移不阻断编译）。
+2. 兜底层：`uci-defaults/96-wan6-ipv6-fix` 开机一次性强效——额外覆盖 sysupgrade
+   恢复"带 wan.ipv6='1' 的旧备份"路径；wan6 非 dhcpv6 板卡守卫跳过。
+
+**验收要点**（刷新固件首开后）：
+
+```sh
+logread | grep -c "wan_6.*setting up"   # 应为 0（不再生成 wan_6）
+logread | grep "LL address"             # pppd 应有 local/remote LL（IPv6CP 正常）
+ifstatus wan6 | grep -A2 ipv6-address   # 应有 240e: 开头的全局地址
+```
+
+**注意**：LuCI 里手动把 wan 的"Obtain IPv6 address"改成启用会写回 `ipv6='1'`，
+等于手动复活坑A——保持自动即可（v6 客户端由静态 wan6 承担）。
