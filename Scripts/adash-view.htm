@@ -732,7 +732,7 @@ function sm_saveFlow(){try{localStorage.setItem('sm-tflow',JSON.stringify(sm_flo
 var sm_selWan='';
 try{var sw=localStorage.getItem('sm-selwan');if(sw)sm_selWan=sw}catch(e){}
 function sm_getWanList(net){return(net||[]).filter(function(n){return n.type==='WAN'})}
-function sm_getSelWan(net){var wans=sm_getWanList(net);if(!wans.length)return null;if(!sm_selWan)sm_selWan=wans[0].name;for(var i=0;i<wans.length;i++){if(wans[i].name===sm_selWan)return wans[i]}return wans[0]}
+function sm_getSelWan(net){var wans=sm_getWanList(net);if(!wans.length)return null;if(!sm_selWan){/* v19.9c: 默认选中真实互联网上行(ppp*)——wan2 排序在前但只是 IPTV 专网，恒选它会让图表与互联网卡永远对不上 */for(var i19=0;i19<wans.length;i19++){if(wans[i19].name.indexOf('ppp')===0){sm_selWan=wans[i19].name;break}}if(!sm_selWan)sm_selWan=wans[0].name}for(var i=0;i<wans.length;i++){if(wans[i].name===sm_selWan)return wans[i]}return wans[0]}
 /* v19.9 速率口径（参考 statusmon"总量以 WAN 物理口为准"）：PPE 硬件转发的流量
    绕过 pppoe-wan 虚接口与 nft set 计数，只有物理口 /proc/net/dev 完整——
    ppp* 虚接口速率一律借用底层物理口（live map 反查：sm_liveMap[phy]=logical） */
