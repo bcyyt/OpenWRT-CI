@@ -737,13 +737,13 @@ function sm_getSelWan(net){var wans=sm_getWanList(net);if(!wans.length)return nu
    绕过 pppoe-wan 虚接口与 nft set 计数，只有物理口 /proc/net/dev 完整——
    ppp* 虚接口速率一律借用底层物理口（live map 反查：sm_liveMap[phy]=logical） */
 function sm_wanRate(d,n){
-  var pr=null,name=n&&n.name;
-  if(name&&name.indexOf('ppp')===0){
-    /* 多候选（wan6=pppoe-wan 与 wan=pppoe-wan 并存）取 d.network 里实际存在的物理口 */
-    for(var k in sm_liveMap){if(sm_liveMap[k]===name){
-      (d.network||[]).forEach(function(x){if(x.name===k)pr=x});
-    }}
-  }
+  var name=n&&n.name;
+  if(!name||name.indexOf('ppp')!==0)return n;
+  /* 正确链条：netdev 'pppoe-wan' → map 得逻辑名 'wan' → d.network 里叫 'wan' 的物理口
+     （UCI wan 的 device 恰与物理口同名；兜底剥 pppoe- 前缀）。物理口才含 PPE 硬转流量 */
+  var lg=sm_liveMap[name]||name.replace(/^ppp[a-z]*-/,'');
+  var pr=null;
+  (d.network||[]).forEach(function(x){if(x.name===lg&&x!==n)pr=x});
   return pr||n;
 }
 function sm_brRate(d){var b=null;(d.network||[]).forEach(function(n){if(n.name==='br-lan')b=n});return b}
