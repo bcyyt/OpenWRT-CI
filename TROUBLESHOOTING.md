@@ -122,3 +122,31 @@ dat 过期后新被墙站点会漏到直连（打不开），因此规则库必�
 
 v1 脚本曾因健康检查用 `tail -60` 找 Bind，被启动初期刷屏的节点 ALIVE
 日志挤出窗口造成误判回滚——v3 改为重启后日志全量 grep + 轮询。
+
+---
+
+## 坑4 [已修进 CI]：wan6 开机拿不到 IPv6——netifd 开机竞态（固件 bug，自愈兜底）
+
+**日期**：2026-11-27（SBE1V1K / IPQ9574 + 重庆电信 PPPoE，实机验证）
+
+**现象**：刷机/重启后 wan6 长时间拿不到前缀与地址；隔一会儿再查"又有了"——
+这不是玄学，是自愈脚本的窗口期（约 1 分钟内）。
+
+**根因**（固件 bug，上游 netifd 竞态，本仓库不做源码修复、保持出厂形态）：
+wan ifup 高峰期（拨号完成瞬间）启动的 DHCPv6 接口，其 proto notify 撞上
+尚未就绪的 netifd proto 状态机 → `ubus error: Invalid argument` → 接口
+setup 失败被 disabled。netifd 稳定后重拉同一接口则 100% 成功（实机多轮
+对照验证：手动慢速路径创建 100% 成功，开机自动路径撞竞态必挂）。
+
+**修复**（自愈兜底，实机验证有效）：`/etc/hotplug.d/iface/99-wan6-retry`
+wan ifup 后每 30s 检查 wan6 状态，未 up 则 ifdown/ifup 重拉，最多 6 次
+（间隔 2s），带 PID 锁防并发，全程约 1 分钟内自动完成。不改变任何出厂
+配置与行为，根因留给上游修。
+
+**验收要点**（刷新固件首开后，等 1~2 分钟）：
+
+```sh
+logread | grep wan6-retry            # 重试路径应见 "retry 1/6" 后止步；顺利则见 "already up"
+ubus call network.interface.wan6 status | grep '"up"'    # 应为 true
+ifstatus wan6 | grep -A2 ipv6-address                    # 应有 240e: 全局地址
+```

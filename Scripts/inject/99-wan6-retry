@@ -1,0 +1,28 @@
+#!/bin/sh
+# wan6 (DHCPv6-PD) 开机竞态自动补救：wan 起来后若 wan6 拿不到前缀则重启 wan6，最多6次
+# 根因(固件bug,上游netifd竞态,此处不做源码修复): wan ifup 高峰期 wan6 的 dhcpv6
+# proto notify 撞上未就绪的 netifd proto 状态机 → ubus Invalid argument → 接口
+# 失败 disabled; netifd 稳定后重拉同一接口即 100% 成功。
+# 实机验证(SBE1V1K+重庆电信): wan ifup 后 ~1 分钟内自愈, 无需人工干预。
+# "先没有、过一会儿又有了"即自愈窗口, 属设计内行为。
+[ "$ACTION" = "ifup" ] && [ "$INTERFACE" = "wan" ] || exit 0
+LOCK=/tmp/wan6-retry.pid
+if [ -f "$LOCK" ] && kill -0 "$(cat $LOCK)" 2>/dev/null; then exit 0; fi
+(
+  echo $$ > "$LOCK"
+  trap 'rm -f "$LOCK"' EXIT
+  i=1
+  while [ "$i" -le 6 ]; do
+    sleep 30
+    if ubus call network.interface.wan6 status 2>/dev/null | grep -q '"up": true'; then
+      logger -t wan6-retry "wan6 already up, no retry needed"
+      exit 0
+    fi
+    logger -t wan6-retry "wan6 not up after boot, retry $i/6"
+    ifdown wan6 2>/dev/null
+    sleep 2
+    ifup wan6 2>/dev/null
+    i=$((i+1))
+  done
+  logger -t wan6-retry "gave up after 6 tries"
+) &

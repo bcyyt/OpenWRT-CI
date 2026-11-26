@@ -421,3 +421,16 @@ else
   echo "RTL8261 10G PHY LED 补丁已注入（hack-6.18/743，10G 灯激活）"
 fi
 fi
+
+#===wan6 开机竞态自愈（2026-11-27 SBE1V1K 实机验证，详 TROUBLESHOOTING.md 坑4）===
+#固件 bug(保留出厂形态,不做源码修复): wan ifup 高峰期 wan6(DHCPv6) 的 proto notify
+#      撞上未就绪的 netifd proto 状态机 → ubus Invalid argument → 开机后 wan6 拿不到
+#      前缀/地址。netifd 稳定后重拉即 100% 成功。
+#自愈: wan ifup 后每 30s 巡检 wan6, 未 up 则 ifdown/ifup 重拉, 最多 6 次, 全程约 1
+#      分钟内自动完成。带 PID 锁防并发。hotplug.d/iface 随包文件注入, 不改任何出厂
+#      配置/行为——"先没有、过一会儿又有了"是设计内的自愈窗口, 非玄学。
+mkdir -p ./package/base-files/files/etc/hotplug.d/iface
+cp "$GITHUB_WORKSPACE/Scripts/inject/99-wan6-retry" ./package/base-files/files/etc/hotplug.d/iface/99-wan6-retry
+chmod +x ./package/base-files/files/etc/hotplug.d/iface/99-wan6-retry
+[ -f ./package/base-files/files/etc/hotplug.d/iface/99-wan6-retry ] && \
+        echo "hotplug: 99-wan6-retry 已注入（wan6 开机竞态自愈，坑4）"
