@@ -1,0 +1,22 @@
+#!/bin/sh
+# RA MTU 动态同步：wan ifup 时把 WAN 实际 MTU 通告进内网 RA（dhcp.lan.ra_mtu）
+# 背景：PPPoE 封装开销 8B → WAN MTU 1492。fw4 mtu_fix 已钳 TCP MSS（v4/v6 双栈
+# postrouting/forward 规则，出向 SYN 被 maxseg set rt mtu），但 QUIC/UDP 无 MSS
+# 概念——内网设备若按链路默认 1500 发包，超 1492 的大包在 PPPoE 处丢弃，只能靠
+# ICMPv6 Packet-Too-Big 回弹补救（多一跳 RTT，QUIC 首包可能黑洞）。RA 通告 MTU
+# 后内网设备源头即正确（Android/Windows/iOS/macOS 全部支持 RA MTU 选项）。
+# DHCP/静态上网时 MTU=1500，通告值等于默认值无副作用——同一脚本通吃两种环境。
+# 值有变化才写 flash 并 reload odhcpd：首开写入一次，此后重拨零磨损静默退出。
+# 实机验证（SBE1V1K + 重庆电信 PPPoE）：RA 报文实抓带 "mtu option (5): 1492"；
+# fw4 出/入向 maxseg 规则双栈在位，ICMPv6 PTB input/forward 放行（counter 0 黑洞未发生）。
+[ "$ACTION" = "ifup" ] && [ "$INTERFACE" = "wan" ] || exit 0
+M=$(cat /sys/class/net/"$DEVICE"/mtu 2>/dev/null)
+case "$M" in ''|*[!0-9]*) exit 0 ;; esac
+[ "$M" -ge 1280 ] || exit 0
+CUR=$(uci -q get dhcp.lan.ra_mtu)
+[ "$CUR" = "$M" ] && exit 0
+uci set dhcp.lan.ra_mtu="$M"
+uci commit dhcp
+logger -t ra-mtu "RA MTU $CUR -> $M ($DEVICE)"
+/etc/init.d/odhcpd reload 2>/dev/null || /etc/init.d/odhcpd restart 2>/dev/null
+exit 0
