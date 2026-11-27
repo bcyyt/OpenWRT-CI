@@ -153,40 +153,6 @@ ifstatus wan6 | grep -A2 ipv6-address                    # 应有 240e: 全局�
 
 ---
 
-## 坑5 [已修进 CI]：IPv6 QUIC/UDP 大包黑洞——RA 未通告 MTU（PPPoE 1492）
-
-**日期**：2026-11-27（SBE1V1K / IPQ9574 + 重庆电信 PPPoE，实机验证）
-
-**现象**：TCP 网站正常（fw4 mtu_fix 双栈 MSS 钳制在位），但走 QUIC/HTTP3
-（UDP 443）的站点偶发首包卡顿/加载失败——MSS 钳制救不了 UDP，黑洞窗口暴露。
-
-**根因**（配置盲区，非固件 bug）：
-- PPPoE 封装开销 8B → WAN MTU 1492；fw4 `mtu_fix='1'` 已生成 v4/v6 双栈
-  `tcp option maxseg size set rt mtu`（postrouting 出向 + forward 入向），
-  TCP 的 SYN 全被钳到 MSS 1452 ✓
-- 但 QUIC/UDP 无 MSS 概念；odhcpd 默认 RA 不含 MTU 选项 → 内网设备按链路
-  默认 1500 发包，>1492 的大包在 PPPoE 处丢弃，只能靠 ICMPv6 PTB 回弹补救
-  （多一跳 RTT；运营商若吞 ICMPv6 则彻底黑洞）
-- 实机 nft 确认 ICMPv6 packet-too-big 的 input/forward 均放行且 counter=0
-  （黑洞尚未实际发生，属提前补盲区）
-
-**修复**（`/etc/hotplug.d/iface/98-ra-mtu`，动态同步）：
-wan ifup 时读 WAN 实际 MTU 写入 `dhcp.lan.ra_mtu` 并 reload odhcpd →
-RA 通告 MTU，内网设备（Android/Windows/iOS/macOS 全支持）源头即按正确
-MTU 发包，QUIC/UDP 首包不黑洞。值有变化才写 flash，首开后重拨零磨损；
-DHCP 上网时 MTU=1500 等于默认值，无副作用，一套逻辑通吃两种环境。
-
-**验收要点**（刷新固件首开后）：
-
-```sh
-uci get dhcp.lan.ra_mtu              # 应为 1492（PPPoE）——hotplug 首次 ifup wan 时写入
-logread | grep ra-mtu                # 应见 "RA MTU  -> 1492 (pppoe-wan)"
-# 抓 RA 确认 MTU 选项（临时装 tcpdump）：tcpdump -i br-lan -vvv icmp6 | grep -A1 'router advertisement'
-#   应见 "mtu option (5): 1492"
-```
-
----
-
 ## 坑6 [已修进 CI]：手机登录页 footer 遮挡密码输入框——键盘弹起时叠压
 
 **日期**：2026-11-27（SBE1V1K / Argon 主题，Playwright 手机视口实测定位）
@@ -214,4 +180,3 @@ logread | grep ra-mtu                # 应见 "RA MTU  -> 1492 (pppoe-wan)"
 - 375x667 普通手机：footer 可见、密码框可点击、无重叠
 - 375x400 / 360x350 键盘弹起：footer 自动隐藏、密码框可点击
 - 390x844 iPhone14：footer 可见、无重叠
-
