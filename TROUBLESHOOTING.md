@@ -184,3 +184,34 @@ logread | grep ra-mtu                # 应见 "RA MTU  -> 1492 (pppoe-wan)"
 # 抓 RA 确认 MTU 选项（临时装 tcpdump）：tcpdump -i br-lan -vvv icmp6 | grep -A1 'router advertisement'
 #   应见 "mtu option (5): 1492"
 ```
+
+---
+
+## 坑6 [已修进 CI]：手机登录页 footer 遮挡密码输入框——键盘弹起时叠压
+
+**日期**：2026-11-27（SBE1V1K / Argon 主题，Playwright 手机视口实测定位）
+
+**现象**：手机访问登录页，点密码框弹起键盘后，"Powered by LuCI Master..."
+页脚叠在密码输入框上，影响输入；桌面端无此问题。
+
+**根因**（主题 CSS 设计缺陷，非固件 bug）：
+- 登录页 footer `position:absolute; bottom:0` 钉死在视口底部
+- Android 键盘弹起会压缩视口高度（实测 667→400px），footer 跟着视口底上移，
+  正好压住密码框（实测重叠 y=334~400 vs 密码框 294~335）
+- 主题自带的 resize 补偿脚本查询 `.ftc`，但登录页 HTML 根本没有该元素——
+  空操作，从未生效
+
+**修复**（Packages.sh 追加 CSS，不删文字）：
+```css
+@media (max-width:600px) and (max-height:520px){ .login-page footer{display:none!important} }
+@media (max-width:600px){ .login-page footer{pointer-events:none} }
+```
+键盘弹起（视口被压缩）时 footer 让位隐藏，键盘收起立即恢复显示；
+平时 pointer-events:none 保证任何情况下不拦截输入框点击。
+"Powered by" 文字在桌面端与手机端平时均正常保留。
+
+**验收要点**（Playwright 四视口全过）：
+- 375x667 普通手机：footer 可见、密码框可点击、无重叠
+- 375x400 / 360x350 键盘弹起：footer 自动隐藏、密码框可点击
+- 390x844 iPhone14：footer 可见、无重叠
+

@@ -47,6 +47,19 @@ UPDATE_PACKAGE() {
 
 # UPDATE_PACKAGE "包名" "项目地址" "项目分支" "pkg，可选，从大杂烩中单独提取包名插件"
 UPDATE_PACKAGE "argon" "sbwml/luci-theme-argon" "openwrt-25.12"
+#===argon 登录页手机键盘弹起防遮挡（2026-11-27 SBE1V1K 实机验证，详 TROUBLESHOOTING.md 坑6）===
+#根因: 登录页 footer absolute bottom:0, Android 键盘弹起压缩视口时压住密码框;
+#      主题原 resize 脚本查询 .ftc 但登录页无该元素, 属空操作。
+#修复: 媒体查询——手机且视口被压缩(键盘弹起)时 footer 让位隐藏, 键盘收起立即恢复
+#      (文字保留); 平时 pointer-events:none 保证任何情况下不拦截输入框点击。
+ARGON_CSS=./package/luci-theme-argon/htdocs/luci-static/argon/css/cascade.css
+[ -f "$ARGON_CSS" ] && cat >> "$ARGON_CSS" <<'ARGON_FIX'
+/* === 登录页手机键盘弹起防遮挡（实机验证 2026-11-27） === */
+@media (max-width:600px) and (max-height:520px){ .login-page footer{display:none!important} }
+@media (max-width:600px){ .login-page footer{pointer-events:none} }
+ARGON_FIX
+[ -f "$ARGON_CSS" ] && grep -q 'login-page footer{display:none' "$ARGON_CSS" && \
+        echo "argon: 登录页手机键盘防遮挡 CSS 已追加（坑6）"
 UPDATE_PACKAGE "aurora" "eamonxg/luci-theme-aurora" "master"
 UPDATE_PACKAGE "aurora-config" "eamonxg/luci-app-aurora-config" "master"
 UPDATE_PACKAGE "fluent" "LazuliKao/luci-theme-fluent" "main"
