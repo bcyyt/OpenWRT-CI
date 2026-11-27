@@ -8,6 +8,8 @@
 #   ③ nft/tc 记账、跨天/跨月累计、24h 曲线机制照抄（成本≈0，保持准确）
 # 本文件由 Scripts/gen_adash.py 生成，勿手工编辑 — OpenWrt 系统状态数据采集 CGI
 # 部署到 /www/cgi-bin/adash
+# v4.51 变更：system JSON 新增 fan_rpm——PWM 风扇实时转速（hwmon name=*fan* 的 fan1_input，
+#             如 IPQ95XX SBE1V1K 的 pwmfan）；仅实时显示不入 sys_hist 曲线，无风扇返回 null 前端自动隐藏
 # v4.48 修复：本月/今日流量总计严重偏低 —— flow offload 的转发流量绕过 pppoe-wan 逻辑口计数器，
 #             实测转发下载 678MB 时逻辑口仅增 2KB；流量记账改取 WAN 物理底层口（.device，如 eth3），
 #             设备切换时按开机时间判断能否用当前值校正周期总量，避免跨月虚高
@@ -1432,6 +1434,22 @@ _sm_now_disk() {
 }
 _sm_cpu_temp_now=$(_sm_now_temp)
 _sm_disk_temp_now=$(_sm_now_disk)
+# v4.51：PWM 风扇实时转速（hwmon name 含 fan 的 fan1_input，SBE1V1K 为 pwmfan）；无风扇返回空
+_sm_now_fan() {
+    local h t
+    for h in /sys/class/hwmon/hwmon*; do
+        [ -f "$h/name" ] || continue
+        case "$(cat "$h/name" 2>/dev/null)" in
+            *fan*)
+                [ -f "$h/fan1_input" ] || continue
+                t=$(cat "$h/fan1_input" 2>/dev/null)
+                case "$t" in ''|*[!0-9]*) ;; *) echo "$t"; return ;; esac
+                ;;
+        esac
+    done
+    echo ""
+}
+_sm_fan_rpm_now=$(_sm_now_fan)
 _qs_summary=$(echo "$QUERY_STRING" | sed -n 's/^summary=\([^&]*\).*/\1/p')
 _qs_proto_day=$(echo "$QUERY_STRING" | sed -n 's/^proto_day=\([^&]*\).*/\1/p')
 if [ -n "$_qs_proto_day" ]; then
@@ -1739,6 +1757,8 @@ temp_c=${_sm_cpu_temp_now:-null}
 case "$temp_c" in ''|0) temp_c="null" ;; esac
 disk_c=${_sm_disk_temp_now:-null}
 case "$disk_c" in ''|0) disk_c="null" ;; esac
+fan_rpm=${_sm_fan_rpm_now:-null}
+case "$fan_rpm" in ''|*[!0-9]*) fan_rpm="null" ;; esac
 
 # CPU 使用率：跨请求差分采样（v4.8）
 # BusyBox sleep 不支持小数秒，请求内 sleep 0.5 必然失败（日志刷屏 + 窗口退化 ~1ms，
@@ -2413,7 +2433,8 @@ cat <<JSONEOF
     "cpu_freq_min": $cpu_freq_min,
     "cpu_freq_max": $cpu_freq_max,
     "temperature": $temp_c,
-    "disk_temp": $disk_c
+    "disk_temp": $disk_c,
+    "fan_rpm": $fan_rpm
   },
   "memory": {
     "total": $mem_total,
