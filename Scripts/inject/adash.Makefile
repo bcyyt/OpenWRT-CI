@@ -15,7 +15,7 @@ PKG_DIR:=$(patsubst %/,%,$(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=luci-app-adash
-PKG_VERSION:=1.0.0
+PKG_VERSION:=1.0.1
 PKGARCH:=all
 
 include $(INCLUDE_DIR)/package.mk
