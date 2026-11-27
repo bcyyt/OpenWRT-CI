@@ -434,3 +434,16 @@ cp "$GITHUB_WORKSPACE/Scripts/inject/99-wan6-retry" ./package/base-files/files/e
 chmod +x ./package/base-files/files/etc/hotplug.d/iface/99-wan6-retry
 [ -f ./package/base-files/files/etc/hotplug.d/iface/99-wan6-retry ] && \
         echo "hotplug: 99-wan6-retry 已注入（wan6 开机竞态自愈，坑4）"
+
+#===RA MTU 动态同步（2026-11-27 SBE1V1K 实机验证，详 TROUBLESHOOTING.md 坑5）===
+#盲区: fw4 mtu_fix 只钳 TCP MSS(v4/v6 双栈)；QUIC/UDP 无 MSS 概念，内网设备按
+#      链路默认 1500 发包时超 1492 的大包在 PPPoE 处丢弃，靠 ICMPv6 PTB 回弹
+#      补救多一跳 RTT（QUIC 首包黑洞窗口）。
+#方案: 98-ra-mtu 随包注入——wan ifup 时把 WAN 实际 MTU 写入 dhcp.lan.ra_mtu 并
+#      reload odhcpd，内网设备从 RA 得知正确 MTU（主流系统全支持）。DHCP 上网
+#      时 MTU=1500 等于默认值无副作用，一套逻辑通吃。值有变化才写 flash，
+#      首开后重拨零磨损。
+cp "$GITHUB_WORKSPACE/Scripts/inject/98-ra-mtu" ./package/base-files/files/etc/hotplug.d/iface/98-ra-mtu
+chmod +x ./package/base-files/files/etc/hotplug.d/iface/98-ra-mtu
+[ -f ./package/base-files/files/etc/hotplug.d/iface/98-ra-mtu ] && \
+        echo "hotplug: 98-ra-mtu 已注入（RA MTU 动态同步，坑5）"
