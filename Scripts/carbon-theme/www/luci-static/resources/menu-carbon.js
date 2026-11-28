@@ -135,7 +135,22 @@ const provider = {
 	}),
 	cpuStat: () => fs.read('/proc/stat'),
 	interfaces: () => callIfaces().then((r) => (Array.isArray(r) && r.length) ? r : null),
-	devStats: (dev, alt) => callDevice(dev).then((r) => {
+	devStats: (dev, alt) => fs.read('/proc/net/dev').then((text) => {
+		/* 2026-11-28 实机二修: 测速洪峰下 ubus RPC 阻塞数秒 → De() 差分窗口
+		 * (>15s 即丢点)大量丢样, 曲线断续脉冲。/proc/net/dev 直读毫秒级返回,
+		 * 数据与 ubus statistics 同源(内核 dev->stats)。失败再回退 ubus 路径 */
+		if (text) {
+			const lines = text.split('\n');
+			for (let i = 0; i < lines.length; i++) {
+				const mch = lines[i].match(/^\s*([^:]+):\s*((?:\d+\s+){15}\d+)\s*$/);
+				if (mch && (mch[1] === dev || (alt && mch[1] === alt))) {
+					const f = mch[2].split(/\s+/);
+					return { rx_bytes: +f[0], tx_bytes: +f[8] };
+				}
+			}
+		}
+		return Promise.reject('nodirect');
+	}).catch(() => callDevice(dev).then((r) => {
 		if (r && r.statistics && r.statistics.rx_bytes != null)
 			return r.statistics;
 
@@ -143,22 +158,25 @@ const provider = {
 			const d = (all && (all[dev] || (alt && all[alt]))) || null;
 			return (d && d.stats) ? d.stats : null;
 		});
-	}),
+	})),
 	netDevices: () => callNetDevs().then((r) => (r && typeof r === 'object' && Object.keys(r).length) ? r : null),
 	/* 接口物理层+计数器(2026-11-28 网络接口卡增速率行): l3_device 的 speed/carrier/
 	 * statistics 一次取回; speed 形如 "2500F"(2500Mbps Full duplex), 前端格式化;
 	 * statistics 与 devStats 同源, 供接口卡独立差分(同 Live Traffic 算法) */
 	ifaceStatus: (dev, alt) => callDevice(dev).then((r) => {
 		/* l3 有效且有物理速率(如 br-lan/ethX)直接用; PPPoE 等 l3 虚接口
-		 * (pppoe-wan)无 speed 字段 → 回退 alt(底层物理口 wan)取速率,
-		 * 计数器仍优先取 l3(与状态页 Live Traffic 的 dev 选源一致) */
+		 * (pppoe-wan)无 speed 字段 → 回退 alt(底层物理口 wan)取速率。
+		 * 2026-11-28 实机二修: PPE hw offload 同样绕过 pppoe-wan 软件计数器
+		 * (差分实测: 物理口 ~1MB/s vs 虚口 ~5KB/s, 仅 1%), PPP 虚接口的
+		 * statistics 一并改取物理口(alt), speed 同源 — 与 Live Traffic
+		 * trafficSources 的物理口优先口径一致 */
 		if (r && r.up != null && r.speed)
 			return { speed: r.speed, carrier: !!r.carrier,
 			         stats: (r.statistics && r.statistics.rx_bytes != null) ? r.statistics : null };
 		return (alt ? callDevice(alt) : Promise.resolve(null)).then((r2) => {
 			let speed = (r2 && r2.speed) || null;
-			const stats = (r && r.statistics && r.statistics.rx_bytes != null) ? r.statistics
-				: (r2 && r2.statistics && r2.statistics.rx_bytes != null) ? r2.statistics : null;
+			const stats = (r2 && r2.statistics && r2.statistics.rx_bytes != null) ? r2.statistics
+				: (r && r.statistics && r.statistics.rx_bytes != null) ? r.statistics : null;
 			if (!stats && !speed) return null;
 			return { speed: speed, carrier: !!(r2 ? r2.carrier : r ? r.carrier : false), stats: stats };
 		});
