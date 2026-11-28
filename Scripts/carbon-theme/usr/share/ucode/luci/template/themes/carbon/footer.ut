@@ -3,7 +3,16 @@
  Licensed to the public under the Apache License 2.0.
 -#}
 
-{% const is_login = (duser != null); %}
+{%
+	import { readfile, writefile, stat } from 'fs';
+	const is_login = (duser != null);
+	let mc_ver = trim(readfile('/usr/share/carbon/version') ?? 'dev') ?? 'dev';
+	mc_ver = replace(mc_ver, /[^0-9A-Za-z_-]/g, '');
+	const mc_name = 'menu-carbon-' + mc_ver;
+	const mc_path = '/www/luci-static/resources/' + mc_name + '.js';
+	if (stat(mc_path) == null)
+		writefile(mc_path, readfile('/www/luci-static/resources/menu-carbon.js'));
+%}
 
 	{% if (is_login): %}
 			</div>
@@ -24,7 +33,7 @@
 				</footer>
 			</main>
 		</div>
-		<script>L.require('menu-carbon')</script>
+		<script>L.require('{{ mc_name }}')</script>
 	{% endif %}
 	</body>
 </html>

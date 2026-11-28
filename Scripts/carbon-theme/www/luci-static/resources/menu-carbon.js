@@ -145,6 +145,24 @@ const provider = {
 		});
 	}),
 	netDevices: () => callNetDevs().then((r) => (r && typeof r === 'object' && Object.keys(r).length) ? r : null),
+	/* 接口物理层+计数器(2026-11-28 网络接口卡增速率行): l3_device 的 speed/carrier/
+	 * statistics 一次取回; speed 形如 "2500F"(2500Mbps Full duplex), 前端格式化;
+	 * statistics 与 devStats 同源, 供接口卡独立差分(同 Live Traffic 算法) */
+	ifaceStatus: (dev, alt) => callDevice(dev).then((r) => {
+		/* l3 有效且有物理速率(如 br-lan/ethX)直接用; PPPoE 等 l3 虚接口
+		 * (pppoe-wan)无 speed 字段 → 回退 alt(底层物理口 wan)取速率,
+		 * 计数器仍优先取 l3(与状态页 Live Traffic 的 dev 选源一致) */
+		if (r && r.up != null && r.speed)
+			return { speed: r.speed, carrier: !!r.carrier,
+			         stats: (r.statistics && r.statistics.rx_bytes != null) ? r.statistics : null };
+		return (alt ? callDevice(alt) : Promise.resolve(null)).then((r2) => {
+			let speed = (r2 && r2.speed) || null;
+			const stats = (r && r.statistics && r.statistics.rx_bytes != null) ? r.statistics
+				: (r2 && r2.statistics && r2.statistics.rx_bytes != null) ? r2.statistics : null;
+			if (!stats && !speed) return null;
+			return { speed: speed, carrier: !!(r2 ? r2.carrier : r ? r.carrier : false), stats: stats };
+		});
+	}).catch(() => null),
 	leases: () => callLeases().then((r) => (r && Array.isArray(r.dhcp_leases)) ? r : null),
 	wireless: () => callLuciWireless().then(parseWireless).catch(() => callWireless().then(parseWireless)),
 	hostHints: () => callHostHints(),
