@@ -1,4 +1,6 @@
-/* carbon-bcyyt v3.1 — PPE 环+明细 / IPv6 完整显示 / CPU 环点击历史曲线
+/* carbon-bcyyt v3.2 — PPE 环+明细 / IPv6 完整显示 / CPU 环点击历史曲线
+ * v3.2: PPE 明细行口径修正——表项改"占用/容量"(152/4096)对齐环副标;
+ *       v4/v6 正名为条目分布, 新增真绑定明细 bv4/bv6(用户实机反馈)
  * v3.1: 非概览页静默自毁(修跨页污染弹标 bug, 2026-11-28 实机)
  * v3.0: ① CPU 环可点击 → 弹出 3h/24h 历史曲线(数据 /cgi-bin/adash?sys_hist=1)
  *       ② IPv6 手机/电脑显示不全修复(.cb-ip6 放开换行 word-break)
@@ -112,16 +114,21 @@
 		}
 		var q = p || lastPpe;
 		var q0 = q && q.ppe0 ? q.ppe0 : null;
+		var cap = (q && q.cap) || 4096; /* renderKvDetail 独立作用域, 自取容量 */
 		if (!q || !q.hw) {
 			box.style.display = 'none';
 		} else {
 			box.style.display = '';
 			var rows = [];
 			if (q0) {
-				rows.push(['PPE 绑定 / 表项',
-					q0.b + ' / ' + q0.t +
-					(q.ppe1 && (q.ppe1.b || q.ppe1.t) ? '  (+PPE1 ' + q.ppe1.b + '/' + q.ppe1.t + ')' : '')]);
-				rows.push(['PPE 绑定 v4 / v6', q0.v4 + ' / ' + q0.v6]);
+				/* 表项=占用/容量(与环副标同口径); b(绑定合计)在 IPQ95XX 恒等于 t, 不重复列 */
+				rows.push(['PPE 表项',
+					q0.t + ' / ' + cap + ' (' + Math.round(q0.t / cap * 100) + '%)' +
+					(q.ppe1 && q.ppe1.t ? '  (+PPE1 ' + q.ppe1.t + '/' + cap + ')' : '')]);
+				/* v4/v6 = 条目的 IPv4/IPv6 分布(CGI a0/b0); bv4/bv6 才是绑定明细(ba0/bb0) */
+				rows.push(['PPE 条目 v4 / v6', q0.v4 + ' / ' + q0.v6]);
+				if (q0.bv4 || q0.bv6)
+					rows.push(['PPE 绑定 v4 / v6', q0.bv4 + ' / ' + q0.bv6]);
 			}
 			if (q.host && q.host.c) rows.push(['Host 表占用', q.host.a + ' / ' + q.host.c + ' (' + Math.round(q.host.a / q.host.c * 100) + '%)']);
 			if (q.nh && q.nh.c) rows.push(['下一跳表占用', q.nh.a + ' / ' + q.nh.c + ' (' + Math.round(q.nh.a / q.nh.c * 100) + '%)']);
