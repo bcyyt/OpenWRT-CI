@@ -433,17 +433,29 @@ WRT_ROOT=$PWD
         && echo "statusmon-dash Makefile syntax: OK" \
         || { echo "statusmon-dash Makefile syntax FAILED:"; head -5 /tmp/smd_syntax.err; }
 
-#===luci-app-adash（QCB 线：PPE/CPU 曲线数据后端 + Carbon 徽章层，2026-11-28 减配）===
-# 页面已裁撤（controller/view 不装）；保留 CGI+cron 数据端点喂 Carbon 徽章
-# （PPE 第四环/绑定明细/CPU 3h-24h 曲线/IPv6 修复, Scripts/carbon-bcyyt.js）
+#===luci-app-adash（QCB 双线共用，2026-11-28 拆分：argon=完整版还原 / carbon=减配版）===
+# argon 线（QCB-ARGON 还原）：完整状态监控页面——controller/view/fwmanager 全量
+#   装配(adash-full.Makefile, 即拆分前原版 1.0.1)
+# carbon 线（QCB-CARBON）：页面裁撤，CGI+cron 数据后端 + carbon-bcyyt.js 徽章层
+#   （PPE 第四环/绑定明细/CPU 3h-24h 曲线/IPv6 修复, Scripts/carbon-bcyyt.js）
+# 两线互斥不同编：WRT_THEME 决定装配形态，package 名相同不共存
 # 与 vantage 的 statusmon 注入主题互斥，不共存
 if [[ "$WRT_THEME" = "argon" || "$WRT_THEME" = "carbon" ]] && [[ "$WRT_CONFIG" == IPQ95XX* ]]; then
 AD_DIR="./package/bcyyt/luci-app-adash"
 mkdir -p "$AD_DIR/files"
-cp "$GITHUB_WORKSPACE/Scripts/inject/adash.Makefile" "$AD_DIR/Makefile"
-for sf in adash-cgi carbon-bcyyt.js adash-ucid adash-sysctl.conf; do
-        cp "$GITHUB_WORKSPACE/Scripts/$sf" "$AD_DIR/files/$sf" || echo "adash: $sf missing"
-done
+if [ "$WRT_THEME" = "argon" ]; then
+        # Argon 线：完整版（原样还原 controller/view/fwmanager 页面件）
+        cp "$GITHUB_WORKSPACE/Scripts/inject/adash-full.Makefile" "$AD_DIR/Makefile"
+        for sf in adash-cgi adash-view.htm adash-controller.lua adash-ucid fwmanager-common-head.htm adash-sysctl.conf; do
+                cp "$GITHUB_WORKSPACE/Scripts/$sf" "$AD_DIR/files/$sf" || echo "adash: $sf missing"
+        done
+else
+        # Carbon 线：减配版（CGI+cron 后端 + 徽章层脚本，页面已裁撤）
+        cp "$GITHUB_WORKSPACE/Scripts/inject/adash.Makefile" "$AD_DIR/Makefile"
+        for sf in adash-cgi carbon-bcyyt.js adash-ucid adash-sysctl.conf; do
+                cp "$GITHUB_WORKSPACE/Scripts/$sf" "$AD_DIR/files/$sf" || echo "adash: $sf missing"
+        done
+fi
 WRT_ROOT=$PWD
 (cd "$AD_DIR" && make --no-print-directory -f Makefile TOPDIR="$WRT_ROOT" INCLUDE_DIR="$WRT_ROOT/include" -n >/dev/null 2>/tmp/ad_syntax.err) \
         && echo "adash Makefile syntax: OK" \

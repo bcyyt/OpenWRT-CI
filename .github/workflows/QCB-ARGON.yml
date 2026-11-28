@@ -9,14 +9,9 @@ on:
   #定时编译：每天北京时间 02:00（UTC 18:00，主力线排凌晨档首位）
   schedule:
     - cron: '0 18 * * *'
-  #push 触发（2026-11-24 启用；2026-11-28 修 branches 语法缺陷 ain]→[main]，
-  #此前 push 实际从未触发过，一直靠每日定时档）：Scripts 注入件变更即编译
-  push:
-    branches: [main]
-    paths:
-      - 'Scripts/**'
-      - '.github/workflows/QCB-ARGON.yml'
-      - '.github/workflows/WRT-CORE.yml'
+  #push 触发：2026-11-28 双线拆分后移交 QCB-CARBON 线（活跃迭代在 Carbon）；
+  #本线还原 Argon 主题原状，保留定时+手动触发。原 push 触发器自带 branches
+  #语法缺陷（缺左括号，从未真正生效过），随移交一并废除
   #手动编译
   workflow_dispatch:
     inputs:
@@ -42,8 +37,8 @@ jobs:
       #max-parallel: 3
       matrix:
         #IPQ95XX 全量线 + IPQ95XX-WIFI-NO 纯有线线（SBE1V1K 专用，无线栈全剥离）
-        #Carbon 主题版（2026-11-28 由 Argon 迁移）：界面=Carbon dashboard(PPE 第四环/
-        #CPU 3h-24h 曲线/IPv6 修复徽章层)；adash 减配为 CGI+cron 数据后端，页面已裁撤
+        #Argon 主题版：vantage 主题件（statusmon 仪表/zte-wifi 展示层注入/vantage
+        #三补丁）按 WRT_THEME 守卫自动缺席，本线只出 Argon 原生界面固件
         CONFIG: [IPQ95XX, IPQ95XX-WIFI-NO]
         SOURCE: [VIKINGYFY/immortalwrt]
         BRANCH: [owrt]
@@ -54,7 +49,7 @@ jobs:
       #编译配置
       WRT_CONFIG: ${{matrix.CONFIG}}
       #默认主题
-      WRT_THEME: carbon
+      WRT_THEME: argon
       #默认主机名
       WRT_NAME: OWRT
       #默认WIFI名称

@@ -40,9 +40,13 @@ define Build/Compile
 endef
 
 define Package/luci-theme-carbon/install
-# 整树拷贝: www(静态资源)/usr(模板+menu+acl+rpcd)/etc(uci-defaults 注册并设默认主题)
-# $(CP) 保留执行位(rpcd 脚本与 uci-defaults 须 0755)
-	$(CP) $(PKG_BUILD_DIR)/. $(1)/
+# 按顶层数据目录显式拷贝: $(1)(ipkg 根)位于 $(PKG_BUILD_DIR) 内, 整树
+# $(CP) $(PKG_BUILD_DIR)/. $(1)/ 会 "copy a directory into itself" 报错
+# (2026-11-28 run 46114139694 实测教训); $(CP)=-fpR 保留执行位(rpcd/uci-defaults 0755)
+	$(INSTALL_DIR) $(1)/etc $(1)/usr $(1)/www
+	$(CP) $(PKG_BUILD_DIR)/etc/. $(1)/etc/
+	$(CP) $(PKG_BUILD_DIR)/usr/. $(1)/usr/
+	$(CP) $(PKG_BUILD_DIR)/www/. $(1)/www/
 endef
 
 $(eval $(call BuildPackage,luci-theme-carbon))
