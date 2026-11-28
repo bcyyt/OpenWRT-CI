@@ -221,7 +221,11 @@ case "$WRT_CONFIG" in
         else
                 echo "CONFIG_PACKAGE_luci-app-adash=y" >> ./.config
         fi
-        echo "CONFIG_PACKAGE_zte-wifi=y" >> ./.config
+        # zte-wifi（2026-11-28 收窄）：仅 MEDIATEK 线保留编入；IPQ95XX 线已卸载
+        # zte mesh（实机 apk del zte-wifi + Config 剥离），按 WRT_CONFIG 门控跳过
+        if [[ "$WRT_CONFIG" = MEDIATEK-* ]]; then
+                echo "CONFIG_PACKAGE_zte-wifi=y" >> ./.config
+        fi
         # 2026-11-18: daed 全面接管代理，openclash 移出固件（运行时也可 apk del）
         ;;
   MEDIATEK-S20P-*)
@@ -230,9 +234,8 @@ case "$WRT_CONFIG" in
 esac
 
 #===IPQ95XX-WIFI-NO（SBE1V1K 纯有线线，2026-11-21）：完整剥离无线栈===
-#仪表盘保留（有线侧监控全功能）；2026-11-23: zte-wifi 改为编入——本机虽无无线，
-#但 ZTE mesh AP 经有线上联，守护走网络（ZXSLC）拉取 mesh 节点的无线客户端/拓扑，
-#纯有线线同样有数据；未配置 zte-wifi 时守护自动休眠无副作用
+#仪表盘保留（有线侧监控全功能）；zte-wifi 已于 2026-11-28 移除（曾于 11-23 编入
+#供 ZTE mesh 有线上联监控，实机卸载 zte mesh 后固件层同步剥离）
 case "$WRT_CONFIG" in
   IPQ95XX-WIFI-NO|LEDE-IPQ95XX-WIFI-NO)
         #2026-11-21: LEDE 纯有线线并入（无线剥离逻辑同源，lede ipq95xx.mk 设备定义与 owrt 一字不差）
@@ -243,7 +246,8 @@ case "$WRT_CONFIG" in
         elif [[ "$WRT_THEME" = "argon" || "$WRT_THEME" = "carbon" ]]; then
                 echo "CONFIG_PACKAGE_luci-app-adash=y" >> ./.config
         fi
-        echo "CONFIG_PACKAGE_zte-wifi=y" >> ./.config
+        # zte-wifi：2026-11-28 移除——IPQ95XX-WIFI-NO 与 LEDE 变体均属 SBE1V1K 线，
+        # zte mesh 已实机卸载，固件不再编入（守护无配置自动休眠的旧前提一并作废）
         #设备定义剥无线包：ath12k 固件 blob + 校准数据。
         #DEVICE_PACKAGES 是镜像级依赖，config 负选项拦不住，必须改 .mk；
         #保留风扇/LED/RTL8261 万兆 PHY 四件套

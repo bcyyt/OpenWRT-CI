@@ -1,0 +1,8 @@
+#!/bin/sh
+# Carbon 主题注册（uci.themes）+ 默认主题设为 Carbon
+uci -q batch <<'EOF'
+set luci.themes.Carbon='/luci-static/carbon'
+set luci.main.mediaurlbase='/luci-static/carbon'
+commit luci
+EOF
+exit 0

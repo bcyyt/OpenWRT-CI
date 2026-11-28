@@ -62,6 +62,20 @@ ARGON_CSS=./package/luci-theme-argon/htdocs/luci-static/argon/css/cascade.css
 @media (max-width:600px){ .login-page footer{pointer-events:none} }
 ARGON_FIX
 fi
+#===Carbon 主题（QCB-CARBON 线, 2026-11-28）：feed 已下架该主题,以实机验证版
+#(1.2.0-r1, SBE1V1K 全天实机回归过的文件集)静态注入成包——不 clone 不依赖外部源,
+#feed 滚动/上游删包不影响构建确定性; uci-defaults 注册主题并设默认 mediaurlbase;
+#Handles.sh 的 theme-carbon-badges FIX 构建期注入徽章载入行(menu-carbon 加载后)===
+if [ "$WRT_THEME" = "carbon" ]; then
+CB_DIR="./package/luci-theme-carbon"
+mkdir -p "$CB_DIR/files"
+cp -a "$GITHUB_WORKSPACE/Scripts/carbon-theme/." "$CB_DIR/files/"
+cp "$GITHUB_WORKSPACE/Scripts/inject/carbon.Makefile" "$CB_DIR/Makefile"
+WRT_ROOT=$PWD
+(cd "$CB_DIR" && make --no-print-directory -f Makefile TOPDIR="$WRT_ROOT" INCLUDE_DIR="$WRT_ROOT/include" -n >/dev/null 2>/tmp/cb_syntax.err) \
+        && echo "carbon Makefile syntax: OK" \
+        || { echo "carbon Makefile syntax FAILED:"; head -5 /tmp/cb_syntax.err; echo "FATAL: carbon 主题包 Makefile 语法错误，提前终止避免浪费整轮编译"; exit 1; }
+fi
 [ -f "$ARGON_CSS" ] && grep -q 'login-page footer{display:none' "$ARGON_CSS" && \
         echo "argon: 登录页手机键盘防遮挡 CSS 已追加（坑6）"
 UPDATE_PACKAGE "aurora" "eamonxg/luci-theme-aurora" "master"
