@@ -9,8 +9,8 @@ on:
   #定时编译：每天北京时间 02:00（UTC 18:00，主力线排凌晨档首位）
   schedule:
     - cron: '0 18 * * *'
-  #push 触发（2026-11-24）：adash 高频迭代期， Scripts 注入件（adash 仪表盘/
-  #conntrack 固化/注入包）变更即编译，无需等每日定时；主 workflow 文件变更也触发
+  #push 触发（2026-11-24 启用；2026-11-28 修 branches 语法缺陷 ain]→[main]，
+  #此前 push 实际从未触发过，一直靠每日定时档）：Scripts 注入件变更即编译
   push:
     branches: [main]
     paths:
@@ -42,8 +42,8 @@ jobs:
       #max-parallel: 3
       matrix:
         #IPQ95XX 全量线 + IPQ95XX-WIFI-NO 纯有线线（SBE1V1K 专用，无线栈全剥离）
-        #Argon 主题版：vantage 主题件（statusmon 仪表/zte-wifi 展示层注入/vantage
-        #三补丁）按 WRT_THEME 守卫自动缺席，本线只出 Argon 原生界面固件
+        #Carbon 主题版（2026-11-28 由 Argon 迁移）：界面=Carbon dashboard(PPE 第四环/
+        #CPU 3h-24h 曲线/IPv6 修复徽章层)；adash 减配为 CGI+cron 数据后端，页面已裁撤
         CONFIG: [IPQ95XX, IPQ95XX-WIFI-NO]
         SOURCE: [VIKINGYFY/immortalwrt]
         BRANCH: [owrt]
@@ -54,7 +54,7 @@ jobs:
       #编译配置
       WRT_CONFIG: ${{matrix.CONFIG}}
       #默认主题
-      WRT_THEME: argon
+      WRT_THEME: carbon
       #默认主机名
       WRT_NAME: OWRT
       #默认WIFI名称

@@ -37,6 +37,19 @@ FIX "theme-vantage" "$PACKAGE_PATH/luci-theme-vantage" sed -i \
         -e '/^\/\* progress bars: thin track/,$ { /^\.cbi-progressbar::before {/,/^}/ { s/^[[:space:]]*font: 500 var(--fs-micro)\/1\.2 var(--mono);/\tfont: inherit; line-height: normal;/; } }' \
         "$PACKAGE_PATH/luci-theme-vantage/luci-theme-vantage/htdocs/luci-static/vantage/vantage.css"
 
+#Carbon 徽章层注入（2026-11-28 QCB-CARBON 线）：footer.ut 追加 carbon-bcyyt.js 载入行
+#幂等: 已含 bcyyt 标记则跳过; 无 menu-carbon 行的异版不误伤。
+#注: FIX 的命令由当前 shell 展开参数(同既有 argon FIX 模式), bash -c 脚本串里
+#不引用 shell 变量——路径在调用点用 find 定位后经 < 传入, 避免子进程变量丢失
+FIX "theme-carbon-badges" "$PACKAGE_PATH/luci-theme-carbon" bash -c '
+        FT=$(find "$1" -name footer.ut -path "*carbon*" | head -1)
+        [ -f "$FT" ] || exit 1
+        grep -q carbon-bcyyt "$FT" && exit 0
+        grep -q "L.require(.menu-carbon.)" "$FT" || exit 1
+        sed -i "/L.require(.menu-carbon.)/a\\t\t<script src=\"/luci-static/resources/carbon-bcyyt.js\"></script> <!-- bcyyt badges -->" "$FT"
+' _ "$PACKAGE_PATH/luci-theme-carbon"
+# 清理: argon FIX 守卫目录 $PACKAGE_PATH/luci-theme-argon 在 carbon 线不存在, 自动跳过
+
 #statusfw 快捷方式条注入 Vantage 仪表盘（网格下方独立区块，不参与 tile 布局）
 FIX "vantage-statusfw-shortcuts" "$PACKAGE_PATH/luci-theme-vantage" python3 \
         "$GITHUB_WORKSPACE/Scripts/vantage-shortcuts-patch.py" \

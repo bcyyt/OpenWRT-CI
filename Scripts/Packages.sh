@@ -46,6 +46,9 @@ UPDATE_PACKAGE() {
 # UPDATE_PACKAGE "open-app-filter" "destan19/OpenAppFilter" "master" "" "luci-app-appfilter oaf" 这样会把原有的open-app-filter，luci-app-appfilter，oaf相关组件删除，不会出现coremark错误。
 
 # UPDATE_PACKAGE "包名" "项目地址" "项目分支" "pkg，可选，从大杂烩中单独提取包名插件"
+# 2026-11-28: QCB 线主题切 Carbon（官方 luci feed 自带），Argon 下载与登录页
+# CSS 修复仅在 argon 线守卫执行；carbon 线跳过（Handles.sh 的 argon FIX 亦自动缺席）
+if [ "$WRT_THEME" = "argon" ]; then
 UPDATE_PACKAGE "argon" "sbwml/luci-theme-argon" "openwrt-25.12"
 #===argon 登录页手机键盘弹起防遮挡（2026-11-27 SBE1V1K 实机验证，详 TROUBLESHOOTING.md 坑6）===
 #根因: 登录页 footer absolute bottom:0, Android 键盘弹起压缩视口时压住密码框;
@@ -58,6 +61,7 @@ ARGON_CSS=./package/luci-theme-argon/htdocs/luci-static/argon/css/cascade.css
 @media (max-width:600px) and (max-height:520px){ .login-page footer{display:none!important} }
 @media (max-width:600px){ .login-page footer{pointer-events:none} }
 ARGON_FIX
+fi
 [ -f "$ARGON_CSS" ] && grep -q 'login-page footer{display:none' "$ARGON_CSS" && \
         echo "argon: 登录页手机键盘防遮挡 CSS 已追加（坑6）"
 UPDATE_PACKAGE "aurora" "eamonxg/luci-theme-aurora" "master"
@@ -415,14 +419,15 @@ WRT_ROOT=$PWD
         && echo "statusmon-dash Makefile syntax: OK" \
         || { echo "statusmon-dash Makefile syntax FAILED:"; head -5 /tmp/smd_syntax.err; }
 
-#===luci-app-adash（QCB-ARGON 线专用：低 CPU 仪表盘，Argon 主题）===
-# fork statusmon-dash：无常驻 worker；conntrack/PPE 视图驱动缓存；cron(1/min) 仅
-# nft 计数累计+sys_hist 采样。与 vantage 的 statusmon 注入主题互斥，不共存
-if [ "$WRT_THEME" = "argon" ] && [[ "$WRT_CONFIG" == IPQ95XX* ]]; then
+#===luci-app-adash（QCB 线：PPE/CPU 曲线数据后端 + Carbon 徽章层，2026-11-28 减配）===
+# 页面已裁撤（controller/view 不装）；保留 CGI+cron 数据端点喂 Carbon 徽章
+# （PPE 第四环/绑定明细/CPU 3h-24h 曲线/IPv6 修复, Scripts/carbon-bcyyt.js）
+# 与 vantage 的 statusmon 注入主题互斥，不共存
+if [[ "$WRT_THEME" = "argon" || "$WRT_THEME" = "carbon" ]] && [[ "$WRT_CONFIG" == IPQ95XX* ]]; then
 AD_DIR="./package/bcyyt/luci-app-adash"
 mkdir -p "$AD_DIR/files"
 cp "$GITHUB_WORKSPACE/Scripts/inject/adash.Makefile" "$AD_DIR/Makefile"
-for sf in adash-cgi adash-view.htm adash-controller.lua adash-ucid fwmanager-common-head.htm adash-sysctl.conf; do
+for sf in adash-cgi carbon-bcyyt.js adash-ucid adash-sysctl.conf; do
         cp "$GITHUB_WORKSPACE/Scripts/$sf" "$AD_DIR/files/$sf" || echo "adash: $sf missing"
 done
 WRT_ROOT=$PWD

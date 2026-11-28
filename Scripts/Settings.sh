@@ -199,8 +199,12 @@ chmod +x ./package/base-files/files/usr/bin/daed-routing-tune
 echo "CONFIG_PACKAGE_luci=y" >> ./.config
 echo "CONFIG_LUCI_LANG_zh_Hans=y" >> ./.config
 echo "CONFIG_PACKAGE_luci-theme-$WRT_THEME=y" >> ./.config
+# luci-app-<theme>/-config 仅对有配套 app 的主题有效(argon/vantage);
+# carbon(2026-11-28 起 QCB 线)官方 feed 无对应 app 包, 盲写为无效 CONFIG 行
+if [ "$WRT_THEME" != "carbon" ]; then
 echo "CONFIG_PACKAGE_luci-app-$WRT_THEME=y" >> ./.config
 echo "CONFIG_PACKAGE_luci-app-$WRT_THEME-config=y" >> ./.config
+fi
 
 #===仪表盘/代理运行时包固化（2026-11-17）：原依赖 workflow_dispatch 手动输入 PACKAGE，不输入即丢失===
 # 仅 MEDIATEK-WIFI-*（VIKINGYFY 源，无 statusfw）；2026-11-21: IPQ95XX（SBE1V1K）线并入
@@ -210,11 +214,12 @@ echo "CONFIG_PACKAGE_luci-app-$WRT_THEME-config=y" >> ./.config
 case "$WRT_CONFIG" in
   MEDIATEK-WIFI-*|IPQ95XX)
         # adash（2026-11-24）：IPQ95XX 按主题分流——vantage 走 statusmon 后端，
-        # argon（QCB-ARGON 线）走 luci-app-adash 低 CPU 仪表盘（无常驻采样）
-        if [ "$WRT_THEME" = "argon" ]; then
-                echo "CONFIG_PACKAGE_luci-app-adash=y" >> ./.config
-        else
+        # argon/carbon（QCB 线）走 luci-app-adash（2026-11-28 减配：CGI+cron 后端
+        # + Carbon 徽章层，页面已裁撤，无常驻采样）
+        if [ "$WRT_THEME" = "vantage" ]; then
                 echo "CONFIG_PACKAGE_luci-app-statusmon=y" >> ./.config
+        else
+                echo "CONFIG_PACKAGE_luci-app-adash=y" >> ./.config
         fi
         echo "CONFIG_PACKAGE_zte-wifi=y" >> ./.config
         # 2026-11-18: daed 全面接管代理，openclash 移出固件（运行时也可 apk del）
@@ -235,7 +240,7 @@ case "$WRT_CONFIG" in
         #2026-11-24: argon 主题（QCB-ARGON 线）→ luci-app-adash 低 CPU 仪表盘
         if [ "$WRT_THEME" = "vantage" ]; then
                 echo "CONFIG_PACKAGE_luci-app-statusmon=y" >> ./.config
-        elif [ "$WRT_THEME" = "argon" ]; then
+        elif [[ "$WRT_THEME" = "argon" || "$WRT_THEME" = "carbon" ]]; then
                 echo "CONFIG_PACKAGE_luci-app-adash=y" >> ./.config
         fi
         echo "CONFIG_PACKAGE_zte-wifi=y" >> ./.config
