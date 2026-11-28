@@ -1,4 +1,6 @@
-/* carbon-bcyyt v3.2 — PPE 环+明细 / IPv6 完整显示 / CPU 环点击历史曲线
+/* carbon-bcyyt v3.3 — PPE 环+明细 / IPv6 完整显示 / CPU 环点击历史曲线
+ * v3.3: 删「PPE 条目 v4/v6」行——IPQ95XX 条目分布与绑定数值恒等(实机 42/0
+ *       两行重复), 按需求只留绑定行
  * v3.2: PPE 明细行口径修正——表项改"占用/容量"(152/4096)对齐环副标;
  *       v4/v6 正名为条目分布, 新增真绑定明细 bv4/bv6(用户实机反馈)
  * v3.1: 非概览页静默自毁(修跨页污染弹标 bug, 2026-11-28 实机)
@@ -125,10 +127,9 @@
 				rows.push(['PPE 表项',
 					q0.t + ' / ' + cap + ' (' + Math.round(q0.t / cap * 100) + '%)' +
 					(q.ppe1 && q.ppe1.t ? '  (+PPE1 ' + q.ppe1.t + '/' + cap + ')' : '')]);
-				/* v4/v6 = 条目的 IPv4/IPv6 分布(CGI a0/b0); bv4/bv6 才是绑定明细(ba0/bb0) */
-				rows.push(['PPE 条目 v4 / v6', q0.v4 + ' / ' + q0.v6]);
-				if (q0.bv4 || q0.bv6)
-					rows.push(['PPE 绑定 v4 / v6', q0.bv4 + ' / ' + q0.bv6]);
+				/* 绑定 v4/v6(bv4/bv6=CGI ba0/bb0)。条目分布(v4/v6=a0/b0)与绑定在
+				 * IPQ95XX 数值恒等(2026-11-28 实机 42/0 双行重复), 按需求删除条目行 */
+				rows.push(['PPE 绑定 v4 / v6', q0.bv4 + ' / ' + q0.bv6]);
 			}
 			if (q.host && q.host.c) rows.push(['Host 表占用', q.host.a + ' / ' + q.host.c + ' (' + Math.round(q.host.a / q.host.c * 100) + '%)']);
 			if (q.nh && q.nh.c) rows.push(['下一跳表占用', q.nh.a + ' / ' + q.nh.c + ' (' + Math.round(q.nh.a / q.nh.c * 100) + '%)']);
