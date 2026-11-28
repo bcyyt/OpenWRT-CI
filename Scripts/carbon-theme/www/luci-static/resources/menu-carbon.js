@@ -134,6 +134,9 @@ const provider = {
 		return meminfo ? Object.assign({}, r, meminfo) : r;
 	}),
 	cpuStat: () => fs.read('/proc/stat'),
+	/* /proc/net/dev 全量一次读回(所有设备同时间戳), 接口速率行用 —
+	 * 保证 br-lan/wan 等所有接口同一时刻差分, 刷新完全同步 */
+	netDevAll: () => fs.read('/proc/net/dev').then((t) => (t && t.indexOf('bytes') >= 0) ? t : null),
 	interfaces: () => callIfaces().then((r) => (Array.isArray(r) && r.length) ? r : null),
 	devStats: (dev, alt) => fs.read('/proc/net/dev').then((text) => {
 		/* 2026-11-28 实机二修: 测速洪峰下 ubus RPC 阻塞数秒 → De() 差分窗口
