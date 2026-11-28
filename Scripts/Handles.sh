@@ -45,8 +45,9 @@ FIX "theme-carbon-badges" "$PACKAGE_PATH/luci-theme-carbon" bash -c '
         FT=$(find "$1" -name footer.ut -path "*carbon*" | head -1)
         [ -f "$FT" ] || exit 1
         grep -q carbon-bcyyt "$FT" && exit 0
-        grep -q "L.require(.menu-carbon.)" "$FT" || exit 1
-        sed -i "/L.require(.menu-carbon.)/a\\t\t<script src=\"/luci-static/resources/carbon-bcyyt.js\"></script> <!-- bcyyt badges -->" "$FT"
+        # footer 2026-11-28 改版本化 mc_name 后 require 行形态二选一, 都认
+        grep -qE "L.require\((.menu-carbon.|.)\{\{ mc_name \}\}.\)" "$FT" || exit 1
+        sed -i "/<script>L.require/a\\t\t<script src=\"/luci-static/resources/carbon-bcyyt.js\"></script> <!-- bcyyt badges -->" "$FT"
 ' _ "$PACKAGE_PATH/luci-theme-carbon"
 # 清理: argon FIX 守卫目录 $PACKAGE_PATH/luci-theme-argon 在 carbon 线不存在, 自动跳过
 

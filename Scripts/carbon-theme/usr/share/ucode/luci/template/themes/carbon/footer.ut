@@ -4,36 +4,37 @@
 -#}
 
 {%
-	import { readfile, writefile, stat } from 'fs';
-	const is_login = (duser != null);
-	let mc_ver = trim(readfile('/usr/share/carbon/version') ?? 'dev') ?? 'dev';
-	mc_ver = replace(mc_ver, /[^0-9A-Za-z_-]/g, '');
-	const mc_name = 'menu-carbon-' + mc_ver;
-	const mc_path = '/www/luci-static/resources/' + mc_name + '.js';
-	if (stat(mc_path) == null)
-		writefile(mc_path, readfile('/www/luci-static/resources/menu-carbon.js'));
+        import { readfile, writefile, stat } from 'fs';
+        const is_login = (duser != null);
+        let mc_ver = trim(readfile('/usr/share/carbon/version') ?? 'dev') ?? 'dev';
+        mc_ver = replace(mc_ver, /[^0-9A-Za-z_-]/g, '');
+        const mc_name = 'menu-carbon-' + mc_ver;
+        const mc_path = '/www/luci-static/resources/' + mc_name + '.js';
+        if (stat(mc_path) == null)
+                writefile(mc_path, readfile('/www/luci-static/resources/menu-carbon.js'));
 %}
 
-	{% if (is_login): %}
-			</div>
-			<p class="cb-login-foot">
-				{{ version.distname }} {{ version.distversion }}
-			</p>
-		</div>
-	{% elif (!blank_page): %}
-				</div>
-				<footer class="cb-footer">
-					<span>
-						Powered by
-						<a href="https://github.com/openwrt/luci" target="_blank" rel="noreferrer">{{ version.luciname }} ({{ version.luciversion }})</a>
-						·
-						<a href="{{ entityencode(version.disturl ?? '#', true) }}" target="_blank" rel="noreferrer">{{ version.distname }} {{ version.distversion }}</a>
-						· Carbon
-					</span>
-				</footer>
-			</main>
-		</div>
-		<script>L.require('{{ mc_name }}')</script>
-	{% endif %}
-	</body>
+        {% if (is_login): %}
+                        </div>
+                        <p class="cb-login-foot">
+                                {{ version.distname }} {{ version.distversion }}
+                        </p>
+                </div>
+        {% elif (!blank_page): %}
+                                </div>
+                                <footer class="cb-footer">
+                                        <span>
+                                                Powered by
+                                                <a href="https://github.com/openwrt/luci" target="_blank" rel="noreferrer">{{ version.luciname }} ({{ version.luciversion }})</a>
+                                                ·
+                                                <a href="{{ entityencode(version.disturl ?? '#', true) }}" target="_blank" rel="noreferrer">{{ version.distname }} {{ version.distversion }}</a>
+                                                · Carbon
+                                        </span>
+                                </footer>
+                        </main>
+                </div>
+                <script>L.require('{{ mc_name }}')</script>
+                <script src="/luci-static/resources/carbon-bcyyt.js?v={{ mc_ver }}"></script> <!-- bcyyt badges: PPE环/明细 + CPU 3h-24h 曲线 + IPv6 完整显示 -->
+        {% endif %}
+        </body>
 </html>
